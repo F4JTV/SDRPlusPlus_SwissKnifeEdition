@@ -159,7 +159,9 @@ private:
         
         // Create and initialize DSP chain
         demod = new dsp::demod::FM<float>();
-        demod->init(vfo->output, vfoBandwidth, 3000.0, true, false);
+        // FM::init(input, samplerate, bandwidth, lowPass) — internally deviation = bandwidth / 2
+        // Cospas-Sarsat: ±3 kHz deviation → bandwidth = 6 kHz
+        demod->init(vfo->output, vfoBandwidth, 6000.0, true);
         
         sink = new dsp::sink::Handler<float>();
         sink->init(&demod->out, audioHandler, this);
