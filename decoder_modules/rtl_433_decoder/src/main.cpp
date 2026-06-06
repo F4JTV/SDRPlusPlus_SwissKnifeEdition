@@ -38,6 +38,36 @@ SDRPP_MOD_INFO{
 
 ConfigManager config;
 
+// Sanitize the version string returned by librtl_433.
+//
+// When the rtl_433 source tree was built without accessible git tags (a shallow
+// clone, a fork without --tags fetched, etc.), CMake fails to determine the
+// version and substitutes "NOTFOUND" into the generated version.h. The library
+// then returns a string like:
+//   "rtl_433 version -128-NOTFOUND branch master at ... inputs ..."
+//
+// We detect that case and replace the malformed version token with "(unknown)"
+// so the UI shows e.g.:
+//   "rtl_433 version (unknown) branch master at ... inputs ..."
+// regardless of how the upstream tree was cloned. Purely cosmetic; the decode
+// pipeline is unaffected.
+static std::string sanitizeVersion(const std::string& raw) {
+    auto notFoundPos = raw.find("NOTFOUND");
+    if (notFoundPos == std::string::npos) { return raw; }
+    const std::string head = "version ";
+    auto verStart = raw.find(head);
+    if (verStart == std::string::npos) { return raw; }
+    auto tokStart = verStart + head.size();
+    auto tokEnd = raw.find(' ', tokStart);
+    if (tokEnd == std::string::npos) { tokEnd = raw.size(); }
+    // Only sanitize if NOTFOUND is actually inside the version token, to
+    // avoid corrupting strings where NOTFOUND happens to appear elsewhere.
+    if (notFoundPos < tokStart || notFoundPos >= tokEnd) { return raw; }
+    std::string v = raw;
+    v.replace(tokStart, tokEnd - tokStart, "(unknown)");
+    return v;
+}
+
 class RTL433BridgeModule : public ModuleManager::Instance {
 public:
     RTL433BridgeModule(std::string name) {
@@ -55,7 +85,7 @@ public:
         dsp.setLevels(minLevelDb, minSnrDb);
 
         protoCount = dsp.getRadio().protocolCount();
-        rtlVersion = rtl433br::RTL433::version();
+        rtlVersion = sanitizeVersion(rtl433br::RTL433::version());
 
         dsp.start();
         enabled = true;
