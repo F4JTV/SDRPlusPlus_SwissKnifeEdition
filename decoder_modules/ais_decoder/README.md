@@ -144,11 +144,11 @@ server (`ais_test_server.py`) is provided alongside this module.
 
 ```bash
 # Quick local test (prints each line, labelled by client):
-python3 ais_test_server.py 10110
+python3 ais_test_server.py 10100
 ```
 
 Then point the module's TCP output to the server's IP and port (e.g.
-`127.0.0.1:10110`).
+`127.0.0.1:10100`).
 
 > Tip: `nc -l` (and even `nc -k -l`) only relays one connection's output to the
 > terminal at a time, so it is not a reliable way to test two module instances.

@@ -526,7 +526,7 @@ private:
     // TCP output
     TCPSender sender;
     char hostBuf[128] = "127.0.0.1";
-    int port = 10110;            // common AIS/NMEA-over-TCP default
+    int port = 10100;
     bool tcpEnabled = true;
     bool showContactsWindow = false;
 
