@@ -1,37 +1,140 @@
 cmake_minimum_required(VERSION 3.13)
 project(dab_decoder)
 
-file(GLOB_RECURSE SRC "src/*.cpp" "src/*.c")
+# ===========================================================================
+# SDR++ DAB / DAB+ Decoder Module
+#
+# This module embeds welle.io's mature DAB/DAB+ backend (GPL-2 compatible).
+# The backend is expected to be available as a git submodule at:
+#   decoder_modules/dab_decoder/welle.io/
+#
+# To populate it inside a fresh SDR++ checkout:
+#   cd decoder_modules/dab_decoder
+#   git clone --depth 1 https://github.com/AlbrechtL/welle.io.git
+#
+# (or wire it as a real submodule from SDR++'s root if you fork the repo)
+#
+# Dependencies:
+#   - libfaad2  (HE-AAC v2 decoder for DAB+)
+#   - libmpg123 (MP2/MPEG-1 Layer II decoder for DAB legacy)
+#   - libfftw3f (OFDM FFT)
+#   - libfec    (Reed-Solomon) is vendored inside welle.io/src/libs/fec
+#
+# Ubuntu 24:  sudo apt install libfaad-dev libmpg123-dev libfftw3-dev
+# ===========================================================================
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# --- Module source files (SDR++ side) --------------------------------------
+# sdrpp_module.cmake expects ${SRC} to hold the list of source files.
+file(GLOB SRC "src/*.cpp" "src/*.c")
+
+# --- welle.io backend location ---------------------------------------------
+set(WELLE_IO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/welle.io" CACHE PATH "Path to welle.io source tree")
+
+if(NOT EXISTS "${WELLE_IO_DIR}/src/backend/radio-receiver.h")
+    message(FATAL_ERROR
+        "welle.io backend not found at ${WELLE_IO_DIR}\n"
+        "Please run inside decoder_modules/dab_decoder/:\n"
+        "  git clone --depth 1 https://github.com/AlbrechtL/welle.io.git")
+endif()
+
+# welle.io backend sources (verbatim list, matching welle.io's own CMakeLists.txt)
+set(WELLE_BACKEND_SRC
+    "${WELLE_IO_DIR}/src/backend/dab-audio.cpp"
+    "${WELLE_IO_DIR}/src/backend/decoder_adapter.cpp"
+    "${WELLE_IO_DIR}/src/backend/dab_decoder.cpp"
+    "${WELLE_IO_DIR}/src/backend/dabplus_decoder.cpp"
+    "${WELLE_IO_DIR}/src/backend/charsets.cpp"
+    "${WELLE_IO_DIR}/src/backend/dab-constants.cpp"
+    "${WELLE_IO_DIR}/src/backend/mot_manager.cpp"
+    "${WELLE_IO_DIR}/src/backend/pad_decoder.cpp"
+    "${WELLE_IO_DIR}/src/backend/eep-protection.cpp"
+    "${WELLE_IO_DIR}/src/backend/fib-processor.cpp"
+    "${WELLE_IO_DIR}/src/backend/fic-handler.cpp"
+    "${WELLE_IO_DIR}/src/backend/msc-handler.cpp"
+    "${WELLE_IO_DIR}/src/backend/freq-interleaver.cpp"
+    "${WELLE_IO_DIR}/src/backend/ofdm-decoder.cpp"
+    "${WELLE_IO_DIR}/src/backend/ofdm-processor.cpp"
+    "${WELLE_IO_DIR}/src/backend/phasereference.cpp"
+    "${WELLE_IO_DIR}/src/backend/phasetable.cpp"
+    "${WELLE_IO_DIR}/src/backend/tii-decoder.cpp"
+    "${WELLE_IO_DIR}/src/backend/protTables.cpp"
+    "${WELLE_IO_DIR}/src/backend/radio-receiver.cpp"
+    "${WELLE_IO_DIR}/src/backend/tools.cpp"
+    "${WELLE_IO_DIR}/src/backend/uep-protection.cpp"
+    "${WELLE_IO_DIR}/src/backend/viterbi.cpp"
+)
+
+# welle.io "various" helpers used by the backend
+set(WELLE_VARIOUS_SRC
+    "${WELLE_IO_DIR}/src/various/Xtan2.cpp"
+    "${WELLE_IO_DIR}/src/various/channels.cpp"
+    "${WELLE_IO_DIR}/src/various/fft.cpp"
+)
+
+# Bundled Reed-Solomon (welle.io/src/libs/fec)
+set(WELLE_FEC_SRC
+    "${WELLE_IO_DIR}/src/libs/fec/decode_rs_char.c"
+    "${WELLE_IO_DIR}/src/libs/fec/encode_rs_char.c"
+    "${WELLE_IO_DIR}/src/libs/fec/init_rs_char.c"
+)
+
+# --- Glue the whole thing into the SDR++ module ----------------------------
+# include(${SDRPP_MODULE_CMAKE}) creates a 'dab_decoder' shared library target
+# with the right link/install rules for the SDR++ plugin directory.
 include(${SDRPP_MODULE_CMAKE})
 
-target_include_directories(dab_decoder PRIVATE "src/")
+# Append the welle.io sources to the target sources
+target_sources(dab_decoder PRIVATE
+    ${WELLE_BACKEND_SRC}
+    ${WELLE_VARIOUS_SRC}
+    ${WELLE_FEC_SRC}
+)
 
-if (MSVC)
-    # Lib path
-    target_include_directories(dab_decoder PRIVATE "C:/Program Files/codec2/include/")
-    target_link_directories(dab_decoder PRIVATE "C:/Program Files/codec2/lib")
+target_include_directories(dab_decoder PRIVATE
+    "src/"
+    "${WELLE_IO_DIR}/src/"
+    "${WELLE_IO_DIR}/src/backend"
+    "${WELLE_IO_DIR}/src/various"
+    "${WELLE_IO_DIR}/src/input"
+    "${WELLE_IO_DIR}/src/libs/fec"
+)
 
-    target_link_libraries(dab_decoder PRIVATE libcodec2)
-elseif (ANDROID)
-    target_include_directories(dab_decoder PUBLIC
-        /sdr-kit/${ANDROID_ABI}/include/codec2
-    )
+# welle.io's dab-audio.cpp expects either DABLIN_AAC_FAAD2 or DABLIN_AAC_FDKAAC.
+# We pick FAAD2 which is what welle.io's own CMake defaults to.
+target_compile_definitions(dab_decoder PRIVATE DABLIN_AAC_FAAD2)
 
-    target_link_libraries(dab_decoder PUBLIC
-        /sdr-kit/${ANDROID_ABI}/lib/libcodec2.so
-    )
-else ()
-    find_package(PkgConfig)
+# --- Platform-specific dependency wiring -----------------------------------
+# Linux / macOS — pkg-config
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(FAAD2 REQUIRED faad2)
+pkg_check_modules(MPG123 REQUIRED libmpg123)
+pkg_check_modules(FFTW3F REQUIRED fftw3f)
 
-    pkg_check_modules(LIBCODEC2 REQUIRED codec2)
-
-    target_include_directories(dab_decoder PRIVATE ${LIBCODEC2_INCLUDE_DIRS})
-    target_link_directories(dab_decoder PRIVATE ${LIBCODEC2_LIBRARY_DIRS})
-    target_link_libraries(dab_decoder PRIVATE ${LIBCODEC2_LIBRARIES})
-
-    # Include it because for some reason pkgconfig doesn't look here?
-    if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-        target_include_directories(dab_decoder PRIVATE "/usr/local/include")
-    endif()
-endif ()
+target_include_directories(dab_decoder PRIVATE
+    ${FAAD2_INCLUDE_DIRS}
+    ${MPG123_INCLUDE_DIRS}
+    ${FFTW3F_INCLUDE_DIRS}
+)
+target_link_directories(dab_decoder PRIVATE
+    ${FAAD2_LIBRARY_DIRS}
+    ${MPG123_LIBRARY_DIRS}
+    ${FFTW3F_LIBRARY_DIRS}
+)
+target_link_libraries(dab_decoder PRIVATE
+    ${FAAD2_LIBRARIES}
+    ${MPG123_LIBRARIES}
+    ${FFTW3F_LIBRARIES}
+    pthread
+)
+target_compile_options(dab_decoder PRIVATE
+    -O3
+    -Wno-unused-parameter
+    -Wno-unused-variable
+    -Wno-unused-but-set-variable
+    -Wno-sign-compare
+    -Wno-reorder
+    -Wno-deprecated-declarations
+)
