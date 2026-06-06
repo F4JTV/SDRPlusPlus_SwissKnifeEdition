@@ -1,0 +1,482 @@
+/* =========================================================================
+   ADRASEC 06 · SDR MAP — thème « console d'opérations »
+   Fond très sombre, typo technique IBM Plex, accents nets par type de signal.
+   ========================================================================= */
+
+:root {
+  --bg:        #070b12;
+  --bg-grid:   rgba(120, 150, 190, 0.05);
+  --panel:     rgba(13, 19, 30, 0.86);
+  --panel-bd:  rgba(120, 160, 210, 0.18);
+  --ink:       #d7e3f4;
+  --ink-dim:   #7f93ad;
+  --ink-faint: #4d5d72;
+
+  /* Marker colours by signal type. The default palette is tuned for DARK
+     basemaps (cyan/amber/etc. stay vivid). For LIGHT basemaps we override
+     these via body.light-bg below with deeper, more saturated shades so the
+     markers still pop on white-ish tiles. */
+  --c-ais:    #22d3ee;   /* cyan, ships          */
+  --c-adsb:   #f6a609;   /* amber, aircraft      */
+  --c-aprs:   #34d399;   /* green, APRS          */
+  --c-meteo:  #a78bfa;   /* purple, APRS weather */
+  --c-lrrp:   #f472b6;   /* magenta, LRRP/DMR    */
+  --c-sonde:  #facc15;   /* yellow, radiosonde   */
+  --c-tetra:  #fb923c;   /* orange, TETRA radios */
+  --c-accent: #ff4d6d;   /* red, ops/distress    */
+  --c-aton:   #fbbf24;   /* AtoN diamond (yellow)*/
+  --c-coast:  #34d399;   /* coast station        */
+
+  --shadow: 0 10px 40px rgba(0, 0, 0, 0.55);
+  --radius: 12px;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Palette swap when a LIGHT basemap is active (toggled from JS by adding
+   `light-bg` to <body> in the baselayerchange handler). Deeper, more
+   saturated colours so each type stays clearly visible on white tiles. */
+body.light-bg {
+  --c-ais:    #0e7490;   /* deep cyan / teal     */
+  --c-adsb:   #b45309;   /* burnt amber          */
+  --c-aprs:   #047857;   /* forest green         */
+  --c-meteo:  #6d28d9;   /* deep violet          */
+  --c-lrrp:   #be185d;   /* deep magenta         */
+  --c-sonde:  #a16207;   /* dark mustard yellow  */
+  --c-tetra:  #c2410c;   /* deeper orange        */
+  --c-accent: #b91c1c;   /* darker red           */
+  --c-aton:   #b45309;   /* darker yellow for diamond */
+  --c-coast:  #047857;   /* dark green           */
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  overflow: hidden;
+}
+
+#map {
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(var(--bg-grid) 1px, transparent 1px) 0 0 / 28px 28px,
+    linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px) 0 0 / 28px 28px,
+    var(--bg);
+}
+
+/* Atténue/teinte les tuiles claires pour cohérence avec l'ambiance sombre.
+   (Retirez ce filtre si vous préférez les fonds en couleurs natives.) */
+/* Pas de filtre global sur les tuiles : chaque fond garde ses couleurs
+   natives (sombre, clair, satellite, plan). Le contraste des marqueurs est
+   assuré par le halo blanc des glyphes (.sdr-marker .glyph). */
+
+/* ----------------------------- Barre supérieure ------------------------- */
+.topbar {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 1200;
+  height: 52px; display: flex; align-items: center; gap: 22px;
+  padding: 0 18px;
+  background: linear-gradient(180deg, rgba(7,11,18,0.96), rgba(7,11,18,0.72));
+  border-bottom: 1px solid var(--panel-bd);
+  backdrop-filter: blur(8px);
+}
+.brand { display: flex; align-items: baseline; gap: 8px; }
+.brand-mark { color: var(--c-accent); font-size: 14px; transform: translateY(-1px); }
+.brand-name { font-weight: 700; letter-spacing: 0.14em; }
+.brand-sub {
+  font-family: var(--mono); font-size: 12px; color: var(--ink-dim);
+  letter-spacing: 0.28em; padding: 2px 7px; border: 1px solid var(--panel-bd);
+  border-radius: 5px;
+}
+.stats { display: flex; gap: 16px; font-family: var(--mono); font-size: 12.5px; }
+.stat { color: var(--ink-dim); letter-spacing: 0.04em; white-space: nowrap; }
+.stat b { color: var(--ink); font-weight: 600; }
+.stat[data-type="AIS"] b   { color: var(--c-ais); }
+.stat[data-type="ADSB"] b  { color: var(--c-adsb); }
+.stat[data-type="APRS"] b  { color: var(--c-aprs); }
+.stat[data-type="APRS Meteo"] b { color: var(--c-meteo); }
+.stat[data-type="lrrp"] b  { color: var(--c-lrrp); }
+.stat[data-type="radiosonde"] b { color: var(--c-sonde); }
+.stat[data-type="TETRA"] b { color: var(--c-tetra); }
+
+/* Bouton « Effacer la carte » dans la barre supérieure */
+.topbar-btn {
+  margin-left: 14px; cursor: pointer; white-space: nowrap;
+  font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.05em;
+  color: var(--ink-dim); background: rgba(255,255,255,0.04);
+  border: 1px solid var(--panel-bd); border-radius: 7px; padding: 6px 11px;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.topbar-btn:hover {
+  color: #fff; border-color: var(--c-accent); background: var(--c-accent);
+}
+.topbar-btn:active { transform: translateY(1px); }
+
+.link {
+  margin-left: auto; display: flex; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 12px; color: var(--ink-dim);
+  letter-spacing: 0.06em;
+}
+.link .dot {
+  width: 9px; height: 9px; border-radius: 50%; background: var(--ink-faint);
+  box-shadow: 0 0 0 0 rgba(52,211,153,0.5);
+}
+.link.online .dot {
+  background: var(--c-aprs);
+  animation: pulse 2s infinite;
+}
+.link.offline .dot { background: var(--c-accent); }
+@keyframes pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(52,211,153,0.45); }
+  70%  { box-shadow: 0 0 0 7px rgba(52,211,153,0); }
+  100% { box-shadow: 0 0 0 0 rgba(52,211,153,0); }
+}
+
+/* ------------------------------- Panneau -------------------------------- */
+.panel {
+  position: absolute; top: 68px; left: 14px; z-index: 1200;
+  width: 268px; padding: 14px;
+  background: var(--panel); border: 1px solid var(--panel-bd);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+.panel.collapsed { transform: translateX(-300px); opacity: 0; }
+.panel-toggle {
+  position: absolute; top: 10px; right: -34px;
+  width: 30px; height: 38px; cursor: pointer;
+  background: var(--panel); color: var(--ink-dim);
+  border: 1px solid var(--panel-bd); border-left: none;
+  border-radius: 0 8px 8px 0; font-size: 15px;
+}
+.panel.collapsed .panel-toggle { transform: rotate(180deg) translateY(-2px); }
+
+.panel-block { margin-bottom: 16px; }
+.panel-block h2 {
+  margin: 0 0 9px; font-family: var(--mono); font-size: 11px;
+  text-transform: uppercase; letter-spacing: 0.22em; color: var(--ink-dim);
+  border-bottom: 1px solid var(--panel-bd); padding-bottom: 6px;
+}
+.hint { margin: 0 0 10px; font-size: 11.5px; line-height: 1.45; color: var(--ink-faint); }
+
+.chk {
+  display: flex; align-items: center; gap: 9px; padding: 5px 4px;
+  font-size: 13px; cursor: pointer; border-radius: 7px;
+}
+.chk:hover { background: rgba(255,255,255,0.03); }
+.chk input { accent-color: var(--c-accent); width: 15px; height: 15px; }
+.chk-all { font-weight: 600; }
+.panel hr { border: none; border-top: 1px solid var(--panel-bd); margin: 6px 0; }
+.swatch { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+.swatch[data-type="AIS"]   { background: var(--c-ais); }
+.swatch[data-type="ADSB"]  { background: var(--c-adsb); }
+.swatch[data-type="APRS"]  { background: var(--c-aprs); }
+.swatch[data-type="APRS Meteo"] { background: var(--c-meteo); }
+.swatch[data-type="lrrp"] { background: var(--c-lrrp); }
+.swatch[data-type="radiosonde"] { background: var(--c-sonde); }
+.swatch[data-type="TETRA"] { background: var(--c-tetra); }
+
+/* Boutons */
+.btn {
+  width: 100%; padding: 9px 12px; cursor: pointer;
+  font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.04em;
+  color: var(--bg); background: var(--ink);
+  border: none; border-radius: 8px; font-weight: 600;
+  transition: filter 0.15s ease;
+}
+.btn:hover { filter: brightness(1.08); }
+.btn:active { transform: translateY(1px); }
+.btn-ghost {
+  width: auto; padding: 5px 10px; background: transparent;
+  color: var(--ink-dim); border: 1px solid var(--panel-bd); font-weight: 500;
+}
+.btn-ghost:hover { color: var(--c-accent); border-color: var(--c-accent); }
+
+.progress {
+  margin-top: 8px; height: 6px; border-radius: 4px;
+  background: rgba(255,255,255,0.06); overflow: hidden;
+}
+.progress-bar { height: 100%; width: 0; background: var(--c-aprs); transition: width 0.2s ease; }
+.cache-meta {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 9px; font-family: var(--mono); font-size: 11px; color: var(--ink-dim);
+}
+
+/* Retention panel */
+.retention-list { display: flex; flex-direction: column; gap: 4px; }
+.retention-row {
+  display: grid; grid-template-columns: 12px 1fr 56px 26px; align-items: center;
+  gap: 7px; padding: 4px 2px; font-size: 12px;
+}
+.retention-label { color: var(--ink); }
+.retention-input {
+  width: 100%; padding: 4px 6px; text-align: right;
+  font-family: var(--mono); font-size: 12px;
+  color: var(--ink); background: rgba(255,255,255,0.04);
+  border: 1px solid var(--panel-bd); border-radius: 5px;
+}
+.retention-input:focus { outline: none; border-color: var(--c-accent); }
+.retention-unit { font-family: var(--mono); font-size: 10.5px; color: var(--ink-faint); }
+.retention-actions { display: flex; gap: 7px; margin-top: 10px; }
+.retention-actions .btn { flex: 1; }
+.retention-status {
+  margin: 8px 0 0; min-height: 14px;
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.03em;
+}
+.retention-status.ok { color: var(--c-aprs); }
+.retention-status.ko { color: var(--c-accent); }
+
+.panel-foot {
+  font-family: var(--mono); font-size: 10.5px; color: var(--ink-faint);
+  letter-spacing: 0.05em; border-top: 1px solid var(--panel-bd);
+  padding-top: 10px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.panel-foot code { color: var(--ink-dim); }
+.badge {
+  font-weight: 700; color: var(--bg); background: var(--c-accent);
+  padding: 2px 7px; border-radius: 4px; letter-spacing: 0.12em;
+}
+
+/* ----------------------------- Marqueurs -------------------------------- */
+.sdr-marker { display: grid; place-items: center; }
+.sdr-marker .glyph {
+  font-size: 18px; line-height: 1;
+  display: inline-block; transform-origin: center center;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.8));
+  /* Rotation INSTANTANÉE : un changement de cap doit être affiché tout de
+     suite (sinon l'avion semble garder l'ancienne direction le temps de
+     l'animation, puis « se corriger »). Le déplacement, lui, reste fluide. */
+}
+/* Avion : SVG vectoriel orienté nord à 0°. La rotation = cap exact. */
+.sdr-marker .glyph.plane {
+  width: 22px; height: 22px; font-size: 0;
+}
+.sdr-marker .glyph.plane svg { display: block; }
+/* Bateau : même principe, proue en haut à 0°. La rotation suit le COG. */
+.sdr-marker .glyph.ship {
+  width: 20px; height: 20px; font-size: 0;
+}
+.sdr-marker .glyph.ship svg { display: block; }
+/* Radiosonde : ballon vu de côté, légèrement plus haut que large. */
+.sdr-marker .glyph.sonde {
+  width: 22px; height: 22px; font-size: 0;
+}
+.sdr-marker .glyph.sonde svg { display: block; }
+/* TETRA handheld radio: antenna up, body below. Same vector-icon treatment. */
+.sdr-marker .glyph.tetra {
+  width: 20px; height: 22px; font-size: 0;
+}
+.sdr-marker .glyph.tetra svg { display: block; }
+/* AIS sub-categories: each renders as its own SVG, sized + coloured here.
+   AtoN, coast stations and distress beacons have their own colour so the
+   operator can tell them apart from regular ships at a glance. */
+.sdr-marker .glyph.ais-aton,
+.sdr-marker .glyph.ais-sar,
+.sdr-marker .glyph.ais-distress,
+.sdr-marker .glyph.ais-coast,
+.sdr-marker .glyph.ais-group,
+.sdr-marker .glyph.ais-aux {
+  width: 20px; height: 20px; font-size: 0;
+}
+.sdr-marker .glyph.ais-aton svg,
+.sdr-marker .glyph.ais-sar svg,
+.sdr-marker .glyph.ais-distress svg,
+.sdr-marker .glyph.ais-coast svg,
+.sdr-marker .glyph.ais-group svg,
+.sdr-marker .glyph.ais-aux svg { display: block; }
+
+/* AtoN (buoy/lighthouse): yellow diamond, IALA-inspired. */
+.sdr-marker .glyph.ais-aton   { color: var(--c-aton); }
+/* SAR aircraft: keep AIS cyan but the red cross overlay marks the role. */
+.sdr-marker .glyph.ais-sar    { color: var(--c-ais); }
+/* Distress (SART / EPIRB / MOB): red, with a slow pulse to draw the eye. */
+.sdr-marker .glyph.ais-distress {
+  color: var(--c-accent);
+  animation: distress-pulse 1.4s ease-in-out infinite;
+}
+@keyframes distress-pulse {
+  0%, 100% { filter: drop-shadow(0 1px 2px rgba(0,0,0,0.8)); opacity: 1; }
+  50%      { filter: drop-shadow(0 0 7px rgba(255,77,109,0.95)); opacity: 0.9; }
+}
+/* Coast station: green (fixed shore infrastructure). */
+.sdr-marker .glyph.ais-coast  { color: var(--c-coast); }
+/* Auxiliary craft / group: same hull as a ship but slightly dimmed. */
+.sdr-marker .glyph.ais-group  { color: var(--c-ais); opacity: 0.7; }
+.sdr-marker .glyph.ais-aux    { color: var(--c-ais); opacity: 0.7; }
+/* Déplacement fluide des marqueurs entre deux positions reçues. */
+.leaflet-marker-icon { transition: transform 0.6s linear; }
+/* Pendant un zoom/déplacement de carte, Leaflet repositionne les marqueurs :
+   on neutralise la transition pour éviter qu'ils « traînent ». */
+.leaflet-zoom-anim .leaflet-marker-icon,
+.leaflet-pan-anim .leaflet-marker-icon { transition: none; }
+.sdr-marker.t-AIS   { color: var(--c-ais); }
+.sdr-marker.t-ADSB  { color: var(--c-adsb); }
+.sdr-marker.t-APRS  { color: var(--c-aprs); }
+.sdr-marker.t-METEO { color: var(--c-meteo); }
+.sdr-marker.t-LRRP  { color: var(--c-lrrp); }
+.sdr-marker.t-SONDE { color: var(--c-sonde); }
+.sdr-marker.t-TETRA { color: var(--c-tetra); }
+.sdr-marker .label {
+  position: absolute; top: 22px; left: 50%; transform: translateX(-50%);
+  font-family: var(--mono); font-size: 10px; font-weight: 500; white-space: nowrap;
+  color: #f4f7fb;
+  /* Boîte sombre opaque + double bordure (sombre + claire) : lisible aussi
+     bien sur fond satellite/clair que sur fond sombre. Ombre portée pour
+     décoller du fond. */
+  background: rgba(7,11,18,0.92);
+  padding: 1px 6px; border-radius: 4px;
+  border: 1px solid rgba(255,255,255,0.25);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.55);
+  pointer-events: none;
+}
+
+/* Popups Leaflet — habillage sombre */
+.leaflet-popup-content-wrapper {
+  background: var(--panel); color: var(--ink);
+  border: 1px solid var(--panel-bd); border-radius: 10px;
+  box-shadow: var(--shadow); backdrop-filter: blur(8px);
+}
+.leaflet-popup-tip { background: var(--panel); border: 1px solid var(--panel-bd); }
+.leaflet-popup-content { margin: 12px 14px; font-size: 12.5px; }
+.popup-title {
+  font-family: var(--mono); font-weight: 600; font-size: 13.5px;
+  margin-bottom: 6px; display: flex; align-items: center; gap: 7px;
+}
+.popup-tag {
+  font-size: 9.5px; letter-spacing: 0.1em; padding: 1px 6px; border-radius: 4px;
+  color: var(--bg); font-weight: 700;
+}
+.popup-tag.t-AIS   { background: var(--c-ais); }
+.popup-tag.t-ADSB  { background: var(--c-adsb); }
+.popup-tag.t-APRS  { background: var(--c-aprs); }
+.popup-tag.t-METEO { background: var(--c-meteo); }
+.popup-tag.t-LRRP  { background: var(--c-lrrp); }
+.popup-tag.t-SONDE { background: var(--c-sonde); color: #1a1a1a; }
+.popup-grid {
+  display: grid; grid-template-columns: auto 1fr; gap: 2px 12px;
+  font-family: var(--mono); font-size: 11.5px;
+}
+.popup-grid .k { color: var(--ink-dim); }
+.popup-grid .v { color: var(--ink); }
+/* Country flag in popup: small SVG aligned with the text baseline, with a
+   subtle border so light flags (Japan, S. Korea) stay visible on the dark
+   popup background. */
+.popup-grid .v .flag {
+  display: inline-block;
+  width: 18px; height: 13px;
+  margin-right: 6px;
+  vertical-align: -2px;
+  border-radius: 2px;
+  border: 1px solid rgba(255,255,255,0.18);
+  box-shadow: 0 1px 1px rgba(0,0,0,0.45);
+  object-fit: cover;
+}
+.popup-grid .v .flag-emoji {
+  border: none; box-shadow: none; width: auto; height: auto;
+  font-size: 14px; line-height: 1;
+}
+.popup-info {
+  margin-top: 7px; padding-top: 7px; border-top: 1px solid var(--panel-bd);
+  color: var(--ink-dim); font-size: 11px; line-height: 1.4; word-break: break-word;
+}
+.popup-actions { display: flex; gap: 7px; margin-top: 9px; }
+.popup-btn {
+  flex: 1; cursor: pointer; padding: 6px 8px;
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em;
+  color: var(--ink); background: rgba(255,255,255,0.05);
+  border: 1px solid var(--panel-bd); border-radius: 7px;
+}
+.popup-btn:hover { color: var(--c-accent); border-color: var(--c-accent); }
+
+/* Bouton flottant d'arrêt de rejeu */
+.replay-stop {
+  position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+  z-index: 1300; cursor: pointer; padding: 10px 18px;
+  font-family: var(--mono); font-size: 13px; font-weight: 600; letter-spacing: 0.05em;
+  color: #fff; background: var(--c-accent); border: none; border-radius: 24px;
+  box-shadow: var(--shadow);
+}
+.sdr-marker.replaying .glyph {
+  color: var(--c-accent);
+  filter: drop-shadow(0 0 6px rgba(255,77,109,0.8));
+}
+
+/* Contrôles Leaflet en sombre */
+.leaflet-bar a, .leaflet-control-layers {
+  background: var(--panel) !important; color: var(--ink) !important;
+  border-color: var(--panel-bd) !important;
+}
+.leaflet-bar a { border-bottom-color: var(--panel-bd) !important; }
+.leaflet-control-layers-expanded { padding: 10px 12px; font-family: var(--mono); font-size: 12px; }
+.leaflet-control-attribution {
+  background: rgba(7,11,18,0.7) !important; color: var(--ink-faint) !important;
+}
+.leaflet-control-attribution a { color: var(--ink-dim) !important; }
+
+/* Contrôles repositionnés en bas à droite : au-dessus de tout, habillage sombre
+   du sélecteur de fonds (affiché déplié). */
+.leaflet-bottom.leaflet-right { z-index: 1250; }
+.leaflet-control-layers {
+  box-shadow: var(--shadow) !important; border-radius: 10px !important;
+  backdrop-filter: blur(8px);
+}
+.leaflet-control-layers-list {
+  color: var(--ink); font-family: var(--mono); font-size: 12px;
+}
+.leaflet-control-layers-base label {
+  display: flex; align-items: center; gap: 7px; padding: 3px 2px; cursor: pointer;
+}
+.leaflet-control-layers-base label:hover { color: var(--c-accent); }
+.leaflet-control-layers-selector { accent-color: var(--c-accent); }
+.leaflet-control-zoom { margin-bottom: 8px !important; }
+.leaflet-control-zoom a {
+  font-size: 18px !important; font-weight: 700;
+  width: 32px !important; height: 32px !important; line-height: 32px !important;
+}
+
+/* Responsive : panneau plein écran sur mobile */
+@media (max-width: 640px) {
+  .stats { display: none; }
+  .panel { width: calc(100vw - 28px); top: 60px; }
+}
+
+/* Server-disconnected overlay: covers the map with a clear message when the
+   server is unreachable for more than a few seconds. Without this, the
+   service worker keeps serving the cached page after a Stop, which can mask
+   the fact that the server is no longer running. */
+#disconnect-overlay {
+  position: fixed; inset: 0; z-index: 5000;
+  background: rgba(7, 11, 18, 0.85);
+  backdrop-filter: blur(4px);
+  display: none;             /* shown via JS */
+  align-items: center; justify-content: center;
+  pointer-events: auto;
+}
+#disconnect-overlay .disc-card {
+  background: var(--panel);
+  border: 1px solid var(--panel-bd);
+  border-radius: var(--radius);
+  padding: 28px 36px;
+  box-shadow: var(--shadow);
+  text-align: center;
+  max-width: 380px;
+}
+#disconnect-overlay .disc-title {
+  font-family: var(--sans);
+  font-size: 20px; font-weight: 700; color: var(--c-accent);
+  margin-bottom: 10px;
+}
+#disconnect-overlay .disc-sub {
+  font-family: var(--mono); font-size: 12px;
+  color: var(--ink-dim); margin: 4px 0;
+}
+#disconnect-overlay button {
+  margin-top: 16px;
+  padding: 8px 22px; cursor: pointer;
+  font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em;
+  color: #fff; background: var(--c-accent); border: none; border-radius: 6px;
+  font-weight: 600;
+}
+#disconnect-overlay button:hover { filter: brightness(1.1); }

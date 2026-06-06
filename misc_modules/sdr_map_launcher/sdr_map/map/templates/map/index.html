@@ -1,0 +1,132 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#070b12">
+  <title>SDR Map</title>
+
+  <link rel="stylesheet" href="{% static 'map/vendor/leaflet/leaflet.css' %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'map/css/style.css' %}">
+
+  {{ ws_scheme|json_script:"cfg-ws-scheme" }}
+  {{ center_lat|json_script:"cfg-lat" }}
+  {{ center_lon|json_script:"cfg-lon" }}
+  {{ default_zoom|json_script:"cfg-zoom" }}
+  {{ retention_defaults|json_script:"cfg-retention-defaults" }}
+</head>
+<body>
+  <div id="map"></div>
+
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">▲</span>
+      <span class="brand-name">SDR&nbsp;MAP</span>
+    </div>
+    <div class="stats">
+      <span class="stat" data-type="AIS"><b id="count-AIS">0</b> AIS</span>
+      <span class="stat" data-type="ADSB"><b id="count-ADSB">0</b> ADS-B</span>
+      <span class="stat" data-type="APRS"><b id="count-APRS">0</b> APRS</span>
+      <span class="stat" data-type="APRS Meteo"><b id="count-METEO">0</b> Weather</span>
+      <span class="stat" data-type="lrrp"><b id="count-LRRP">0</b> LRRP</span>
+      <span class="stat" data-type="radiosonde"><b id="count-SONDE">0</b> Sondes</span>
+      <span class="stat" data-type="TETRA"><b id="count-TETRA">0</b> TETRA</span>
+    </div>
+    <div class="link" id="conn">
+      <span class="dot"></span><span id="conn-text">connecting…</span>
+    </div>
+    <button class="topbar-btn" id="btn-clear-objects"
+            title="Clear all displayed objects (new incoming positions will recreate them)">
+      ✕ Clear map
+    </button>
+  </header>
+
+  <!-- Side panel : filters, retention, offline -->
+  <aside class="panel" id="panel">
+    <button class="panel-toggle" id="panel-toggle" title="Collapse / expand">⟨</button>
+
+    <section class="panel-block">
+      <h2>Filters</h2>
+      <label class="chk chk-all">
+        <input type="checkbox" id="f-all" checked>
+        <span>Show all</span>
+      </label>
+      <hr>
+      <label class="chk" data-type="AIS">
+        <input type="checkbox" class="f-type" value="AIS" checked>
+        <span class="swatch" data-type="AIS"></span><span>AIS — ships</span>
+      </label>
+      <label class="chk" data-type="ADSB">
+        <input type="checkbox" class="f-type" value="ADSB" checked>
+        <span class="swatch" data-type="ADSB"></span><span>ADS-B — aircraft</span>
+      </label>
+      <label class="chk" data-type="APRS">
+        <input type="checkbox" class="f-type" value="APRS" checked>
+        <span class="swatch" data-type="APRS"></span><span>APRS — stations</span>
+      </label>
+      <label class="chk" data-type="APRS Meteo">
+        <input type="checkbox" class="f-type" value="APRS Meteo" checked>
+        <span class="swatch" data-type="APRS Meteo"></span><span>APRS — weather</span>
+      </label>
+      <label class="chk" data-type="lrrp">
+        <input type="checkbox" class="f-type" value="lrrp" checked>
+        <span class="swatch" data-type="lrrp"></span><span>LRRP — DMR GPS</span>
+      </label>
+      <label class="chk" data-type="radiosonde">
+        <input type="checkbox" class="f-type" value="radiosonde" checked>
+        <span class="swatch" data-type="radiosonde"></span><span>Radiosondes</span>
+      </label>
+      <label class="chk" data-type="TETRA">
+        <input type="checkbox" class="f-type" value="TETRA" checked>
+        <span class="swatch" data-type="TETRA"></span><span>TETRA — handheld radios</span>
+      </label>
+      <hr>
+      <label class="chk chk-all">
+        <input type="checkbox" id="f-trails" checked>
+        <span>Show trails</span>
+      </label>
+    </section>
+
+    <section class="panel-block">
+      <h2>Retention</h2>
+      <p class="hint">Maximum age before an object and its trail disappear,
+        per type (minutes). Saved server-side; applies immediately.</p>
+      <div class="retention-list" id="retention-list"></div>
+      <div class="retention-actions">
+        <button class="btn" id="btn-retention-save">Save</button>
+        <button class="btn btn-ghost" id="btn-retention-reset">Defaults</button>
+      </div>
+      <p class="retention-status" id="retention-status"></p>
+    </section>
+
+    <section class="panel-block">
+      <h2>Offline cache</h2>
+      <p class="hint">Cache the active basemap tiles over the visible area
+        (and 2 more zoom levels) for offline viewing.</p>
+      <button class="btn" id="btn-cache">⬇ Cache visible area</button>
+      <div class="progress" id="cache-progress" hidden>
+        <div class="progress-bar" id="cache-bar"></div>
+      </div>
+      <div class="cache-meta">
+        <span id="cache-info">— tiles cached</span>
+        <button class="btn btn-ghost" id="btn-clear">Clear</button>
+      </div>
+    </section>
+
+    <footer class="panel-foot">
+      <span id="offline-badge" class="badge" hidden>OFFLINE</span>
+      Single TCP port:&nbsp;<code>10100</code>
+    </footer>
+  </aside>
+
+  <script src="{% static 'map/vendor/leaflet/leaflet.js' %}"></script>
+  <script src="{% static 'map/js/map.js' %}"></script>
+
+  <button class="replay-stop" id="replay-stop" hidden>⏹ Stop replay</button>
+
+</body>
+</html>

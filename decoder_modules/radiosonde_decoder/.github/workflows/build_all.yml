@@ -1,0 +1,236 @@
+name: Build binaries
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build_debian_buster:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+
+    - name: Create Docker image
+      run: cd ${{github.workspace}}/docker/debian_buster && docker build . --tag sdrpp_build
+
+    - name: Run container
+      run: docker run --name build -v ${{github.workspace}}:/github/workspace --env BUILD_NO="-$GITHUB_RUN_NUMBER" -e PLUGIN_LOCATION="$GITHUB_WORKSPACE" sdrpp_build /root/do_build.sh
+
+    - name: Recover compiled binary
+      run: docker cp build:/root/SDRPlusPlus/build/decoder_modules/sdrpp_radiosonde/radiosonde_decoder.so ${{runner.workspace}}
+
+    - name: Attach artifacts to tag
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        tag: ${{github.ref}}
+        file: ${{runner.workspace}}/radiosonde_decoder.so
+        asset_name: radiosonde_decoder_debian_buster.so
+        overwrite: false
+        prerelease: true
+
+
+
+  build_debian_bullseye:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+
+    - name: Create Docker image
+      run: cd ${{github.workspace}}/docker/debian_bullseye && docker build . --tag sdrpp_build
+
+    - name: Run container
+      run: docker run --name build -v ${{github.workspace}}:/github/workspace --env BUILD_NO="-$GITHUB_RUN_NUMBER" -e PLUGIN_LOCATION="$GITHUB_WORKSPACE" sdrpp_build /root/do_build.sh
+
+    - name: Recover compiled binary
+      run: docker cp build:/root/SDRPlusPlus/build/decoder_modules/sdrpp_radiosonde/radiosonde_decoder.so ${{runner.workspace}}
+
+    - name: Attach artifacts to tag
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        tag: ${{github.ref}}
+        file: ${{runner.workspace}}/radiosonde_decoder.so
+        asset_name: radiosonde_decoder_debian_bullseye.so
+        overwrite: false
+        prerelease: true
+
+
+
+  build_debian_sid:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+
+    - name: Create Docker image
+      run: cd ${{github.workspace}}/docker/debian_sid && docker build . --tag sdrpp_build
+
+    - name: Run container
+      run: docker run --name build -v ${{github.workspace}}:/github/workspace --env BUILD_NO="-$GITHUB_RUN_NUMBER" -e PLUGIN_LOCATION="$GITHUB_WORKSPACE" sdrpp_build /root/do_build.sh
+
+    - name: Recover compiled binary
+      run: docker cp build:/root/SDRPlusPlus/build/decoder_modules/sdrpp_radiosonde/radiosonde_decoder.so ${{runner.workspace}}
+
+    - name: Attach artifacts to tag
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        tag: ${{github.ref}}
+        file: ${{runner.workspace}}/radiosonde_decoder.so
+        asset_name: radiosonde_decoder_debian_sid.so
+        overwrite: false
+        prerelease: true
+
+
+
+  build_ubuntu_bionic:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+
+    - name: Create Docker image
+      run: cd ${{github.workspace}}/docker/ubuntu_bionic && docker build . --tag sdrpp_build
+
+    - name: Run container
+      run: docker run --name build -v ${{github.workspace}}:/github/workspace --env BUILD_NO="-$GITHUB_RUN_NUMBER" -e PLUGIN_LOCATION="$GITHUB_WORKSPACE" sdrpp_build /root/do_build.sh
+
+    - name: Recover compiled binary
+      run: docker cp build:/root/SDRPlusPlus/build/decoder_modules/sdrpp_radiosonde/radiosonde_decoder.so ${{runner.workspace}}
+
+    - name: Attach artifacts to tag
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        tag: ${{github.ref}}
+        file: ${{runner.workspace}}/radiosonde_decoder.so
+        asset_name: radiosonde_decoder_ubuntu_bionic.so
+        overwrite: false
+        prerelease: true
+
+
+
+  build_ubuntu_focal:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+
+    - name: Create Docker image
+      run: cd ${{github.workspace}}/docker/ubuntu_focal && docker build . --tag sdrpp_build
+
+    - name: Run container
+      run: docker run --name build -v ${{github.workspace}}:/github/workspace --env BUILD_NO="-$GITHUB_RUN_NUMBER" -e PLUGIN_LOCATION="$GITHUB_WORKSPACE" sdrpp_build /root/do_build.sh
+
+    - name: Recover compiled binary
+      run: docker cp build:/root/SDRPlusPlus/build/decoder_modules/sdrpp_radiosonde/radiosonde_decoder.so ${{runner.workspace}}
+
+    - name: Attach artifacts to tag
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        tag: ${{github.ref}}
+        file: ${{runner.workspace}}/radiosonde_decoder.so
+        asset_name: radiosonde_decoder_ubuntu_focal.so
+        overwrite: false
+        prerelease: true
+
+
+
+
+
+  build_ubuntu_jammy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+
+    - name: Create Docker image
+      run: cd ${{github.workspace}}/docker/ubuntu_jammy && docker build . --tag sdrpp_build
+
+    - name: Run container
+      run: docker run --name build -v ${{github.workspace}}:/github/workspace --env BUILD_NO="-$GITHUB_RUN_NUMBER" -e PLUGIN_LOCATION="$GITHUB_WORKSPACE" sdrpp_build /root/do_build.sh
+
+    - name: Recover compiled binary
+      run: docker cp build:/root/SDRPlusPlus/build/decoder_modules/sdrpp_radiosonde/radiosonde_decoder.so ${{runner.workspace}}
+
+    - name: Attach artifacts to tag
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        tag: ${{github.ref}}
+        file: ${{runner.workspace}}/radiosonde_decoder.so
+        asset_name: radiosonde_decoder_ubuntu_jammy.so
+        overwrite: false
+        prerelease: true
+
+
+
+
+
+  build_windows:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        repository: AlexandreRouma/SDRPlusPlus
+
+    - uses: actions/checkout@v2
+      with:
+        path: decoder_modules/sdrpp_radiosonde
+        submodules: recursive
+
+    - name: Create Build Environment
+      run: cmake -E make_directory ${{runner.workspace}}/build
+
+    - name: Download PothosSDR
+      run: Invoke-WebRequest -Uri "https://downloads.myriadrf.org/builds/PothosSDR/PothosSDR-2020.01.26-vc14-x64.exe" -OutFile ${{runner.workspace}}/pothos.exe
+
+    - name: Install PothosSDR
+      run: mkdir "C:/Program Files/PothosSDR" ; 7z x ${{runner.workspace}}/pothos.exe -o"C:/Program Files/PothosSDR/"
+
+    - name: Install vcpkg dependencies
+      run: vcpkg install fftw3:x64-windows glfw3:x64-windows portaudio:x64-windows zstd:x64-windows
+
+    - name: Install rtaudio
+      run: git clone https://github.com/thestk/rtaudio ; cd rtaudio ; git checkout 2f2fca4502d506abc50f6d4473b2836d24cfb1e3 ; mkdir build ; cd build ; cmake .. ; cmake --build . --config Release ; cmake --install .
+
+    - name: Patch CMakeLists.txt
+      run: cp ${{github.workspace}}/decoder_modules/sdrpp_radiosonde/.github/workflows/CMakeLists.txt ${{github.workspace}}
+
+    - name: Configure
+      run: cmake "$Env:GITHUB_WORKSPACE" "-DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake"
+
+    - name: Build
+      run: cmake --build "$Env:GITHUB_WORKSPACE" --config ${{env.BUILD_TYPE}} --target radiosonde_decoder 
+
+    - name: Attach artifacts to tag
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        tag: ${{github.ref}}
+        file: ${{github.workspace}}\decoder_modules\sdrpp_radiosonde\Release\radiosonde_decoder.dll
+        asset_name: radiosonde_decoder_w64.dll
+        overwrite: false
+        prerelease: true
+
