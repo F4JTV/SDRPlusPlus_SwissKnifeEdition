@@ -429,7 +429,7 @@ private:
     // TCP output.
     TCPSender tcp;
     std::string tcpHost = "127.0.0.1";
-    int tcpPort = 30003;
+    int tcpPort = 10100;
     bool tcpEnabled = false;
     char hostBuf[128] = "127.0.0.1";
 

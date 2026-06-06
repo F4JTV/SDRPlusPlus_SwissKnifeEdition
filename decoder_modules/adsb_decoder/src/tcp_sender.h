@@ -127,7 +127,7 @@ private:
     }
 
     std::string _host = "127.0.0.1";
-    int _port = 30003;
+    int _port = 10100;
 
     std::atomic<bool> _run{false};
     std::atomic<bool> _connected{false};

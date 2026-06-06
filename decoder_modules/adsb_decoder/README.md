@@ -79,7 +79,7 @@ sudo ldconfig
    it: ADS-B occupies the whole band around the carrier.
 4. In the module menu:
    - **TCP output**: enable it and set the collector IP/port
-     (default `127.0.0.1:30003`). The connection state is shown live.
+     (default `127.0.0.1:10100`). The connection state is shown live.
    - **Reference position** (optional): if set, isolated position frames
      (without an even/odd pair) are decoded locally, which makes nearby
      aircraft appear faster. See the note below.
@@ -160,7 +160,7 @@ The `django/` folder provides:
 # In your mapping project:
 cp django/listen_adsb.py <app>/management/commands/listen_adsb.py
 # (then add the model, the consumer and the routing — see the examples file)
-python manage.py listen_adsb --host 0.0.0.0 --port 30003
+python manage.py listen_adsb --host 0.0.0.0 --port 10100
 ```
 
 The SDR++ module must point its "TCP output" at this server's IP/port.
@@ -185,8 +185,8 @@ The SDR++ module must point its "TCP output" at this server's IP/port.
   g++ -std=c++17 -O2 -I core/src -I decoder_modules/adsb_decoder/src \
       decoder_modules/adsb_decoder/test_tcp.cpp \
       core/src/utils/net.cpp core/src/utils/flog.cpp -lpthread -o /tmp/adsb_tcp
-  python3 decoder_modules/adsb_decoder/test_server.py 30003 &
-  /tmp/adsb_tcp 127.0.0.1 30003
+  python3 decoder_modules/adsb_decoder/test_server.py 10100 &
+  /tmp/adsb_tcp 127.0.0.1 10100
   ```
 
 ## 8. Known limitations

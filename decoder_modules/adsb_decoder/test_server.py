@@ -3,7 +3,7 @@
 # used only to validate the SDR++ -> TCP -> collector chain end to end.
 import json, socket, sys
 
-port = int(sys.argv[1]) if len(sys.argv) > 1 else 30003
+port = int(sys.argv[1]) if len(sys.argv) > 1 else 10100
 srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 srv.bind(("0.0.0.0", port))
