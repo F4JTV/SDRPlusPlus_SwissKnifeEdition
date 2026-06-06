@@ -44,6 +44,13 @@ extern "C" {
 #define VFO_SAMPLERATE 36000
 #define VFO_BANDWIDTH 25000
 #define VFO_SNAP_INTERVAL 2500.0
+
+/* Compile-time defaults for the TCP map-output feed.
+ * Used both as the initializers for the C++ member fields and as the
+ * fallback when the user's saved config has empty / out-of-range values. */
+#define TETRA_TCP_DEFAULT_HOST "127.0.0.1"
+#define TETRA_TCP_DEFAULT_PORT 10100
+
 #define CLOCK_RECOVERY_BW 0.00628f
 #define CLOCK_RECOVERY_DAMPN_F 0.707f
 #define CLOCK_RECOVERY_REL_LIM 0.02f
@@ -57,7 +64,7 @@ SDRPP_MOD_INFO {
     /* Name:            */ "tetra_demodulator",
     /* Description:     */ "TETRA demodulator: calls/SDS/status in floating window, GPS positions on TCP (type=TETRA)",
     /* Author:          */ "cropinghigh + F4JTV improvements",
-    /* Version:         */ 0, 8, 5,
+    /* Version:         */ 0, 8, 6,
     /* Max instances    */ -1
 };
 
@@ -77,15 +84,31 @@ public:
             config.conf[name]["sending"] = false;
         }
         if (!config.conf[name].contains("data_host")) {
-            config.conf[name]["data_host"] = "127.0.0.1";
-            config.conf[name]["data_port"] = 10100;
+            config.conf[name]["data_host"] = TETRA_TCP_DEFAULT_HOST;
+            config.conf[name]["data_port"] = TETRA_TCP_DEFAULT_PORT;
             config.conf[name]["data_enabled"] = false;
         }
         decoder_mode = config.conf[name]["mode"];
         strcpy(hostname, std::string(config.conf[name]["hostname"]).c_str());
         port = config.conf[name]["port"];
-        strcpy(data_host, std::string(config.conf[name]["data_host"]).c_str());
-        data_port = config.conf[name]["data_port"];
+
+        /* Load TCP feed config with strict fallback to compile-time defaults
+         * if the saved values are empty / out-of-range. This protects against
+         * a stale or partially-edited config file inheriting bad values. */
+        {
+            std::string saved_host = config.conf[name]["data_host"];
+            int saved_port = config.conf[name]["data_port"];
+            if (saved_host.empty() || saved_host.size() >= sizeof(data_host)) {
+                saved_host = TETRA_TCP_DEFAULT_HOST;
+                config.conf[name]["data_host"] = saved_host;
+            }
+            if (saved_port < 1 || saved_port > 65535) {
+                saved_port = TETRA_TCP_DEFAULT_PORT;
+                config.conf[name]["data_port"] = saved_port;
+            }
+            strcpy(data_host, saved_host.c_str());
+            data_port = saved_port;
+        }
         bool startNow = config.conf[name]["sending"];
         bool startDataNow = config.conf[name]["data_enabled"];
         config.release(true);
@@ -1075,8 +1098,11 @@ private:
     // Data export (LIP positions only, TCP to Django map)
     // ------------------------------------------------------------------
     TetraTcpSender tcpSender;
-    char data_host[256];
-    int data_port = 10100;
+    /* Initialise the C-string buffer with the compile-time default so it's
+     * never garbage even before config is loaded. Config load (or the user
+     * typing) can still overwrite it. */
+    char data_host[256] = TETRA_TCP_DEFAULT_HOST;
+    int data_port = TETRA_TCP_DEFAULT_PORT;
     bool tcp_enabled = false;   // bound to the "Enable TCP" checkbox
 
     // ------------------------------------------------------------------
