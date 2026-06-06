@@ -1,0 +1,12 @@
+APRS symbol graphics
+=====================
+
+Files: aprs-symbols-64-0.png, aprs-symbols-64-1.png, aprs-symbols-64-2.png
+
+These are the aprs.fi APRS symbol set by Heikki Hannikainen (OH7LZB),
+rendered at 64x64 px per cell (16 columns x 6 rows).
+
+Source : https://github.com/hessu/aprs-symbols/
+License: CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/)
+
+If you redistribute these files, please keep the attribution above.

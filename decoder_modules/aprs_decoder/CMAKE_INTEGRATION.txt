@@ -1,0 +1,75 @@
+================================================================================
+ Intégration du module aprs_decoder dans l'arbre source SDR++
+================================================================================
+
+Deux façons de procéder :
+
+  (A) automatique  : lancer  ./apply_to_sdrpp.sh  depuis ce dossier
+                     (script idempotent : il vérifie avant d'insérer, donc on
+                      peut le relancer sans créer de doublons).
+
+  (B) manuelle     : appliquer les 3 patchs ci-dessous à la main.
+
+--------------------------------------------------------------------------------
+ Pré-requis
+--------------------------------------------------------------------------------
+Le dossier  aprs_decoder/  doit se trouver dans  <racine SDR++>/decoder_modules/
+(c'est déjà le cas si vous avez décompressé l'archive à cet endroit).
+
+--------------------------------------------------------------------------------
+ PATCH 1 — CMakeLists.txt (racine) : déclarer l'option de compilation
+--------------------------------------------------------------------------------
+Ouvrir  <racine>/CMakeLists.txt  et, juste après la ligne :
+
+    option(OPT_BUILD_PAGER_DECODER "Build the pager decoder module (no dependencies required)" ON)
+
+ajouter :
+
+    option(OPT_BUILD_APRS_DECODER "Build the APRS decoder module (no dependencies required)" ON)
+
+--------------------------------------------------------------------------------
+ PATCH 2 — CMakeLists.txt (racine) : ajouter le sous-répertoire
+--------------------------------------------------------------------------------
+Toujours dans  <racine>/CMakeLists.txt, juste après le bloc :
+
+    if (OPT_BUILD_PAGER_DECODER)
+    add_subdirectory("decoder_modules/pager_decoder")
+    endif (OPT_BUILD_PAGER_DECODER)
+
+ajouter :
+
+    if (OPT_BUILD_APRS_DECODER)
+    add_subdirectory("decoder_modules/aprs_decoder")
+    endif (OPT_BUILD_APRS_DECODER)
+
+--------------------------------------------------------------------------------
+ PATCH 3 (OPTIONNEL) — core/src/core.cpp : chargement par défaut
+--------------------------------------------------------------------------------
+Ce patch n'est PAS obligatoire : une fois le .so installé, on peut tout aussi
+bien ajouter le module à chaud via le « Module Manager » de SDR++
+(Type = aprs_decoder, donner un nom, p. ex. "APRS").
+
+Si vous voulez quand même qu'il soit présent dans la config par défaut, ouvrir
+core/src/core.cpp et, après la ligne :
+
+    core::configManager.conf["modules"][modCount++] = "meteor_demodulator.so";
+
+ajouter :
+
+    core::configManager.conf["modules"][modCount++] = "aprs_decoder.so";
+
+(Note : ceci ne fait qu'enregistrer le .so dans la liste des modules chargés ;
+il faut toujours créer une instance via le Module Manager. La plupart du temps
+le PATCH 3 est inutile.)
+
+--------------------------------------------------------------------------------
+ Vérifier l'absence de doublons (si vous avez déjà patché auparavant)
+--------------------------------------------------------------------------------
+    grep -c "OPT_BUILD_APRS_DECODER" CMakeLists.txt          # doit afficher 3 (option+if+endif)
+    grep -c "decoder_modules/aprs_decoder" CMakeLists.txt    # doit afficher 1
+    grep -c "aprs_decoder.so" core/src/core.cpp              # 0 (sans P3) ou 1
+
+Si un nombre est trop élevé, vous avez un doublon : éditez le fichier pour le
+retirer (sinon CMake renverra "given target ... already exists").
+
+================================================================================
