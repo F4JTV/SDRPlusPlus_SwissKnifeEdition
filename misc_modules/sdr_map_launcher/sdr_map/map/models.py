@@ -32,6 +32,7 @@ class SdrObject(models.Model):
     TYPE_RADIOSONDE = "radiosonde"
     TYPE_TETRA = "TETRA"
     TYPE_SARSAT = "SARSAT"
+    TYPE_SATELLITE = "satellite"
     TYPE_CHOICES = [
         (TYPE_AIS, "AIS (ships)"),
         (TYPE_ADSB, "ADS-B (aircraft)"),
@@ -41,6 +42,7 @@ class SdrObject(models.Model):
         (TYPE_RADIOSONDE, "Radiosonde"),
         (TYPE_TETRA, "TETRA (LIP)"),
         (TYPE_SARSAT, "Cospas-Sarsat (406 MHz beacons)"),
+        (TYPE_SATELLITE, "Satellites (orbital trackers)"),
     ]
 
     # --- Identity --------------------------------------------------------- #
@@ -136,6 +138,15 @@ class SdrObject(models.Model):
             "sarsat_bch1":      (self.extra or {}).get("sarsat_bch1"),
             "sarsat_bch2":      (self.extra or {}).get("sarsat_bch2"),
             "sarsat_test":      (self.extra or {}).get("sarsat_test"),
+            # Satellite tracker fields (sub-satellite point + look angles +
+            # Doppler), parsed from `info` and stored in extra by listen_sdr.
+            "sat_norad":        (self.extra or {}).get("sat_norad"),
+            "sat_alt_km":       (self.extra or {}).get("sat_alt_km"),
+            "sat_az":           (self.extra or {}).get("sat_az"),
+            "sat_el":           (self.extra or {}).get("sat_el"),
+            "sat_range_km":     (self.extra or {}).get("sat_range_km"),
+            "sat_doppler_hz":   (self.extra or {}).get("sat_doppler_hz"),
+            "sat_footprint_km": (self.extra or {}).get("sat_footprint_km"),
             "weather": {
                 "temp_c": self.temp_c,
                 "humidity": self.humidity,
@@ -199,6 +210,7 @@ class RetentionSetting(models.Model):
         SdrObject.TYPE_RADIOSONDE: 60,
         SdrObject.TYPE_TETRA: 30,
         SdrObject.TYPE_SARSAT: 120,
+        SdrObject.TYPE_SATELLITE: 30,
     }
 
     obj_type = models.CharField(
