@@ -40,6 +40,7 @@
 #endif
 
 #include "sarsat_decoder.h"
+#include "tcp_sender.h"
 
 SDRPP_MOD_INFO{
     /* Name:            */ "cospas_sarsat_decoder",
@@ -87,12 +88,29 @@ public:
             config.conf[name]["logFolder"] = std::string(home) + "/SARSAT_Logs";
             #endif
         }
+        // TCP map output: host and port are persisted, but tcpEnabled is NOT
+        // (we always start with TCP off; user must tick the checkbox each
+        // session to avoid surprise outbound connections at SDR++ startup).
+        if (!config.conf[name].contains("tcpHost")) {
+            config.conf[name]["tcpHost"] = "127.0.0.1";
+        }
+        if (!config.conf[name].contains("tcpPort")) {
+            config.conf[name]["tcpPort"] = 10100;
+        }
         
         vfoBandwidth = config.conf[name]["vfoBandwidth"];
         logEnabled = config.conf[name]["logEnabled"];
         logFolder = config.conf[name]["logFolder"];
         strncpy(folderInputBuf, logFolder.c_str(), sizeof(folderInputBuf) - 1);
+        {
+            std::string h = config.conf[name]["tcpHost"];
+            strncpy(tcpHost, h.c_str(), sizeof(tcpHost) - 1);
+            tcpHost[sizeof(tcpHost) - 1] = '\0';
+            tcpPort = config.conf[name]["tcpPort"];
+        }
         config.release(true);
+        
+        tcp.setTarget(tcpHost, tcpPort);
         
         decoder = std::make_unique<sarsat::SarsatDecoder>();
         samplesPerHalfSymbol = vfoBandwidth / SYMBOL_RATE / 2.0f;
@@ -102,6 +120,7 @@ public:
     
     ~CospasSarsatDecoderModule() {
         stop();
+        tcp.stopAndJoin();
         gui::menu.removeEntry(name);
     }
     
@@ -122,6 +141,96 @@ public:
     bool isEnabled() override { return enabled; }
     
 private:
+    // Format a BeaconMessage as a one-line JSON record for the SDR++ Map
+    // Django backend. Same shape as the AIS / ADS-B / APRS / Radiosonde
+    // outputs: name, mmsi, date, time, lat, lon, type, speed, info.
+    std::string buildJsonLine(const sarsat::BeaconMessage& msg) const {
+        // UTC date/time
+        time_t t = (time_t)msg.timestamp;
+        if (t == 0) { t = time(nullptr); }
+        struct tm tmv;
+        #ifdef _WIN32
+        gmtime_s(&tmv, &t);
+        #else
+        gmtime_r(&t, &tmv);
+        #endif
+        char dateBuf[16], timeBuf[16];
+        snprintf(dateBuf, sizeof(dateBuf), "%04d-%02d-%02d",
+                 tmv.tm_year + 1900, tmv.tm_mon + 1, tmv.tm_mday);
+        snprintf(timeBuf, sizeof(timeBuf), "%02d:%02d:%02d",
+                 tmv.tm_hour, tmv.tm_min, tmv.tm_sec);
+
+        // JSON string escaper (handles ", \, control chars).
+        auto esc = [](const std::string& in) {
+            std::string out;
+            out.reserve(in.size() + 4);
+            for (char c : in) {
+                switch (c) {
+                    case '"':  out += "\\\""; break;
+                    case '\\': out += "\\\\"; break;
+                    case '\n': out += "\\n";  break;
+                    case '\r': out += "\\r";  break;
+                    case '\t': out += "\\t";  break;
+                    default:
+                        if ((unsigned char)c < 0x20) {
+                            char tmp[8];
+                            snprintf(tmp, sizeof(tmp), "\\u%04x", (unsigned)(unsigned char)c);
+                            out += tmp;
+                        } else {
+                            out += c;
+                        }
+                }
+            }
+            return out;
+        };
+
+        // info: compact key=value;... pairs with the SARSAT-specific fields.
+        std::ostringstream info;
+        info << "beacon=" << esc(sarsat::SarsatDecoder::getBeaconTypeName(msg.beacon_type));
+        if (!msg.country_name.empty()) {
+            info << ";country=" << esc(msg.country_name);
+        } else if (msg.country_code > 0) {
+            info << ";country=" << msg.country_code;
+        }
+        info << ";protocol=" << esc(sarsat::SarsatDecoder::getProtocolName(msg.protocol));
+        if (!msg.aircraft_address.empty()) {
+            info << ";aircraft=" << esc(msg.aircraft_address);
+        }
+        if (!msg.aircraft_operator.empty()) {
+            info << ";operator=" << esc(msg.aircraft_operator);
+        }
+        if (!msg.call_sign.empty()) {
+            info << ";callsign=" << esc(msg.call_sign);
+        }
+        if (msg.serial_number > 0) {
+            info << ";serial=" << msg.serial_number;
+        }
+        info << ";src=" << (msg.position.source == sarsat::PositionSource::INTERNAL ? "internal" : "external");
+        info << ";homing121=" << (msg.position.homing_121_5 ? "yes" : "no");
+        info << ";bch1=" << (msg.bch1_valid ? "ok" : "err");
+        info << ";bch2=" << (msg.bch2_valid ? "ok" : "err");
+        if (msg.is_test) { info << ";test=yes"; }
+
+        // Build the JSON line. mmsi is JSON null when absent.
+        std::ostringstream js;
+        js << "{";
+        js << "\"name\":\""    << esc(msg.hex_id) << "\",";
+        if (!msg.mmsi.empty()) {
+            js << "\"mmsi\":\"" << esc(msg.mmsi) << "\",";
+        } else {
+            js << "\"mmsi\":null,";
+        }
+        js << "\"date\":\""    << dateBuf << "\",";
+        js << "\"time\":\""    << timeBuf << "\",";
+        js << "\"lat\":"       << std::fixed << std::setprecision(6) << msg.position.getLatitudeDecimal()  << ",";
+        js << "\"lon\":"       << std::fixed << std::setprecision(6) << msg.position.getLongitudeDecimal() << ",";
+        js << "\"type\":\"SARSAT\",";
+        js << "\"speed\":null,";
+        js << "\"info\":\""    << esc(info.str()) << "\"";
+        js << "}";
+        return js.str();
+    }
+
     void start() {
         std::lock_guard<std::mutex> lock(startStopMutex);
         
@@ -341,6 +450,12 @@ private:
                     if (logEnabled) {
                         logMessage(msg);
                     }
+                    
+                    // Push to the SDR++ Map Django backend if TCP is enabled.
+                    // Only send beacons that carry a valid GPS position.
+                    if (tcpEnabled && msg.position.valid) {
+                        tcp.push(buildJsonLine(msg));
+                    }
                 }
                 
                 halfSymbols.clear();
@@ -519,6 +634,50 @@ private:
         
         ImGui::Spacing();
         
+        // === TCP map output ===
+        ImGui::Text("TCP map output");
+
+        ImGui::LeftLabel("Host");
+        ImGui::FillWidth();
+        if (ImGui::InputText(("##_sarsat_tcphost_" + _this->name).c_str(),
+                              _this->tcpHost, sizeof(_this->tcpHost))) {
+            // Persist on every keystroke (matches AIS / APRS pattern).
+            config.acquire();
+            config.conf[_this->name]["tcpHost"] = std::string(_this->tcpHost);
+            config.release(true);
+            _this->tcp.setTarget(_this->tcpHost, _this->tcpPort);
+        }
+
+        ImGui::LeftLabel("Port");
+        ImGui::FillWidth();
+        if (ImGui::InputInt(("##_sarsat_tcpport_" + _this->name).c_str(), &_this->tcpPort)) {
+            if (_this->tcpPort < 1)     { _this->tcpPort = 1; }
+            if (_this->tcpPort > 65535) { _this->tcpPort = 65535; }
+            config.acquire();
+            config.conf[_this->name]["tcpPort"] = _this->tcpPort;
+            config.release(true);
+            _this->tcp.setTarget(_this->tcpHost, _this->tcpPort);
+        }
+
+        if (ImGui::Checkbox(("Enable TCP##_sarsat_tcpen_" + _this->name).c_str(), &_this->tcpEnabled)) {
+            if (_this->tcpEnabled) {
+                _this->tcp.setTarget(_this->tcpHost, _this->tcpPort);
+                _this->tcp.start();
+            } else {
+                _this->tcp.stop();
+            }
+        }
+        ImGui::SameLine();
+        if (!_this->tcpEnabled) {
+            ImGui::TextDisabled("disabled");
+        } else if (_this->tcp.isConnected()) {
+            ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.2f, 1.0f), "connected");
+        } else {
+            ImGui::TextColored(ImVec4(0.9f, 0.6f, 0.2f, 1.0f), "enabled");
+        }
+
+        ImGui::Spacing();
+        
         // === Messages ===
         {
             std::lock_guard<std::mutex> lock(_this->historyMutex);
@@ -592,27 +751,6 @@ private:
                             msg.position.getLatitudeString().c_str(),
                             msg.position.getLongitudeString().c_str());
                         
-                        ImGui::SameLine();
-                        if (ImGui::SmallButton("Map")) {
-                            std::stringstream ss;
-                            #ifdef _WIN32
-                            ss << "start \"\" \"https://www.openstreetmap.org/?mlat=";
-                            #else
-                            ss << "xdg-open 'https://www.openstreetmap.org/?mlat=";
-                            #endif
-                            ss << std::fixed << std::setprecision(6)
-                               << msg.position.getLatitudeDecimal() << "&mlon="
-                               << msg.position.getLongitudeDecimal() 
-                               << "#map=14/" << msg.position.getLatitudeDecimal()
-                               << "/" << msg.position.getLongitudeDecimal();
-                            #ifdef _WIN32
-                            ss << "\"";
-                            #else
-                            ss << "' &";
-                            #endif
-                            int r = system(ss.str().c_str()); (void)r;
-                        }
-                        
                         ImGui::TextColored(ImVec4(0.5f,0.5f,0.5f,1), "Src:%s | 121.5:%s",
                             msg.position.source == sarsat::PositionSource::INTERNAL ? "Int" : "GPS",
                             msg.position.homing_121_5 ? "Yes" : "No");
@@ -675,6 +813,12 @@ private:
     std::mutex startStopMutex;
     std::mutex historyMutex;
     std::deque<sarsat::BeaconMessage> messageHistory;
+
+    // TCP map output
+    TcpLineSender tcp;
+    char tcpHost[256] = "127.0.0.1";
+    int tcpPort = 10100;
+    bool tcpEnabled = false;
 };
 
 MOD_EXPORT void _INIT_() {
