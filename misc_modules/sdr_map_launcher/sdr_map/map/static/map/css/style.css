@@ -143,10 +143,30 @@ html, body {
 .panel {
   position: absolute; top: 68px; left: 14px; z-index: 1200;
   width: 268px; padding: 14px;
+  /* Cap the height to the viewport (minus the 68px top offset and a 16px
+     bottom margin) and let the content scroll when it overflows. Without
+     this, sections at the bottom (OFFLINE CACHE) get clipped on small
+     viewports as more filter/retention rows are added. */
+  max-height: calc(100vh - 68px - 16px);
+  overflow-y: auto;
+  /* Subtle scrollbar that matches the panel's dark theme. */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(120, 160, 210, 0.35) transparent;
   background: var(--panel); border: 1px solid var(--panel-bd);
   border-radius: var(--radius); box-shadow: var(--shadow);
   backdrop-filter: blur(10px);
   transition: transform 0.25s ease, opacity 0.25s ease;
+}
+/* Webkit / Blink scrollbar styling so it doesn't look like a default
+   chunky white bar on the dark panel. */
+.panel::-webkit-scrollbar { width: 8px; }
+.panel::-webkit-scrollbar-track { background: transparent; }
+.panel::-webkit-scrollbar-thumb {
+  background: rgba(120, 160, 210, 0.30);
+  border-radius: 4px;
+}
+.panel::-webkit-scrollbar-thumb:hover {
+  background: rgba(120, 160, 210, 0.50);
 }
 .panel.collapsed { transform: translateX(-300px); opacity: 0; }
 .panel-toggle {
@@ -457,7 +477,12 @@ html, body {
 /* Responsive : panneau plein écran sur mobile */
 @media (max-width: 640px) {
   .stats { display: none; }
-  .panel { width: calc(100vw - 28px); top: 60px; }
+  .panel {
+    width: calc(100vw - 28px); top: 60px;
+    /* Same scroll-when-overflow behaviour but accounting for the smaller
+       top offset and tighter bottom margin on mobile. */
+    max-height: calc(100vh - 60px - 12px);
+  }
 }
 
 /* Server-disconnected overlay: covers the map with a clear message when the
