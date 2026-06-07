@@ -88,6 +88,7 @@ option(OPT_BUILD_RIGCTL_SERVER "Rigctl backend for controlling SDR++ with softwa
 option(OPT_BUILD_SCANNER "Frequency scanner" ON)
 option(OPT_BUILD_SCHEDULER "Build the scheduler" OFF)
 option(OPT_BUILD_SDR_MAP_LAUNCHER "Launcher panel for the companion sdr_map Django web server" ON)
+option(OPT_BUILD_SATELLITE_TRACKER "Satellite tracker with Doppler correction (libpredict)" ON)
 
 # Other options
 option(USE_INTERNAL_LIBCORRECT "Use an internal version of libcorrect" ON)
@@ -446,6 +447,10 @@ endif (OPT_BUILD_SCHEDULER)
 if (OPT_BUILD_SDR_MAP_LAUNCHER)
 add_subdirectory("misc_modules/sdr_map_launcher")
 endif (OPT_BUILD_SDR_MAP_LAUNCHER)
+
+if (OPT_BUILD_SATELLITE_TRACKER)
+add_subdirectory("misc_modules/satellite_tracker")
+endif (OPT_BUILD_SATELLITE_TRACKER)
 
 if (MSVC)
     add_executable(sdrpp "src/main.cpp" "win32/resources.rc")
