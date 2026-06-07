@@ -83,7 +83,13 @@ public:
 
         copyToBuffers();
 
-        gui::menu.registerEntry(name, menuHandler, this, this);
+        // Last arg is the module instance pointer. Passing `NULL` tells
+        // SDR++ this menu entry has no associated module to enable/disable,
+        // so the core does not draw the on/off checkbox next to our name —
+        // exactly like the satellite_tracker module. With `this` here, SDR++
+        // would draw a checkbox driven by isEnabled() (which we don't need:
+        // our Start/Stop buttons are the real on/off switch).
+        gui::menu.registerEntry(name, menuHandler, this, NULL);
     }
 
     ~SDRMapLauncherModule() {
