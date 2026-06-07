@@ -602,6 +602,18 @@ class Command(BaseCommand):
             # so case mismatches between transmissions don't create duplicates.
             hex_id = (name or "").strip().upper()
             ident = f"SARSAT:{hex_id}" if hex_id else f"sarsat:{lat:.4f},{lon:.4f}"
+        elif obj_type == SdrObject.TYPE_SATELLITE:
+            # Satellite tracker: NORAD catalogue number is the canonical
+            # identifier (globally unique). Falls back to the TLE name if
+            # NORAD wasn't transmitted for some reason.
+            kv = _parse_kv_info(info)
+            norad_str = kv.get("norad", "").strip()
+            if norad_str.isdigit():
+                ident = f"SAT:{norad_str}"
+            elif name:
+                ident = f"SAT:{name}"
+            else:
+                ident = f"sat:{lat:.4f},{lon:.4f}"
         else:  # APRS / APRS Meteo: callsign/name is authoritative
             ident = name or f"{obj_type}:{lat:.4f},{lon:.4f}"
 
@@ -721,6 +733,32 @@ class Command(BaseCommand):
                 if k_src in kv:
                     extra[k_dst] = kv[k_src]
             extra["sarsat_test"] = (kv.get("test", "").lower() == "yes")
+
+        # Satellite tracker (orbital): info packs the look angles, range,
+        # altitude, doppler and footprint diameter as
+        # "norad=33591;alt=845;az=137.4;el=22.8;range=1043;doppler=1256;footprint=4541"
+        # All numeric. Doppler is a signed integer (Hz), elevation can be
+        # negative (satellite below the horizon). We keep them in metric units.
+        if obj_type == SdrObject.TYPE_SATELLITE:
+            kv = _parse_kv_info(info)
+            def _as_int(s):
+                try: return int(float(s))
+                except (TypeError, ValueError): return None
+            def _as_float(s):
+                try: return float(s)
+                except (TypeError, ValueError): return None
+            for k_src, k_dst, conv in (
+                ("norad",     "sat_norad",        _as_int),
+                ("alt",       "sat_alt_km",       _as_int),
+                ("az",        "sat_az",           _as_float),
+                ("el",        "sat_el",           _as_float),
+                ("range",     "sat_range_km",     _as_int),
+                ("doppler",   "sat_doppler_hz",   _as_int),
+                ("footprint", "sat_footprint_km", _as_int),
+            ):
+                v = conv(kv.get(k_src))
+                if v is not None:
+                    extra[k_dst] = v
 
         defaults = {
             "name": name,
