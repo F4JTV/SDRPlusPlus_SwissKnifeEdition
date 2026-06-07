@@ -4,7 +4,7 @@
    - Cache des tuiles cartographiques (cache-first) + préchargement de zone.
    Servi depuis '/sw.js' (scope '/') pour intercepter les tuiles cross-origin.
    ========================================================================= */
-const VERSION = "sdrmap-v18";
+const VERSION = "sdrmap-v19";
 const SHELL_CACHE = "shell-" + VERSION;
 const TILE_CACHE = "tiles-" + VERSION;
 

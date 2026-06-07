@@ -24,6 +24,13 @@
     center: CENTER, zoom: ZOOM,
     zoomControl: false,          // recréé en bas à droite (voir plus bas)
     attributionControl: true,
+    // Satellites and any object that crosses the antimeridian (±180°
+    // longitude) would otherwise appear to "jump" to the opposite side of
+    // the world and disappear from the current view. With worldCopyJump,
+    // Leaflet seamlessly snaps the map's view back to the world copy that
+    // contains the overlays, so the marker stays visible regardless of
+    // which way the satellite is travelling.
+    worldCopyJump: true,
   });
 
   // --- Fonds de carte (plusieurs types) -----------------------------------
@@ -558,6 +565,35 @@
   // Trace = polyligne reliant les positions successives ; l'icône reste sur la
   // dernière (point B). La trace est dans la couche du type → masquée par les
   // filtres en même temps que le marqueur.
+  // Split a list of [lat, lon] points into multiple segments wherever two
+  // consecutive points jump by more than 180° in longitude (i.e. the object
+  // crossed the antimeridian, ±180°). Without this, Leaflet would draw a
+  // single straight line going all the way across the map — visually wrong
+  // and obscuring half the basemap.
+  // Returns an array of segments, suitable for L.polyline(multi) which
+  // natively renders disjoint pieces in one polyline object.
+  function splitAntimeridian(points) {
+    if (!points || points.length < 2) return [points || []];
+    const segments = [];
+    let current = [points[0]];
+    for (let i = 1; i < points.length; i++) {
+      const [lat0, lon0] = points[i - 1];
+      const [lat1, lon1] = points[i];
+      if (Math.abs(lon1 - lon0) > 180) {
+        // Jump detected: close the current segment, open a new one.
+        if (current.length >= 2) segments.push(current);
+        current = [points[i]];
+      } else {
+        current.push(points[i]);
+      }
+    }
+    if (current.length >= 2) segments.push(current);
+    return segments;
+  }
+
+  // Build / refresh the polyline trace of an object. Multi-segment shape is
+  // used so antimeridian crossings render as two disjoint pieces rather than
+  // one straight line slashing the whole map.
   function rebuildTrail(o) {
     const h = histories.get(o.id);
     let t = trails.get(o.id);
@@ -565,10 +601,11 @@
       if (t) { layers[o.type].removeLayer(t); trails.delete(o.id); }
       return;
     }
+    const segments = splitAntimeridian(h);
     if (t) {
-      t.setLatLngs(h);
+      t.setLatLngs(segments);
     } else {
-      t = L.polyline(h, {
+      t = L.polyline(segments, {
         color: TRAIL_COLOR[o.type], weight: 2, opacity: 0.65,
         lineCap: "round", lineJoin: "round",
       });
@@ -866,10 +903,15 @@
       map.fitBounds(L.latLngBounds(pts).pad(0.2));
       if (replayStop) replayStop.hidden = false;
       let i = 0;
+      const accumulated = [];
       replay.timer = setInterval(() => {
         if (i >= pts.length) { clearInterval(replay.timer); replay.timer = null; return; }
         replay.marker.setLatLng(pts[i]);
-        replay.line.addLatLng(pts[i]);
+        accumulated.push(pts[i]);
+        // Rebuild the polyline with antimeridian-aware splitting, so the
+        // replay trace doesn't slash across the whole map on world-orbiting
+        // satellites.
+        replay.line.setLatLngs(splitAntimeridian(accumulated));
         i++;
       }, 180);
     }).catch(() => alert("Could not load track."));
