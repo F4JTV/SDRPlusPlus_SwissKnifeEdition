@@ -23,6 +23,8 @@
   --c-lrrp:   #f472b6;   /* magenta, LRRP/DMR    */
   --c-sonde:  #facc15;   /* yellow, radiosonde   */
   --c-tetra:  #fb923c;   /* orange, TETRA radios */
+  --c-sarsat:      #dc2626; /* red, Cospas-Sarsat distress beacons */
+  --c-sarsat-test: #fbbf24; /* amber, SARSAT in test mode          */
   --c-accent: #ff4d6d;   /* red, ops/distress    */
   --c-aton:   #fbbf24;   /* AtoN diamond (yellow)*/
   --c-coast:  #34d399;   /* coast station        */
@@ -44,6 +46,8 @@ body.light-bg {
   --c-lrrp:   #be185d;   /* deep magenta         */
   --c-sonde:  #a16207;   /* dark mustard yellow  */
   --c-tetra:  #c2410c;   /* deeper orange        */
+  --c-sarsat:      #991b1b;
+  --c-sarsat-test: #b45309;
   --c-accent: #b91c1c;   /* darker red           */
   --c-aton:   #b45309;   /* darker yellow for diamond */
   --c-coast:  #047857;   /* dark green           */
@@ -100,6 +104,7 @@ html, body {
 .stat[data-type="lrrp"] b  { color: var(--c-lrrp); }
 .stat[data-type="radiosonde"] b { color: var(--c-sonde); }
 .stat[data-type="TETRA"] b { color: var(--c-tetra); }
+.stat[data-type="SARSAT"] b { color: var(--c-sarsat); }
 
 /* Bouton « Effacer la carte » dans la barre supérieure */
 .topbar-btn {
@@ -177,6 +182,7 @@ html, body {
 .swatch[data-type="lrrp"] { background: var(--c-lrrp); }
 .swatch[data-type="radiosonde"] { background: var(--c-sonde); }
 .swatch[data-type="TETRA"] { background: var(--c-tetra); }
+.swatch[data-type="SARSAT"] { background: var(--c-sarsat); }
 
 /* Boutons */
 .btn {
@@ -269,6 +275,11 @@ html, body {
   width: 20px; height: 22px; font-size: 0;
 }
 .sdr-marker .glyph.tetra svg { display: block; }
+/* Cospas-Sarsat 406 MHz beacon: round badge with SOS-style radio waves. */
+.sdr-marker .glyph.sarsat {
+  width: 22px; height: 22px; font-size: 0;
+}
+.sdr-marker .glyph.sarsat svg { display: block; }
 /* AIS sub-categories: each renders as its own SVG, sized + coloured here.
    AtoN, coast stations and distress beacons have their own colour so the
    operator can tell them apart from regular ships at a glance. */
@@ -318,6 +329,13 @@ html, body {
 .sdr-marker.t-LRRP  { color: var(--c-lrrp); }
 .sdr-marker.t-SONDE { color: var(--c-sonde); }
 .sdr-marker.t-TETRA { color: var(--c-tetra); }
+/* Cospas-Sarsat: red for real distress beacons, amber for TEST mode.
+   Real beacons pulse to draw the operator's eye; TEST beacons stay steady. */
+.sdr-marker.t-SARSAT { color: var(--c-sarsat); }
+.sdr-marker.t-SARSAT.sarsat-test { color: var(--c-sarsat-test); }
+.sdr-marker.t-SARSAT:not(.sarsat-test) .glyph.sarsat {
+  animation: distress-pulse 1.4s ease-in-out infinite;
+}
 .sdr-marker .label {
   position: absolute; top: 22px; left: 50%; transform: translateX(-50%);
   font-family: var(--mono); font-size: 10px; font-weight: 500; white-space: nowrap;
