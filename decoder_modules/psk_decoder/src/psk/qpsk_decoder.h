@@ -301,12 +301,18 @@ private:
         for (int i = 0; i < count; i++) {
             dsp::complex_t s = data[i];
 
-            // Differential phase: d = current * conj(prev). The Costas<4>
-            // upstream has aligned the constellation to (1,0)/(0,1)/(-1,0)/
-            // (0,-1), so the differential phase is now cleanly at one of
-            // {0, +pi/2, +pi, -pi/2} (modulo small noise).
+            // Differential phase: d = conj(s) * prev. FLDIGI represents
+            // the modulated audio as cos(wt - theta) (see psk.cxx tx_carriers,
+            // ival*cos + qval*sin), so a positive-frequency mixer at our
+            // receive side recovers a baseband signal whose phase is the
+            // NEGATIVE of FLDIGI's intended modulation phase. To put us
+            // back into the same phase frame that FLDIGI's RX code (and
+            // the (4-bits)&3 USB transform below) assumes, we take the
+            // diff phase with reversed-sign imaginary part - equivalent
+            // to conj(s) * prev. This affects QPSK/8PSK; BPSK is invariant
+            // under phase negation (0 and pi are fixed points).
             float dre = s.re * _this->prev.re + s.im * _this->prev.im;
-            float dim = s.im * _this->prev.re - s.re * _this->prev.im;
+            float dim = s.re * _this->prev.im - s.im * _this->prev.re;
             _this->prev = s;
 
             // Phase in [0, 2*PI). FLDIGI QPSK constellation at 0/90/180/270.

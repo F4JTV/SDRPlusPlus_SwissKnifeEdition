@@ -3,6 +3,7 @@
 #include "../common/tone_mixer.h"
 #include "../common/mfsk_varicode.h"
 #include "../common/auto_tune.h"
+#include "../dsp/psk_wsinc.h"
 
 #include <string>
 #include <mutex>
@@ -278,7 +279,7 @@ private:
         }
 
         psk.init(pskIn, profile.baud, profile.basebandSR,
-                 rrcTaps, profile.rrcBeta,
+                 rrcTaps,
                  agcRate, costasBW, omegaGain, muGain, 0.01);
 
         symSink.init(&psk.out, symbolHandler, this);
@@ -300,13 +301,15 @@ private:
         for (int i = 0; i < count; i++) {
             dsp::complex_t s = data[i];
 
-            // Differential phase: d = current * conj(prev). After Costas<8>,
-            // the constellation is locked to the 8 phase points 0, pi/4,
-            // 2*pi/4, ..., 7*pi/4. Differential operation cancels the
-            // (now-zero) absolute phase and exposes the per-symbol phase
-            // change, which is what carries the data.
+            // Differential phase: d = conj(s) * prev. FLDIGI's TX outputs
+            // audio cos(wt - theta) (psk.cxx tx_carriers, ival*cos + qval*sin),
+            // so our positive-frequency mixer recovers a baseband whose
+            // phase is the NEGATIVE of FLDIGI's intended modulation phase.
+            // The reversed-sign imaginary part puts us back into FLDIGI's
+            // phase frame, after which the standard "phase -= M_PI then
+            // quantise" rule below recovers the symbol index correctly.
             float dre = s.re * _this->prev.re + s.im * _this->prev.im;
-            float dim = s.im * _this->prev.re - s.re * _this->prev.im;
+            float dim = s.re * _this->prev.im - s.im * _this->prev.re;
             _this->prev = s;
 
             // FLDIGI's plain (non-FEC) 8PSK convention (psk.cxx line 1491):
@@ -355,7 +358,15 @@ private:
     // uses an error function with stable equilibria at all 8 PSK points,
     // so it does NOT cycle-slip on 45 degree data jumps. After Costas
     // lock, the M&M timing tracks symbol timing cleanly.
-    dsp::demod::PSK<8> psk;
+    // The PSKWSinc demod uses a Blackman-windowed sinc receive filter
+    // instead of an RRC. The RRC matched filter assumes an RRC TX pulse
+    // shape, which FLDIGI does NOT use: it applies a half-cosine cross-fade
+    // (psk.cxx:2256) between consecutive symbols, equivalent to a raised-
+    // cosine pulse in the time domain. Pairing that TX pulse with an RRC
+    // RX filter leaves significant residual ISI - enough to push many 8PSK
+    // symbols across the 22.5 degree decision boundary, producing the
+    // F->q, T->g, J->h character substitutions previously observed.
+    fldigi::PSKWSinc<8> psk;
     dsp::sink::Handler<dsp::complex_t> symSink;
     bool needResamp = false;
 

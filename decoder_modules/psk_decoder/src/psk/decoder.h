@@ -2,6 +2,7 @@
 #include "../decoder.h"
 #include "../common/tone_mixer.h"
 #include "../common/varicode.h"
+#include "../common/mfsk_varicode.h"
 #include "../common/viterbi_k7.h"
 #include "../common/auto_tune.h"
 
@@ -295,7 +296,13 @@ private:
 
         symSink.init(&psk.out, symbolHandler, this);
 
+        // Reset decoder state on (re)start so mode switches don't inherit
+        // stale Viterbi survivors, Varicode shift registers, or last-symbol
+        // phase from a previous run.
+        prev = { 1.0f, 0.0f };
         viterbi.reset();
+        psk_varicode.reset();
+        mfsk_varicode.reset();
     }
 
     static void symbolHandler(dsp::complex_t* data, int count, void* ctx) {
@@ -311,23 +318,33 @@ private:
             _this->diag.releaseBuffer();
         }
 
-        // Differential BPSK detection
+        // Differential BPSK detection. BPSK constellation has only two
+        // points (+1, 0) and (-1, 0); the phase-direction issue affecting
+        // QPSK/8PSK does not apply here because 0 and pi are fixed points
+        // under phase negation, so the dot product is unambiguous.
         for (int i = 0; i < count; i++) {
             dsp::complex_t s = data[i];
             float dot = (s.re * _this->prev.re) + (s.im * _this->prev.im);
             int rawBit = (dot > 0.0f) ? 1 : 0;
             _this->prev = s;
 
-            int bit = rawBit;
             if (_this->profile.fec) {
+                // BPSK63F: each received raw bit is one of (c0, c1) from
+                // the K=7 R=1/2 convolutional code. The Viterbi accumulates
+                // pairs and emits info bits. Decoded info bits go to the
+                // MFSK Varicode decoder (FLDIGI psk.cxx line 1118 routes
+                // _pskr modes through varidec() instead of psk_varicode).
                 int v = _this->viterbi.process(rawBit);
                 if (v < 0) { continue; }
-                bit = v;
+                int ch = _this->mfsk_varicode.process(v);
+                if (ch < 0) { continue; }
+                _this->appendChar(ch);
+            } else {
+                // Plain BPSK: rawBit goes straight to PSK Varicode.
+                int ch = _this->psk_varicode.process(rawBit);
+                if (ch < 0) { continue; }
+                _this->appendChar(ch);
             }
-
-            int ch = _this->varicode.process(bit);
-            if (ch < 0) { continue; }
-            _this->appendChar(ch);
         }
     }
 
@@ -359,9 +376,11 @@ private:
     dsp::sink::Handler<dsp::complex_t> symSink;
     bool needResamp = false;
 
-    // Decoding state
-    fldigi::VaricodeDecoder varicode;
-    fldigi::ViterbiK7R12   viterbi;
+    // Decoding state. Plain BPSK modes use psk_varicode (PSK31-style).
+    // BPSK63F uses mfsk_varicode and Viterbi K=7 FEC.
+    fldigi::VaricodeDecoder      psk_varicode;
+    fldigi::MfskVaricodeDecoder  mfsk_varicode;
+    fldigi::ViterbiK7R12         viterbi;
     dsp::complex_t prev = { 1.0f, 0.0f };
 
     // GUI / output

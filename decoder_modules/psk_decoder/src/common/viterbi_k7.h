@@ -5,10 +5,19 @@
 // ---------------------------------------------------------------------------
 //  Convolutional Viterbi decoder, constraint length K = 7, rate R = 1/2.
 //
-//  Standard NASA/Voyager polynomials, also used by MultiPsk / FLDIGI for
-//  PSK63F (PSK63FEC):
-//      G1 = 171 (octal) = 0x79
-//      G2 = 133 (octal) = 0x5B
+//  FLDIGI / MultiPsk PSK63F uses NON-STANDARD polynomials (psk.cxx ~72-74):
+//      FLDIGI POLY1 = 0x6d (octal 155)
+//      FLDIGI POLY2 = 0x4f (octal 117)
+//
+//  This decoder uses a SHIFT-IN-AT-MSB state representation. The
+//  polynomials must be bit-reversed (7-bit) to produce the same parities
+//  as FLDIGI's encoder (which shifts in at the LSB):
+//      G1 = bit_reverse_7(0x6d) = bit_reverse_7(0b1101101) = 0b1011011 = 0x5B
+//      G2 = bit_reverse_7(0x4f) = bit_reverse_7(0b1001111) = 0b1111001 = 0x79
+//
+//  NOTE: these happen to numerically match the well-known NASA Voyager
+//  polynomials (171/133 octal = 0x79/0x5B). DO NOT be misled - they are
+//  assigned to G1/G2 in the OPPOSITE order. G1=0x5B, G2=0x79.
 //
 //  Encoded symbols are fed interleaved (G1, G2, G1, G2, ...).
 //  Hard-decision implementation. 64 states. TBLEN survivor traceback.
@@ -30,8 +39,8 @@ namespace fldigi {
         static constexpr int N_STATES = 1 << (K - 1);  // 64
         static constexpr int TBLEN    = 64;            // traceback length
         static constexpr int BUFLEN   = TBLEN + 1;     // +1 so read != write slot
-        static constexpr int POLY_G1  = 0x79;          // 171 octal
-        static constexpr int POLY_G2  = 0x5B;          // 133 octal
+        static constexpr int POLY_G1  = 0x5B;          // bit_reverse_7(0x6d)
+        static constexpr int POLY_G2  = 0x79;          // bit_reverse_7(0x4f)
         static constexpr int METRIC_INF = 4096;
 
         ViterbiK7R12() { reset(); }
