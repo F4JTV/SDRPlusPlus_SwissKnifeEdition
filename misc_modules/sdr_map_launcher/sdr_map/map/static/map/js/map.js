@@ -70,11 +70,13 @@
   });
 
   // Après un zoom, Leaflet peut régénérer les éléments d'icônes : on
-  // re-applique l'orientation de chaque marqueur pour qu'aucun avion ne
-  // « retombe » sur un ancien cap.
+  // re-applique l'orientation de chaque marqueur (et de ses ghosts à ±360°
+  // de longitude) pour qu'aucun avion ne « retombe » sur un ancien cap.
   map.on("zoomend", () => {
     markers.forEach((m) => {
       if (m._sdrData) updateMarkerDom(m, m._sdrData);
+      if (m._ghostL && m._sdrData) updateMarkerDom(m._ghostL, m._sdrData);
+      if (m._ghostR && m._sdrData) updateMarkerDom(m._ghostR, m._sdrData);
     });
   });
 
@@ -730,7 +732,12 @@
       } else {
         trails.forEach((t, id) => {
           const o = objectsById.get(id);
-          if (o) layers[o.type].removeLayer(t);
+          if (o) {
+            layers[o.type].removeLayer(t);
+            // Ghosts polylines added by rebuildTrail() at ±360° longitude.
+            if (t._ghostL) layers[o.type].removeLayer(t._ghostL);
+            if (t._ghostR) layers[o.type].removeLayer(t._ghostR);
+          }
         });
         trails.clear();
       }
@@ -1006,11 +1013,21 @@
     stopReplay();
     markers.forEach((m, id) => {
       const o = objectsById.get(id);
-      if (o && layers[o.type]) layers[o.type].removeLayer(m);
+      if (o && layers[o.type]) {
+        layers[o.type].removeLayer(m);
+        // Ghost copies (±360° lon) added by upsert() — must be removed too,
+        // otherwise the duplicates stay on the map after Clear.
+        if (m._ghostL) layers[o.type].removeLayer(m._ghostL);
+        if (m._ghostR) layers[o.type].removeLayer(m._ghostR);
+      }
     });
     trails.forEach((t, id) => {
       const o = objectsById.get(id);
-      if (o && layers[o.type]) layers[o.type].removeLayer(t);
+      if (o && layers[o.type]) {
+        layers[o.type].removeLayer(t);
+        if (t._ghostL) layers[o.type].removeLayer(t._ghostL);
+        if (t._ghostR) layers[o.type].removeLayer(t._ghostR);
+      }
     });
     markers.clear();
     trails.clear();
