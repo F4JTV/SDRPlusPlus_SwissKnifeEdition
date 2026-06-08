@@ -127,6 +127,11 @@ public:
         engine.setUpdateIntervalMs(updateMs);
         engine.setStepHz(stepHz);
         engine.setTuneCallback([this](double hz) { this->onEngineTune(hz); });
+        // Push map/TCP points from the engine's background thread so they keep
+        // flowing even when the module panel is collapsed (GUI not drawn).
+        engine.setUpdateCallback([this](const sattrack::TrackSnapshot& s) {
+            this->maybeSendMapPoint(s);
+        });
 
         // Embedded rigctl server callbacks (the "rigctl base").
         rigctl.setCallbacks(
@@ -147,6 +152,9 @@ public:
         gui::menu.removeEntry(name);
         sigpath::vfoManager.onVfoCreated.unbindHandler(&vfoCreatedHandler);
         sigpath::vfoManager.onVfoDeleted.unbindHandler(&vfoDeletedHandler);
+        // Stop the engine thread first: its update callback touches tcpSender,
+        // which is destroyed before the engine (reverse member order).
+        engine.stop();
         rigctl.stop();
         tcpSender.stop();
     }
@@ -430,7 +438,8 @@ private:
         auto snap = engine.snapshot();
         int64_t now = (int64_t)std::time(nullptr);
 
-        maybeSendMapPoint(snap);
+        // Note: map/TCP points are pushed from the engine thread (setUpdateCallback),
+        // not from here, so they keep flowing when this panel is collapsed.
 
         // ---------------- Observer (QTH) -------------------------------------
         if (ImGui::CollapsingHeader("Observer (QTH)", ImGuiTreeNodeFlags_DefaultOpen)) {

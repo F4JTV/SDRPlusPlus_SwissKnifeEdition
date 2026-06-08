@@ -131,7 +131,9 @@ Then enable **satellite_tracker** in SDR++ → *Module Manager*.
 One newline-delimited JSON object per update (throttled to ~0.5 Hz), following the
 same `name / date / time / lat / lon / type / speed / info` schema as the other
 SDR Map feeds (AIS, radiosonde, …). The satellite-specific telemetry is packed
-into the `info` field. `lat`/`lon` are the sub-satellite point.
+into the `info` field. `lat`/`lon` are the sub-satellite point. Points are emitted
+from the tracker's background thread, so the stream keeps flowing even when the
+module's panel is collapsed.
 
 ```json
 {"name":"ISS (ZARYA)","date":"2026-06-07","time":"10:46:46",

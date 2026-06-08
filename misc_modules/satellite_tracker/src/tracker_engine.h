@@ -71,6 +71,10 @@ struct TrackSnapshot {
 class TrackerEngine {
 public:
     using TuneFn = std::function<void(double correctedDownlinkHz)>;
+    // Fired from the background thread after every update cycle, regardless of
+    // whether the module's GUI is visible. Used to push map/TCP data so it keeps
+    // flowing when the module panel is collapsed.
+    using UpdateFn = std::function<void(const TrackSnapshot&)>;
 
     TrackerEngine() {
         observer = predict_create_observer("QTH", 0.0, 0.0, 0.0);
@@ -115,6 +119,13 @@ public:
     void setDownlink(double hz)    { downlinkHz = hz; }
     void setUplink(double hz)      { uplinkHz = hz; }
     void setTuneCallback(TuneFn f) { std::lock_guard<std::mutex> lck(cbMtx); tuneCb = std::move(f); }
+    void setUpdateCallback(UpdateFn f) { std::lock_guard<std::mutex> lck(cbMtx); updateCb = std::move(f); }
+    // Stop the worker thread. Safe to call more than once; the destructor also
+    // stops it. Call this before tearing down anything the update callback uses.
+    void stop() {
+        running = false;
+        if (worker.joinable()) { worker.join(); }
+    }
     void setCorrectionEnabled(bool e) { correctionEnabled = e; }
     void setMinElevation(double d) { minElDeg = d; }
     void setUpdateIntervalMs(int m){ updateMs = (m < 100) ? 100 : m; }
@@ -146,6 +157,7 @@ private:
 
                 if (!haveTLE || !orbit || !observer) {
                     storeSnapshot(s);
+                    fireUpdate(s);
                     continue;
                 }
 
@@ -206,6 +218,7 @@ private:
             }
 
             storeSnapshot(s);
+            fireUpdate(s);
 
             if (doTune) {
                 std::lock_guard<std::mutex> lck(cbMtx);
@@ -273,6 +286,14 @@ private:
 
     // tuning callback
     TuneFn     tuneCb;
+    UpdateFn   updateCb;
+
+    // Copy the callback out under the lock, then invoke it unlocked.
+    void fireUpdate(const TrackSnapshot& s) {
+        UpdateFn f;
+        { std::lock_guard<std::mutex> lck(cbMtx); f = updateCb; }
+        if (f) { f(s); }
+    }
     std::mutex cbMtx;
 
     // snapshot
