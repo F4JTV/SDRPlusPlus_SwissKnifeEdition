@@ -32,6 +32,7 @@ extern "C" {
 #include <mutex>
 #include <string>
 #include <thread>
+#include <vector>
 
 namespace sattrack {
 
@@ -136,6 +137,61 @@ public:
     TrackSnapshot snapshot() {
         std::lock_guard<std::mutex> lck(snapMtx);
         return snap;
+    }
+
+    // One predicted pass over the current QTH.
+    struct PassInfo {
+        double aosUnix = 0;
+        double losUnix = 0;
+        double maxElDeg = 0;
+        double maxElAzDeg = 0;
+    };
+
+    // Compute up to `count` upcoming passes for `tle` at the current QTH, using
+    // temporary predict objects so it is independent of the satellite currently
+    // being tracked. Returns false for geostationary / never-rising objects.
+    bool computePasses(const TLE& tle, int count, std::vector<PassInfo>& out) {
+        double lat, lon, alt, toff;
+        {
+            std::lock_guard<std::mutex> lck(mtx);
+            lat = qthLat; lon = qthLon; alt = qthAlt;
+        }
+        toff = timeOffset.load();
+
+        predict_orbital_elements_t* orb =
+            predict_parse_tle(tle.line1.c_str(), tle.line2.c_str());
+        if (!orb) { return false; }
+
+        bool rises = !predict_is_geosynchronous(orb) &&
+                     predict_aos_happens(orb, lat * ST_DEG2RAD);
+        if (!rises) { predict_destroy_orbital_elements(orb); return false; }
+
+        predict_observer_t* obs =
+            predict_create_observer("sched", lat * ST_DEG2RAD, lon * ST_DEG2RAD, alt);
+
+        double t = (double)std::time(nullptr) + toff;
+        predict_julian_date_t jd = predict_to_julian_double(t);
+
+        for (int i = 0; i < count; i++) {
+            struct predict_observation aos = predict_next_aos(obs, orb, jd);
+            struct predict_observation los = predict_next_los(obs, orb, aos.time);
+            struct predict_observation mx  = predict_at_max_elevation(obs, orb, aos.time);
+
+            PassInfo p;
+            p.aosUnix    = (double)predict_from_julian(aos.time);
+            p.losUnix    = (double)predict_from_julian(los.time);
+            p.maxElDeg   = mx.elevation * ST_RAD2DEG;
+            p.maxElAzDeg = mx.azimuth   * ST_RAD2DEG;
+            if (p.losUnix <= p.aosUnix) { break; } // sanity
+            out.push_back(p);
+
+            // Advance one minute past this LOS to find the following pass.
+            jd = los.time + (60.0 / 86400.0);
+        }
+
+        predict_destroy_orbital_elements(orb);
+        predict_destroy_observer(obs);
+        return !out.empty();
     }
 
 private:

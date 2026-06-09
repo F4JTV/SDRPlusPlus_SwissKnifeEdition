@@ -7,12 +7,10 @@
  *    the same engine SatDump uses (src/predict/, GPLv2+).
  *  - TLE catalogue downloaded from CelesTrak and parsed with the SatDump-
  *    derived parser (src/tle_manager.*).
- *  - VFO control / RIGCTL handling built on SDR++'s rigctl_server module:
- *      * the autonomous tracker retunes the selected VFO directly via
- *        tuner::tune (like rigctl_server's "F" handler), and
- *      * an optional embedded RIGCTL server (src/rigctl_internal.h) exposes the
- *        same hamlib command set so external pass software (gpredict, SatDump)
- *        can drive SDR++ instead.
+ *  - VFO control follows SDR++'s rigctl_server module: the tracker retunes the
+ *    selected VFO directly via tuner::tune (like rigctl_server's "F" handler).
+ *  - Pass scheduler (background thread): predicts upcoming passes and tracks each
+ *    armed satellite from AOS to LOS in turn, independent of the GUI state.
  *  - Optional JSON-over-TCP output of the sub-satellite point to the ADRASEC
  *    SDR Map (type "satellite"), using the shared TcpLineSender pattern.
  *
@@ -33,13 +31,14 @@
 #include "tracker_engine.h"
 #include "tle_manager.h"
 #include "tcp_sender.h"
-#include "rigctl_internal.h"
 #include "satellite_freqs.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstring>
 #include <ctime>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
@@ -89,8 +88,6 @@ public:
         if (!c.contains("minEl"))       { c["minEl"] = 0.0; }
         if (!c.contains("updateMs"))    { c["updateMs"] = 1000; }
         if (!c.contains("stepHz"))      { c["stepHz"] = 10.0; }
-        if (!c.contains("rigctlHost"))  { c["rigctlHost"] = "127.0.0.1"; }
-        if (!c.contains("rigctlPort"))  { c["rigctlPort"] = 4532; }
         if (!c.contains("tcpHost"))     { c["tcpHost"] = "127.0.0.1"; }
         if (!c.contains("tcpPort"))     { c["tcpPort"] = 10100; }
 
@@ -106,8 +103,6 @@ public:
         minEl       = c["minEl"];
         updateMs    = c["updateMs"];
         stepHz      = c["stepHz"];
-        strncpy(rigctlHost, std::string(c["rigctlHost"]).c_str(), sizeof(rigctlHost) - 1);
-        rigctlPort  = c["rigctlPort"];
         strncpy(tcpHost, std::string(c["tcpHost"]).c_str(), sizeof(tcpHost) - 1);
         tcpPort     = c["tcpPort"];
         config.release(false);
@@ -133,11 +128,6 @@ public:
             this->maybeSendMapPoint(s);
         });
 
-        // Embedded rigctl server callbacks (the "rigctl base").
-        rigctl.setCallbacks(
-            [this](double hz) -> bool { return this->onRigctlSetFreq(hz); },
-            [this]() -> double { return this->getCurrentVfoFreq(); });
-
         // tcp sender target
         tcpSender.setTarget(tcpHost, tcpPort);
 
@@ -152,10 +142,9 @@ public:
         gui::menu.removeEntry(name);
         sigpath::vfoManager.onVfoCreated.unbindHandler(&vfoCreatedHandler);
         sigpath::vfoManager.onVfoDeleted.unbindHandler(&vfoDeletedHandler);
-        // Stop the engine thread first: its update callback touches tcpSender,
-        // which is destroyed before the engine (reverse member order).
-        engine.stop();
-        rigctl.stop();
+        // Stop background threads before tearing down what they touch.
+        stopScheduler();          // scheduler drives the engine + module state
+        engine.stop();            // its update callback touches tcpSender
         tcpSender.stop();
     }
 
@@ -169,6 +158,8 @@ public:
         vfoDeletedHandler.ctx = this;
         sigpath::vfoManager.onVfoCreated.bindHandler(&vfoCreatedHandler);
         sigpath::vfoManager.onVfoDeleted.bindHandler(&vfoDeletedHandler);
+
+        startScheduler();
     }
 
     void enable()  { enabled = true; }
@@ -237,11 +228,95 @@ private:
         tuneVfo(correctedHz);
     }
 
-    // Called from the embedded rigctl server thread.
-    bool onRigctlSetFreq(double hz) {
-        if (!enabled) { return true; }
-        tuneVfo(hz);
-        return true;
+    // ======================= Scheduler =======================================
+    // One armed pass: track this satellite from AOS to LOS.
+    struct SchedEntry {
+        sattrack::TLE tle;
+        double aosUnix = 0;
+        double losUnix = 0;
+        double maxElDeg = 0;
+        bool   done = false;
+    };
+
+    void startScheduler() {
+        if (schedRunning.exchange(true)) { return; }
+        schedThread = std::thread(&SatelliteTrackerModule::schedulerLoop, this);
+    }
+    void stopScheduler() {
+        if (!schedRunning.exchange(false)) { return; }
+        if (schedThread.joinable()) { schedThread.join(); }
+    }
+
+    // Runs on its own thread (independent of the GUI) so scheduled passes are
+    // honored even when the module panel is collapsed.
+    void schedulerLoop() {
+        while (schedRunning.load()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            if (!schedEnabled.load()) { activeSchedNorad.store(-1); continue; }
+
+            double now = (double)std::time(nullptr);
+            SchedEntry active;
+            bool haveActive = false;
+            {
+                std::lock_guard<std::mutex> lck(schedMtx);
+                double best = 1e18;
+                for (auto& e : schedule) {
+                    if (now > e.losUnix) { e.done = true; continue; }
+                    // Active window: from AOS (minus lead) to LOS.
+                    if (now >= e.aosUnix - schedLeadSec && now <= e.losUnix) {
+                        if (e.aosUnix < best) { best = e.aosUnix; active = e; haveActive = true; }
+                    }
+                }
+            }
+
+            int want = haveActive ? active.tle.norad : -1;
+            if (want != activeSchedNorad.load()) {
+                activeSchedNorad.store(want);
+                if (haveActive) {
+                    // Point the tracker at the scheduled satellite and let the
+                    // engine's Doppler loop take over for the whole pass.
+                    engine.setTLE(active.tle);
+                    double hz; std::string lbl;
+                    if (sattrack::lookupDownlink(active.tle.norad, hz, lbl)) {
+                        engine.setDownlink(hz);
+                        downlinkHz = hz;
+                    }
+                    engine.setCorrectionEnabled(true);
+                    selectedNorad = active.tle.norad;
+                    guiNeedsSatSync.store(true);
+                }
+                else {
+                    // No scheduled pass in progress: hand control back to the
+                    // manual Doppler toggle.
+                    engine.setCorrectionEnabled(dopplerEnabled);
+                }
+            }
+        }
+    }
+
+    // Add the next `count` passes' worth of predictions for a TLE to predList.
+    void computePredictions(const sattrack::TLE& tle) {
+        predList.clear();
+        predSatNorad = tle.norad;
+        predSatName = tle.name;
+        engine.computePasses(tle, 6, predList);
+    }
+
+    // Arm a specific predicted pass for a satellite.
+    void schedulePass(const sattrack::TLE& tle, const sattrack::TrackerEngine::PassInfo& p) {
+        SchedEntry e;
+        e.tle = tle;
+        e.aosUnix = p.aosUnix;
+        e.losUnix = p.losUnix;
+        e.maxElDeg = p.maxElDeg;
+        std::lock_guard<std::mutex> lck(schedMtx);
+        // Avoid duplicates (same sat + same AOS within 30 s).
+        for (auto& s : schedule) {
+            if (s.tle.norad == e.tle.norad && std::abs(s.aosUnix - e.aosUnix) < 30) { return; }
+        }
+        schedule.push_back(e);
+        std::sort(schedule.begin(), schedule.end(),
+                  [](const SchedEntry& a, const SchedEntry& b) { return a.aosUnix < b.aosUnix; });
     }
 
     // ======================= TLE / satellite list ============================
@@ -433,8 +508,27 @@ private:
         _this->draw();
     }
 
+    // Format a unix time as compact UTC "MM-DD HH:MM" for the schedule UI.
+    static void fmtClock(double unix, char* buf, size_t n) {
+        std::time_t tt = (std::time_t)unix;
+        std::tm tmv;
+#if defined(_WIN32)
+        gmtime_s(&tmv, &tt);
+#else
+        gmtime_r(&tt, &tmv);
+#endif
+        std::strftime(buf, n, "%m-%d %H:%MZ", &tmv);
+    }
+
     void draw() {
         float w = ImGui::GetContentRegionAvail().x;
+
+        // If the scheduler switched the tracked satellite on its own thread,
+        // refresh the GUI-side selection state (presets, search box) here.
+        if (guiNeedsSatSync.exchange(false)) {
+            refreshDlPresets(selectedNorad);
+        }
+
         auto snap = engine.snapshot();
         int64_t now = (int64_t)std::time(nullptr);
 
@@ -706,41 +800,111 @@ private:
             }
         }
 
-        // ---------------- Embedded RIGCTL server (rigctl base) ---------------
-        if (ImGui::CollapsingHeader("RIGCTL server")) {
-            bool srvOn = rigctl.isRunning();
-            if (srvOn) { style::beginDisabled(); }
-            ImGui::LeftLabel("Host");
-            ImGui::FillWidth();
-            if (ImGui::InputText(CONCAT("##sat_rig_host_", name), rigctlHost, sizeof(rigctlHost))) {
-                saveConf("rigctlHost", std::string(rigctlHost));
+        // ---------------- Scheduler ------------------------------------------
+        if (ImGui::CollapsingHeader("Scheduler")) {
+            // Enable toggle + status.
+            bool en = schedEnabled.load();
+            if (ImGui::Checkbox(CONCAT("Enable scheduler##", name), &en)) {
+                schedEnabled.store(en);
+                if (!en) { engine.setCorrectionEnabled(dopplerEnabled); }
             }
-            ImGui::LeftLabel("Port");
-            ImGui::FillWidth();
-            if (ImGui::InputInt(CONCAT("##sat_rig_port_", name), &rigctlPort, 0, 0)) {
-                saveConf("rigctlPort", rigctlPort);
+            ImGui::SameLine();
+            int actN = activeSchedNorad.load();
+            if (!en) {
+                ImGui::TextDisabled("off");
             }
-            if (srvOn) { style::endDisabled(); }
-
-            if (!srvOn) {
-                if (ImGui::Button(CONCAT("Start server##", name), ImVec2(w, 0))) {
-                    rigctl.start(rigctlHost, rigctlPort);
-                }
-                ImGui::SameLine(); ImGui::TextDisabled("stopped");
+            else if (actN >= 0) {
+                ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.2f, 1.0f), "tracking %d", actN);
             }
             else {
-                if (ImGui::Button(CONCAT("Stop server##", name), ImVec2(w, 0))) {
-                    rigctl.stop();
+                size_t n; { std::lock_guard<std::mutex> lck(schedMtx); n = schedule.size(); }
+                ImGui::TextColored(ImVec4(0.9f, 0.6f, 0.2f, 1.0f), "armed (%d)", (int)n);
+            }
+            ImGui::TextDisabled("Tracks each armed pass from AOS to LOS, in order.");
+
+            // Predict passes for the satellite currently selected in 'Satellite'.
+            auto selTle = tleMgr.byNorad(selectedNorad);
+            if (!selTle.has_value()) {
+                ImGui::TextDisabled("Select a satellite above to predict its passes.");
+            }
+            else {
+                if (ImGui::Button(CONCAT("Compute passes##sched_", name), ImVec2(w, 0))) {
+                    computePredictions(selTle.value());
                 }
-                ImGui::SameLine();
-                if (rigctl.hasClient()) {
-                    ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.2f, 1.0f), "client connected");
-                }
-                else {
-                    ImGui::TextColored(ImVec4(0.9f, 0.6f, 0.2f, 1.0f), "listening");
+                if (!predList.empty() && predSatNorad == selectedNorad) {
+                    ImGui::TextDisabled("Next passes for %s:", predSatName.c_str());
+                    for (size_t i = 0; i < predList.size(); i++) {
+                        const auto& p = predList[i];
+                        char ab[24]; fmtClock(p.aosUnix, ab, sizeof(ab));
+                        int durMin = (int)((p.losUnix - p.aosUnix) / 60.0);
+                        ImGui::Text("%s  el %2.0f\xC2\xB0  %dm", ab, p.maxElDeg, durMin);
+                        ImGui::SameLine();
+                        if (ImGui::Button(CONCAT(CONCAT("Arm##sched_arm_", name), std::to_string(i)),
+                                          ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
+                            schedulePass(selTle.value(), p);
+                        }
+                    }
                 }
             }
-            ImGui::TextDisabled("Point gpredict/SatDump 'Radio' here to drive SDR++.");
+
+            // Armed schedule.
+            ImGui::Spacing();
+            std::vector<SchedEntry> snapSched;
+            { std::lock_guard<std::mutex> lck(schedMtx); snapSched = schedule; }
+            if (snapSched.empty()) {
+                ImGui::TextDisabled("No passes armed.");
+            }
+            else if (ImGui::BeginTable(CONCAT("##sched_tbl_", name), 5,
+                         ImGuiTableFlags_Borders | ImGuiTableFlags_SizingStretchProp)) {
+                ImGui::TableSetupColumn("Satellite");
+                ImGui::TableSetupColumn("AOS");
+                ImGui::TableSetupColumn("El");
+                ImGui::TableSetupColumn("Status");
+                ImGui::TableSetupColumn("");
+                ImGui::TableHeadersRow();
+
+                double now = (double)std::time(nullptr);
+                int removeIdx = -1;
+                for (size_t i = 0; i < snapSched.size(); i++) {
+                    const auto& e = snapSched[i];
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0); ImGui::TextUnformatted(e.tle.name.c_str());
+                    char ab[24]; fmtClock(e.aosUnix, ab, sizeof(ab));
+                    ImGui::TableSetColumnIndex(1); ImGui::TextUnformatted(ab);
+                    ImGui::TableSetColumnIndex(2); ImGui::Text("%.0f\xC2\xB0", e.maxElDeg);
+                    ImGui::TableSetColumnIndex(3);
+                    if (e.tle.norad == activeSchedNorad.load()) {
+                        ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.2f, 1.0f), "ACTIVE");
+                    }
+                    else if (now > e.losUnix) {
+                        ImGui::TextDisabled("done");
+                    }
+                    else {
+                        int mins = (int)((e.aosUnix - now) / 60.0);
+                        if (mins >= 0) { ImGui::Text("in %dm", mins); }
+                        else { ImGui::TextColored(ImVec4(0.9f, 0.6f, 0.2f, 1.0f), "passing"); }
+                    }
+                    ImGui::TableSetColumnIndex(4);
+                    if (ImGui::SmallButton(CONCAT(CONCAT("X##sched_del_", name), std::to_string(i)))) {
+                        removeIdx = (int)i;
+                    }
+                }
+                ImGui::EndTable();
+
+                if (removeIdx >= 0) {
+                    std::lock_guard<std::mutex> lck(schedMtx);
+                    if (removeIdx < (int)schedule.size()) { schedule.erase(schedule.begin() + removeIdx); }
+                }
+            }
+            if (!snapSched.empty()) {
+                if (ImGui::Button(CONCAT("Clear finished##sched_", name), ImVec2(w, 0))) {
+                    double now = (double)std::time(nullptr);
+                    std::lock_guard<std::mutex> lck(schedMtx);
+                    schedule.erase(std::remove_if(schedule.begin(), schedule.end(),
+                                   [&](const SchedEntry& e) { return now > e.losUnix; }),
+                                   schedule.end());
+                }
+            }
         }
 
         // ---------------- Map output (TCP/JSON) ------------------------------
@@ -784,7 +948,6 @@ private:
     std::vector<sattrack::TLE> satRegistry;
     std::mutex              satListMtx;
 
-    RigctlInternalServer    rigctl;
     TcpLineSender           tcpSender;
 
     // QTH
@@ -821,9 +984,19 @@ private:
     int    updateMs = 1000;
     double stepHz = 10.0;
 
-    // rigctl server (enabled state not persisted)
-    char rigctlHost[256] = "127.0.0.1";
-    int  rigctlPort = 4532;
+    // scheduler (enabled state not persisted: never auto-track at startup)
+    std::vector<SchedEntry>           schedule;       // armed passes (guarded)
+    std::mutex                        schedMtx;
+    std::thread                       schedThread;
+    std::atomic<bool>                 schedRunning{ false };
+    std::atomic<bool>                 schedEnabled{ false };
+    std::atomic<int>                  activeSchedNorad{ -1 };
+    std::atomic<bool>                 guiNeedsSatSync{ false };
+    int                               schedLeadSec = 0; // start at AOS
+    // prediction list (GUI thread only)
+    std::vector<sattrack::TrackerEngine::PassInfo> predList;
+    int                               predSatNorad = -1;
+    std::string                       predSatName;
 
     // tcp map output (enabled state not persisted)
     char tcpHost[256] = "127.0.0.1";
