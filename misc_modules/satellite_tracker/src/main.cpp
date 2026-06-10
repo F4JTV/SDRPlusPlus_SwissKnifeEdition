@@ -508,16 +508,17 @@ private:
         _this->draw();
     }
 
-    // Format a unix time as compact UTC "MM-DD HH:MM" for the schedule UI.
+    // Format a unix time as compact LOCAL "MM-DD HH:MM" for the schedule UI,
+    // matching the local-time display used in the Tracking section.
     static void fmtClock(double unix, char* buf, size_t n) {
         std::time_t tt = (std::time_t)unix;
         std::tm tmv;
 #if defined(_WIN32)
-        gmtime_s(&tmv, &tt);
+        localtime_s(&tmv, &tt);
 #else
-        gmtime_r(&tt, &tmv);
+        localtime_r(&tt, &tmv);
 #endif
-        std::strftime(buf, n, "%m-%d %H:%MZ", &tmv);
+        std::strftime(buf, n, "%m-%d %H:%M", &tmv);
     }
 
     void draw() {
