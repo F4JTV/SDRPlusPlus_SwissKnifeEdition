@@ -608,6 +608,14 @@ namespace wefax {
         if (lineCallback) lineCallback(linesReceived);
     }
 
+    void WEFAXDecoder::renderSyncIfIdle() {
+        // During active reception the worker thread owns rawFreqBuffer (it keeps
+        // growing), so just ask it to re-render on its next pass. Otherwise the
+        // buffer is frozen and we can safely re-render here on the UI thread.
+        if (state == State::RECEIVING) { reRenderRequested = true; return; }
+        renderAll();
+    }
+
     void WEFAXDecoder::renderAll() {
         const double period = effectiveLinePeriod();
         if (period < 1.0) return;

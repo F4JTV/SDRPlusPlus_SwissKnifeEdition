@@ -50,7 +50,7 @@ SDRPP_MOD_INFO{
     /* Name:            */ "wefax_decoder",
     /* Description:     */ "WEFAX / HF Radiofax Decoder (auto-slant)",
     /* Author:          */ "WEFAX Decoder Contributors",
-    /* Version:         */ 0, 1, 2,
+    /* Version:         */ 0, 1, 3,
     /* Max instances    */ -1
 };
 
@@ -393,6 +393,10 @@ private:
         try { std::filesystem::create_directories(savePath); }
         catch (...) { flog::error("[WEFAX] Failed to create save dir: {0}", savePath); return; }
         std::string fname = savePath + "/" + buildSaveFilename();
+        // Guarantee the saved image reflects the CURRENT slant / shift / median
+        // settings -- exactly what is shown in the preview -- by re-rendering
+        // from the raw buffer right before copying.
+        decoder.renderSyncIfIdle();
         int w = decoder.getImageWidth();
         int h = decoder.getImageHeight();
         if (w <= 0 || h <= 0) return;
@@ -420,6 +424,15 @@ private:
         if (!_this->enabled) { style::beginDisabled(); }
 
         if (_this->saveImageRequested.exchange(false)) _this->doSaveImage();
+
+        // Re-render the image and refresh the preview right now using the
+        // current slant/shift/median settings (so changes are visible even when
+        // no signal is flowing, and the preview always matches what gets saved).
+        auto refreshRender = [_this]() {
+            _this->decoder.renderSyncIfIdle();
+            std::lock_guard<std::mutex> lck(_this->textureMutex);
+            _this->textureDirty = true;
+        };
 
         // ---- Demod mode ----
         ImGui::LeftLabel("Demod");
@@ -672,6 +685,7 @@ private:
             config.acquire();
             config.conf[_this->name]["autoSlant"] = aslant;
             config.release(true);
+            refreshRender();
         }
 
         bool ransac = _this->decoder.getRansacEnabled();
@@ -690,6 +704,7 @@ private:
             config.acquire();
             config.conf[_this->name]["median"] = median;
             config.release(true);
+            refreshRender();
         }
 
         // ---- Learned slant (clock error) ----
@@ -715,6 +730,7 @@ private:
                 config.conf[_this->name]["slantLearned"]    = false;
                 config.conf[_this->name]["learnedSlantPpm"] = 0.0;
                 config.release(true);
+                refreshRender();
             }
         }
 
@@ -723,12 +739,13 @@ private:
         ImGui::FillWidth();
         float ppm = (float)_this->manualSlantPpm;
         if (ImGui::SliderFloat(("##wefax_ppm_" + _this->name).c_str(),
-                                &ppm, -5000.0f, 5000.0f, "%.0f")) {
+                                &ppm, -10000.0f, 10000.0f, "%.0f")) {
             _this->manualSlantPpm = ppm;
             _this->decoder.setManualSlantPpm(ppm);
             config.acquire();
             config.conf[_this->name]["manualSlantPpm"] = _this->manualSlantPpm;
             config.release(true);
+            refreshRender();
         }
 
         ImGui::LeftLabel("H-shift (px)");
@@ -742,6 +759,7 @@ private:
             config.acquire();
             config.conf[_this->name]["hShift"] = _this->hShiftPixels;
             config.release(true);
+            refreshRender();
         }
 
         if (!_this->lastSavedFile.empty()) {

@@ -62,6 +62,13 @@ namespace wefax {
         // Full reset: back to IDLE, image and calibration cleared.
         void reset();
 
+        // Re-render the whole image from the raw buffer with the CURRENT slant /
+        // shift / median settings. Safe to call from the UI thread when not
+        // actively receiving (the raw buffer is frozen once reception is Done);
+        // during reception it just requests the worker thread to re-render. Used
+        // to guarantee the saved image matches exactly what is displayed.
+        void renderSyncIfIdle();
+
         // ---- Parameters -------------------------------------------------
         // Lines per minute (60/90/100/120/180/240). Default 120.
         void  setLPM(double lpm);
