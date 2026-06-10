@@ -50,7 +50,7 @@ SDRPP_MOD_INFO{
     /* Name:            */ "wefax_decoder",
     /* Description:     */ "WEFAX / HF Radiofax Decoder (auto-slant)",
     /* Author:          */ "WEFAX Decoder Contributors",
-    /* Version:         */ 0, 1, 3,
+    /* Version:         */ 0, 1, 4,
     /* Max instances    */ -1
 };
 

@@ -597,7 +597,9 @@ namespace wefax {
         const double period = effectiveLinePeriod();
         if (period < 1.0) return;
         const double origin = effectiveLineOrigin();
-        int avail = (int)std::floor(((double)rawFreqBuffer.size() - origin) / period);
+        const double spp    = period / (double)width;
+        int avail = (int)std::floor(((double)rawFreqBuffer.size() - origin
+                                     + (double)hShiftPixels * spp) / period);
         if (avail > WEFAX_MAX_LINES) avail = WEFAX_MAX_LINES;
         if (avail <= lastRenderedLine) return;
 
@@ -620,7 +622,13 @@ namespace wefax {
         const double period = effectiveLinePeriod();
         if (period < 1.0) return;
         const double origin = effectiveLineOrigin();
-        int avail = (int)std::floor(((double)rawFreqBuffer.size() - origin) / period);
+        const double spp    = period / (double)width;
+        // A line is only fully renderable once every sample its pixels read has
+        // arrived. The H-shift moves the sampling window by hShiftPixels*spp, so
+        // fold that into the count to avoid rendering a line too early (which
+        // would leave a black strip that never gets refilled).
+        int avail = (int)std::floor(((double)rawFreqBuffer.size() - origin
+                                     + (double)hShiftPixels * spp) / period);
         if (avail < 0) avail = 0;
         if (avail > WEFAX_MAX_LINES) avail = WEFAX_MAX_LINES;
 
