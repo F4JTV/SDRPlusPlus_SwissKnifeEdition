@@ -85,6 +85,13 @@ public:
     void clearChannels();
     void forceAcquireNow()                { reacqRequested_ = true; cv_.notify_all(); }
 
+    // Returns the most recent GPS time anchor across all tracked channels.
+    // Picks the channel whose last subframe was decoded most recently AND
+    // whose C/N0 is above 30 dB-Hz (NAV bit errors below that wreck the
+    // anchor's accuracy). If no channel qualifies, the returned TimeFix has
+    // valid == false.
+    TimeFix getLatestTimeFix();
+
     void setSubframeCallback(SubframeCallback cb) {
         std::lock_guard<std::mutex> l(cbMu_); subframeCb_ = std::move(cb);
     }

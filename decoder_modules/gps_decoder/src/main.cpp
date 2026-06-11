@@ -18,7 +18,9 @@
 #include <core.h>
 #include <config.h>
 
+#include <chrono>
 #include <complex>
+#include <cstdlib>
 #include <cstring>
 #include <deque>
 #include <memory>
@@ -27,6 +29,7 @@
 #include <vector>
 
 #include "gps_decoder.h"
+#include "gps_time.h"
 
 SDRPP_MOD_INFO{
     /* Name:            */ "gps_decoder",
@@ -63,8 +66,12 @@ public:
         if (!config.conf[name].contains("acquisitionPeriodSec")) {
             config.conf[name]["acquisitionPeriodSec"] = 2.0f;
         }
+        if (!config.conf[name].contains("leapSeconds")) {
+            config.conf[name]["leapSeconds"] = gps::DEFAULT_LEAP_SECONDS;
+        }
         acquisitionThreshold_  = config.conf[name]["acquisitionThreshold"];
         acquisitionPeriodSec_  = config.conf[name]["acquisitionPeriodSec"];
+        leapSeconds_           = config.conf[name]["leapSeconds"];
         config.release(true);
 
         // Build the decoder -------------------------------------------------------
@@ -249,6 +256,77 @@ private:
             ImGui::EndTable();
         }
 
+        // --- Time Sync --------------------------------------------------------
+        ImGui::Separator();
+        ImGui::TextUnformatted("Time Sync (GPS UTC)");
+
+        gps::TimeFix fix = decoder_->getLatestTimeFix();
+        if (!fix.valid) {
+            ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f),
+                               "Status: waiting for a subframe with C/N0 >= 30 dB-Hz...");
+        } else {
+            auto now = std::chrono::system_clock::now();
+            auto gpsUtc = gps::gpsTowToUtc(fix, now, leapSeconds_);
+            auto offsetMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                now - gpsUtc).count();
+
+            ImGui::Text("Status: locked on PRN %d (C/N0 %.1f dB-Hz)",
+                        fix.prn, fix.cn0_dBHz);
+            ImGui::Text("GPS UTC:  %s", gps::formatUtcIso(gpsUtc).c_str());
+            ImGui::Text("PC clock: %s", gps::formatUtcIso(now).c_str());
+
+            ImVec4 col;
+            long long absOff = std::llabs(offsetMs);
+            if      (absOff <  100) col = ImVec4(0.2f, 1.0f, 0.2f, 1.0f);
+            else if (absOff < 1000) col = ImVec4(1.0f, 0.85f, 0.2f, 1.0f);
+            else                    col = ImVec4(0.85f, 0.4f, 0.4f, 1.0f);
+            ImGui::TextColored(col,
+                "PC - GPS = %+lld ms  (PC is %s)",
+                (long long)offsetMs,
+                offsetMs >= 0 ? "ahead" : "behind");
+        }
+
+        ImGui::LeftLabel("Leap seconds");
+        ImGui::FillWidth();
+        if (ImGui::InputInt(("##gps_leap_" + name).c_str(), &leapSeconds_)) {
+            if (leapSeconds_ <  0) leapSeconds_ = 0;
+            if (leapSeconds_ > 30) leapSeconds_ = 30;
+            saveConf("leapSeconds", leapSeconds_);
+        }
+
+        const bool canSet = fix.valid;
+        if (!canSet) ImGui::BeginDisabled();
+        if (ImGui::Button(("Set system clock##gps_setclock_" + name).c_str(),
+                          ImVec2(w, 0))) {
+            auto target = gps::gpsTowToUtc(fix,
+                                            std::chrono::system_clock::now(),
+                                            leapSeconds_);
+            std::string err;
+            if (gps::setSystemClock(target, err)) {
+                lastClockSetError_.clear();
+                lastClockSetSuccess_ = std::chrono::system_clock::now();
+            } else {
+                lastClockSetError_ = err;
+                lastClockSetSuccess_ = {};
+            }
+        }
+        if (!canSet) ImGui::EndDisabled();
+
+        if (!lastClockSetError_.empty()) {
+            ImGui::PushTextWrapPos(0.0f);
+            ImGui::TextColored(ImVec4(0.95f, 0.5f, 0.5f, 1.0f),
+                               "%s", lastClockSetError_.c_str());
+            ImGui::PopTextWrapPos();
+        } else if (lastClockSetSuccess_.time_since_epoch().count() != 0) {
+            auto age = std::chrono::duration_cast<std::chrono::seconds>(
+                std::chrono::system_clock::now() - lastClockSetSuccess_).count();
+            if (age < 30) {
+                ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.2f, 1.0f),
+                                   "Clock set successfully %lld s ago",
+                                   (long long)age);
+            }
+        }
+
         // --- Acquisition snapshot --------------------------------------------
         ImGui::Separator();
         ImGui::TextUnformatted("Last acquisition snapshot");
@@ -322,6 +400,11 @@ private:
 
     float acquisitionThreshold_;
     float acquisitionPeriodSec_;
+    int   leapSeconds_ = gps::DEFAULT_LEAP_SECONDS;
+
+    // Last attempt to push GPS time to the OS clock
+    std::string lastClockSetError_;
+    std::chrono::system_clock::time_point lastClockSetSuccess_{};
 
     std::deque<std::string> subframeLog_;
     std::mutex              logMu_;

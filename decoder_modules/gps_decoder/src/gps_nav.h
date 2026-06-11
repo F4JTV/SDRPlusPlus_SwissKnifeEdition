@@ -24,6 +24,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <cstdint>
 #include <deque>
 #include <functional>
@@ -33,13 +34,33 @@
 
 namespace gps {
 
+// A time fix produced by a per-PRN NAV decoder. Together they say:
+//   "at PC instant `pc_time`, the GPS TOW was `gps_tow_seconds`."
+// The fix is captured at the moment the FIRST bit of a subframe's preamble
+// was emitted by the bit synchroniser. The TOW value comes from the HOW word
+// of the SAME subframe (the HOW gives the TOW count for the NEXT subframe, so
+// we subtract one subframe = 6 s, with wraparound at end of week).
+struct TimeFix {
+    bool   valid             = false;
+    int    prn               = 0;
+    double gps_tow_seconds   = 0.0;
+    std::chrono::system_clock::time_point pc_time;
+    float  cn0_dBHz          = 0.0f; // copied in by the orchestrator
+};
+
 struct SubframeInfo {
     int      prn      = 0;
     int      subframeId = 0;  // 1..5
-    uint32_t tow_count = 0;   // truncated TOW (HOW bits 1..17, in units of 6 s)
+    uint32_t tow_count = 0;   // raw 17-bit field of HOW (Z-count of NEXT subframe / 4)
     bool     alertFlag = false;
     bool     antispoofFlag = false;
     uint64_t timestampMs = 0; // host timestamp when the subframe was completed
+
+    // Time-anchoring info (populated by the NAV decoder for every valid
+    // subframe). Together: at `preamble_pc_time` the GPS TOW was
+    // `gps_tow_seconds_at_preamble`.
+    double   gps_tow_seconds_at_preamble = 0.0;
+    std::chrono::system_clock::time_point preamble_pc_time;
 };
 
 class NavDecoder {
@@ -71,6 +92,10 @@ public:
     bool isBitSynced()         { std::lock_guard<std::mutex> l(mu_); return bitSynced_; }
     int  getBitPhase()         { std::lock_guard<std::mutex> l(mu_); return bitPhase_; }
 
+    // The most recent (GPS_TOW, PC_time) anchor extracted by this channel.
+    // `valid` is false until the first subframe is decoded.
+    TimeFix getLastTimeFix()   { std::lock_guard<std::mutex> l(mu_); return lastTimeFix_; }
+
 private:
     void tryBitSync();
     void emitBit(int8_t bit);
@@ -89,10 +114,22 @@ private:
 
     // Bit-level buffer
     std::deque<int8_t> bitBuffer_;        // ±1 bits with arbitrary polarity
+    // Parallel deque holding the PC time at which each bit was emitted.
+    // Used to anchor a GPS TOW to a PC clock instant when a preamble is
+    // detected at a known bit index.
+    std::deque<std::chrono::system_clock::time_point> bitTimes_;
     int  bitsDecoded_      = 0;
     int  subframesDecoded_ = 0;
-    int  lastPreambleIdx_  = -1;
+    // Monotonic count of nav bits emitted since bit-sync was achieved. Used
+    // to derive a stable absolute index that survives front-trims of the
+    // bit buffer. lastPreambleAbsIdx_ is the value of bitsEmittedAbs_ - 60
+    // at the moment a preamble was confirmed (i.e., the absolute index of
+    // that preamble's first bit).
+    int64_t bitsEmittedAbs_   = 0;
+    int64_t lastPreambleAbsIdx_ = -1;
     bool polarityInverted_ = false;       // resolved by parity check
+
+    TimeFix lastTimeFix_;
 
     SubframeCallback cb_;
 };

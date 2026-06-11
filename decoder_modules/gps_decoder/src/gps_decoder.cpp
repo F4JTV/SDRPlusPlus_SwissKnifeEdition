@@ -188,4 +188,24 @@ void GpsDecoder::clearChannels() {
     for (auto& c : channels_) c.reset();
 }
 
+TimeFix GpsDecoder::getLatestTimeFix() {
+    TimeFix best;
+    std::lock_guard<std::mutex> l(channelsMu_);
+    for (int p = 1; p <= NUM_SATELLITES; p++) {
+        auto& ch = channels_[p];
+        if (!ch || !ch->tracker || !ch->tracker->isActive() || !ch->nav) continue;
+        TrackerState ts = ch->tracker->getState();
+        // Reject channels with poor C/N0 — bit errors at low C/N0 will
+        // corrupt the HOW word and produce nonsense times.
+        if (ts.cn0_dBHz < 30.0f) continue;
+        TimeFix fix = ch->nav->getLastTimeFix();
+        if (!fix.valid) continue;
+        fix.cn0_dBHz = ts.cn0_dBHz;
+        if (!best.valid || fix.pc_time > best.pc_time) {
+            best = fix;
+        }
+    }
+    return best;
+}
+
 } // namespace gps
