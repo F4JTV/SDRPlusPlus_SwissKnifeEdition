@@ -32,7 +32,20 @@
 #include <string>
 #include <vector>
 
+#include "gps_ephemeris.h"
+
 namespace gps {
+
+// Per-channel anchor pairing a GPS time-of-week (in seconds) with the
+// tracker's chip-level state at that moment. Used by the PVT engine to
+// reconstruct the satellite's transmit time from any later tracker state.
+struct TrackerAnchor {
+    bool   valid = false;
+    double gps_tow_seconds = 0.0;
+    int    msCount  = 0;        // tracker's msCount at the anchored moment
+    double codePhase = 0.0;     // tracker's codePhase (chips) at the anchored moment
+    std::chrono::system_clock::time_point pc_time;
+};
 
 // A time fix produced by a per-PRN NAV decoder. Together they say:
 //   "at PC instant `pc_time`, the GPS TOW was `gps_tow_seconds`."
@@ -71,14 +84,25 @@ public:
 
     explicit NavDecoder(int prn) : prn_(prn) {}
 
-    // Feed one soft symbol (one per ms). Internally tries to find the 20 ms
-    // bit boundary, accumulate full nav bits, then search for the preamble
-    // and parse TLM + HOW.
-    void feedSoftSymbol(int8_t s);
+    // Feed one soft symbol (one per ms) plus the tracker's state at the
+    // moment of emission. msCount and codePhase are used to anchor each
+    // emitted bit to the tracker's chip-level position.
+    void feedSoftSymbol(int8_t s, int msCount, double codePhase);
 
-    // Feed a batch.
-    void feed(const std::vector<int8_t>& syms) {
-        for (auto s : syms) feedSoftSymbol(s);
+    // Feed a batch with parallel state arrays. If the state arrays are
+    // null/empty the decoder falls back to a stateless feed (no chip-level
+    // anchor available -- pseudorange will be coarse).
+    void feed(const std::vector<int8_t>& syms,
+              const std::vector<int>* msCounts = nullptr,
+              const std::vector<double>* codePhases = nullptr) {
+        size_t n = syms.size();
+        bool haveState = msCounts && codePhases &&
+                         msCounts->size() == n && codePhases->size() == n;
+        for (size_t i = 0; i < n; i++) {
+            int    mc = haveState ? (*msCounts)[i]   : 0;
+            double cp = haveState ? (*codePhases)[i] : 0.0;
+            feedSoftSymbol(syms[i], mc, cp);
+        }
     }
 
     void setSubframeCallback(SubframeCallback cb) {
@@ -95,6 +119,24 @@ public:
     // The most recent (GPS_TOW, PC_time) anchor extracted by this channel.
     // `valid` is false until the first subframe is decoded.
     TimeFix getLastTimeFix()   { std::lock_guard<std::mutex> l(mu_); return lastTimeFix_; }
+
+    // The most recent tracker-state anchor (set at preamble emission of the
+    // last successfully-decoded subframe). Used by the PVT engine to compute
+    // sub-ms transmit time.
+    TrackerAnchor getTrackerAnchor() {
+        std::lock_guard<std::mutex> l(mu_); return trackerAnchor_;
+    }
+
+    // Snapshot of the current ephemeris being assembled. Caller should
+    // check eph.complete() and eph.consistent() before using.
+    Ephemeris getEphemeris() {
+        std::lock_guard<std::mutex> l(mu_); return ephemeris_;
+    }
+
+    // Number of fully-parity-verified subframes decoded for this PRN.
+    int  getFullSubframesDecoded() {
+        std::lock_guard<std::mutex> l(mu_); return fullSubframesDecoded_;
+    }
 
 private:
     void tryBitSync();
@@ -118,8 +160,14 @@ private:
     // Used to anchor a GPS TOW to a PC clock instant when a preamble is
     // detected at a known bit index.
     std::deque<std::chrono::system_clock::time_point> bitTimes_;
+    // Parallel deques holding the tracker's msCount and codePhase at each
+    // bit's emission (= state of the 20th symbol of that bit). Used to
+    // anchor a GPS TOW to a chip-level tracker state for PVT.
+    std::deque<int>    bitMsCounts_;
+    std::deque<double> bitCodePhases_;
     int  bitsDecoded_      = 0;
     int  subframesDecoded_ = 0;
+    int  fullSubframesDecoded_ = 0;
     // Monotonic count of nav bits emitted since bit-sync was achieved. Used
     // to derive a stable absolute index that survives front-trims of the
     // bit buffer. lastPreambleAbsIdx_ is the value of bitsEmittedAbs_ - 60
@@ -129,7 +177,20 @@ private:
     int64_t lastPreambleAbsIdx_ = -1;
     bool polarityInverted_ = false;       // resolved by parity check
 
-    TimeFix lastTimeFix_;
+    // Per-symbol state of the most recent symbol fed in. Used to capture
+    // the tracker's chip-level state at the moment a bit gets emitted
+    // (after 20 symbols).
+    int    lastSymMsCount_ = 0;
+    double lastSymCodePhase_ = 0.0;
+
+    TimeFix       lastTimeFix_;
+    TrackerAnchor trackerAnchor_;
+    Ephemeris     ephemeris_;
+
+    // Absolute indices of preambles whose HOW has been validated and that
+    // are waiting for the remaining bits to arrive so the full subframe can
+    // be parity-checked and parsed into the ephemeris.
+    std::deque<int64_t> pendingFullSubframes_;
 
     SubframeCallback cb_;
 };

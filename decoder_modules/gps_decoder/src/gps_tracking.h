@@ -71,9 +71,16 @@ public:
     // and updates the loops once per epoch. Returns the number of new
     // 1 ms epochs completed during this call (typically 0 or 1).
     //
-    // The optional out_navBits pointer, if non-null, receives one soft
-    // navigation symbol (= I_P sign) per completed epoch.
-    int feed(const std::complex<float>* iq, int n, std::vector<int8_t>* out_navBits = nullptr);
+    // out_navBits   : optional, receives one soft navigation symbol per epoch
+    // out_msCounts  : optional, parallel vector with the tracker's msCount AT
+    //                 the moment that symbol was emitted (i.e., AFTER the
+    //                 ms increment for that epoch).
+    // out_codePhases: optional, parallel vector with codePhase (chips) at
+    //                 the start of the next code period (~0..1023, post-wrap).
+    int feed(const std::complex<float>* iq, int n,
+             std::vector<int8_t>* out_navBits   = nullptr,
+             std::vector<int>*    out_msCounts  = nullptr,
+             std::vector<double>* out_codePhases = nullptr);
 
     TrackerState getState();
     void stop()         { std::lock_guard<std::mutex> l(mu_); state_.active = false; }

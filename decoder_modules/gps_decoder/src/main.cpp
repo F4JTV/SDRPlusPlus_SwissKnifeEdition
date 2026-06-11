@@ -222,7 +222,7 @@ private:
         auto channels = decoder_->getChannelStates();
         ImGui::Text("Active: %d", (int)channels.size());
 
-        if (ImGui::BeginTable(("gps_tracking_" + name).c_str(), 6,
+        if (ImGui::BeginTable(("gps_tracking_" + name).c_str(), 7,
                               ImGuiTableFlags_Borders |
                               ImGuiTableFlags_RowBg |
                               ImGuiTableFlags_Resizable)) {
@@ -232,6 +232,7 @@ private:
             ImGui::TableSetupColumn("Lock");
             ImGui::TableSetupColumn("Bits");
             ImGui::TableSetupColumn("SubF");
+            ImGui::TableSetupColumn("Full");
             ImGui::TableHeadersRow();
 
             for (auto& c : channels) {
@@ -252,6 +253,8 @@ private:
                 ImGui::Text("%d", c.bitsDecoded);
                 ImGui::TableNextColumn();
                 ImGui::Text("%d", c.subframesDecoded);
+                ImGui::TableNextColumn();
+                ImGui::Text("%d", c.fullSubframesDecoded);
             }
             ImGui::EndTable();
         }
@@ -325,6 +328,83 @@ private:
                                    "Clock set successfully %lld s ago",
                                    (long long)age);
             }
+        }
+
+        // --- Position Fix (PVT) ----------------------------------------------
+        ImGui::Separator();
+        ImGui::TextUnformatted("Position Fix (PVT)");
+
+        // Per-PRN ephemeris-assembly progress
+        auto ephStatus = decoder_->getEphemerisStatus();
+        int n_eph_ready = 0;
+        for (auto& s : ephStatus) if (s.consistent && s.cn0_dBHz >= 30.0f) n_eph_ready++;
+        ImGui::Text("Satellites with usable ephemeris: %d", n_eph_ready);
+
+        if (ImGui::BeginTable(("gps_eph_" + name).c_str(), 5,
+                              ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
+                              ImGuiTableFlags_Resizable)) {
+            ImGui::TableSetupColumn("PRN");
+            ImGui::TableSetupColumn("SF1");
+            ImGui::TableSetupColumn("SF2");
+            ImGui::TableSetupColumn("SF3");
+            ImGui::TableSetupColumn("Ready");
+            ImGui::TableHeadersRow();
+            ImVec4 green(0.2f, 1.0f, 0.2f, 1.0f);
+            ImVec4 grey(0.5f, 0.5f, 0.5f, 1.0f);
+            for (auto& s : ephStatus) {
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn(); ImGui::Text("%d", s.prn);
+                ImGui::TableNextColumn();
+                ImGui::TextColored(s.sf1 ? green : grey, "%s", s.sf1 ? "yes" : "...");
+                ImGui::TableNextColumn();
+                ImGui::TextColored(s.sf2 ? green : grey, "%s", s.sf2 ? "yes" : "...");
+                ImGui::TableNextColumn();
+                ImGui::TextColored(s.sf3 ? green : grey, "%s", s.sf3 ? "yes" : "...");
+                ImGui::TableNextColumn();
+                bool ready = s.consistent && s.cn0_dBHz >= 30.0f;
+                ImGui::TextColored(ready ? green : grey, "%s",
+                                   ready ? "YES" : (s.consistent ? "low C/N0" : "no"));
+            }
+            ImGui::EndTable();
+        }
+
+        ImGui::Checkbox(("Continuous PVT##gps_pvt_cont_" + name).c_str(),
+                        &pvtContinuous_);
+        ImGui::SameLine();
+        const bool canPvt = (n_eph_ready >= 4);
+        if (!canPvt) ImGui::BeginDisabled();
+        if (ImGui::Button(("Compute fix##gps_pvt_now_" + name).c_str(),
+                          ImVec2(w * 0.55f, 0))
+            || (pvtContinuous_ && canPvt)) {
+            lastPvtSolution_ = decoder_->solvePvtFix();
+        }
+        if (!canPvt) ImGui::EndDisabled();
+        if (!canPvt) {
+            ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f),
+                "Need >= 4 satellites with complete & consistent ephemeris and C/N0 >= 30 dB-Hz.");
+            ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f),
+                "Each ephemeris takes ~30 s to assemble (3 subframes x 6 s + alignment).");
+        }
+
+        if (lastPvtSolution_.valid) {
+            ImGui::Text("Satellites used : %d  (iter %d, residual %.1f m)",
+                        lastPvtSolution_.used_sats,
+                        lastPvtSolution_.iterations,
+                        lastPvtSolution_.residual_rms_m);
+            ImGui::Text("Latitude        : %+10.6f deg",  lastPvtSolution_.lla.lat_deg);
+            ImGui::Text("Longitude       : %+10.6f deg",  lastPvtSolution_.lla.lon_deg);
+            ImGui::Text("Altitude (WGS84): %+8.1f m",     lastPvtSolution_.lla.alt_m);
+            ImGui::Text("ECEF x/y/z (m)  : %+.1f / %+.1f / %+.1f",
+                        lastPvtSolution_.x, lastPvtSolution_.y, lastPvtSolution_.z);
+            ImGui::Text("Clock bias      : %+.6e s",      lastPvtSolution_.clock_bias_s);
+            ImGui::Text("DOP G/P/H/V/T   : %.1f / %.1f / %.1f / %.1f / %.1f",
+                        lastPvtSolution_.gdop, lastPvtSolution_.pdop,
+                        lastPvtSolution_.hdop, lastPvtSolution_.vdop,
+                        lastPvtSolution_.tdop);
+        } else if (lastPvtSolution_.used_sats > 0) {
+            ImGui::TextColored(ImVec4(0.95f, 0.5f, 0.5f, 1.0f),
+                "Solver did not converge (used %d sats).",
+                lastPvtSolution_.used_sats);
         }
 
         // --- Acquisition snapshot --------------------------------------------
@@ -405,6 +485,10 @@ private:
     // Last attempt to push GPS time to the OS clock
     std::string lastClockSetError_;
     std::chrono::system_clock::time_point lastClockSetSuccess_{};
+
+    // PVT state
+    gps::PvtSolution lastPvtSolution_;
+    bool             pvtContinuous_ = false;
 
     std::deque<std::string> subframeLog_;
     std::mutex              logMu_;

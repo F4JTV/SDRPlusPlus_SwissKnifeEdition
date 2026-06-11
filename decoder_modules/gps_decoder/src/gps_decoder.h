@@ -29,6 +29,7 @@
 #include "gps_acquisition.h"
 #include "gps_ca_code.h"
 #include "gps_nav.h"
+#include "gps_pvt.h"
 #include "gps_tracking.h"
 
 namespace gps {
@@ -44,8 +45,13 @@ struct ChannelSnapshot {
     bool   bitSynced    = false;
     int    bitsDecoded  = 0;
     int    subframesDecoded = 0;
+    int    fullSubframesDecoded = 0;
     int    lastSubframeId = 0;
     uint32_t lastTow = 0;
+    // Ephemeris assembly status, useful in the GUI to show which of
+    // subframes 1/2/3 have been received for this PRN.
+    bool   eph_sf1 = false, eph_sf2 = false, eph_sf3 = false;
+    bool   eph_consistent = false;
 };
 
 struct AcqSnapshot {
@@ -91,6 +97,22 @@ public:
     // anchor's accuracy). If no channel qualifies, the returned TimeFix has
     // valid == false.
     TimeFix getLatestTimeFix();
+
+    // Run a position-velocity-time fix from all channels that currently
+    // have a complete & consistent ephemeris AND a healthy C/N0. Returns
+    // an invalid solution (valid == false) if fewer than 4 such channels
+    // are available. This method is thread-safe and can be called from
+    // any thread.
+    PvtSolution solvePvtFix();
+
+    // Per-PRN ephemeris snapshot (one entry per *currently active* channel).
+    struct EphemerisStatus {
+        int  prn = 0;
+        bool sf1 = false, sf2 = false, sf3 = false;
+        bool complete = false, consistent = false;
+        float cn0_dBHz = 0.0f;
+    };
+    std::vector<EphemerisStatus> getEphemerisStatus();
 
     void setSubframeCallback(SubframeCallback cb) {
         std::lock_guard<std::mutex> l(cbMu_); subframeCb_ = std::move(cb);

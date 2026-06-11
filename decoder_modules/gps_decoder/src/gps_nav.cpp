@@ -16,8 +16,13 @@ static const int8_t PREAMBLE[8] = { +1, -1, -1, -1, +1, -1, +1, +1 };
 // Window of symbols we keep while searching for bit boundaries
 static constexpr int SYMBOL_WINDOW = 200;
 
-void NavDecoder::feedSoftSymbol(int8_t s) {
+void NavDecoder::feedSoftSymbol(int8_t s, int msCount, double codePhase) {
     std::lock_guard<std::mutex> l(mu_);
+
+    // Remember the latest symbol-level tracker state. emitBit() will use
+    // this as the per-bit state (= state of the 20th symbol = bit boundary).
+    lastSymMsCount_   = msCount;
+    lastSymCodePhase_ = codePhase;
 
     if (!bitSynced_) {
         symbolBuffer_.push_back(s);
@@ -75,10 +80,17 @@ void NavDecoder::emitBit(int8_t bit) {
     int8_t adjusted = polarityInverted_ ? (int8_t)(-bit) : bit;
     bitBuffer_.push_back(adjusted);
     bitTimes_.push_back(bitTime);
-    // bitBuffer_ and bitTimes_ are kept in lockstep
+    // Capture the tracker's chip-level state from the 20th symbol of this
+    // bit (= the most recently fed symbol). This gives the chip count
+    // corresponding to "end of this bit" in tracker time.
+    bitMsCounts_.push_back(lastSymMsCount_);
+    bitCodePhases_.push_back(lastSymCodePhase_);
+    // bitBuffer_ / bitTimes_ / bitMsCounts_ / bitCodePhases_ kept in lockstep
     while ((int)bitBuffer_.size() > 1600) {
         bitBuffer_.pop_front();
         bitTimes_.pop_front();
+        bitMsCounts_.pop_front();
+        bitCodePhases_.pop_front();
     }
 
     if (bitBuffer_.size() >= 60) {
@@ -158,8 +170,12 @@ void NavDecoder::searchPreamble() {
         // PC time at preamble bit 0. bitTimes_ runs parallel to bitBuffer_,
         // so the same relative index applies.
         std::chrono::system_clock::time_point preambleTime;
+        int    preambleMsCount   = 0;
+        double preambleCodePhase = 0.0;
         if (i < (int)bitTimes_.size()) {
-            preambleTime = bitTimes_[i];
+            preambleTime      = bitTimes_[i];
+            preambleMsCount   = bitMsCounts_[i];
+            preambleCodePhase = bitCodePhases_[i];
         } else {
             preambleTime = std::chrono::system_clock::now();
         }
@@ -184,7 +200,44 @@ void NavDecoder::searchPreamble() {
         lastTimeFix_.gps_tow_seconds = gpsTowSeconds;
         lastTimeFix_.pc_time         = preambleTime;
 
+        // Update the tracker-state anchor used by the PVT engine. This
+        // pairs a GPS TOW with the tracker's chip-level state at the
+        // SAME moment, so later snapshots of (msCount, codePhase) can be
+        // converted to satellite transmit time precisely.
+        trackerAnchor_.valid            = true;
+        trackerAnchor_.gps_tow_seconds  = gpsTowSeconds;
+        trackerAnchor_.msCount          = preambleMsCount;
+        trackerAnchor_.codePhase        = preambleCodePhase;
+        trackerAnchor_.pc_time          = preambleTime;
+
+        // Queue this subframe for full parity-checked decoding once all
+        // 300 bits have arrived.
+        pendingFullSubframes_.push_back(absIdx);
+
         if (cb_) cb_(info);
+    }
+
+    // ----- Process pending full-subframe candidates --------------------
+    // A candidate's preamble is at absolute index `candAbs`. We need 300
+    // bits from candAbs onwards, i.e., bitsEmittedAbs_ >= candAbs + 300.
+    while (!pendingFullSubframes_.empty()) {
+        int64_t candAbs = pendingFullSubframes_.front();
+        if (bitsEmittedAbs_ - candAbs < 300) break;
+        // Map absolute candidate index to current buffer position.
+        int64_t bufStartAbs = bitsEmittedAbs_ - (int64_t)bitBuffer_.size();
+        int64_t relIdx = candAbs - bufStartAbs;
+        pendingFullSubframes_.pop_front();
+        if (relIdx < 0 || relIdx + 300 > (int64_t)bitBuffer_.size()) continue;
+        // Copy out the 300 bits and run full parity-checked decode.
+        int8_t bits300[300];
+        for (int k = 0; k < 300; k++) bits300[k] = bitBuffer_[(size_t)(relIdx + k)];
+        SubframeData sf;
+        if (decodeSubframeWords(bits300, prn_, false, false, sf)) {
+            fullSubframesDecoded_++;
+            applySubframeToEphemeris(sf, ephemeris_);
+            ephemeris_.prn           = prn_;
+            ephemeris_.received_time = std::chrono::system_clock::now();
+        }
     }
 }
 

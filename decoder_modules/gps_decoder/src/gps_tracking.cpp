@@ -58,7 +58,11 @@ void TrackingChannel::init(int prn, float dopplerHz, int codePhaseSamples) {
 // Sample-by-sample integration over a complete code period.
 // After samplesPerMs_ samples we close the loops, update the NCOs and
 // publish I_P/Q_P (the on-time correlator output) for navigation decoding.
-int TrackingChannel::feed(const std::complex<float>* iq, int n, std::vector<int8_t>* out_navBits) {
+int TrackingChannel::feed(const std::complex<float>* iq, int n,
+                          std::vector<int8_t>* out_navBits,
+                          std::vector<int>*    out_msCounts,
+                          std::vector<double>* out_codePhases)
+{
     std::lock_guard<std::mutex> l(mu_);
     if (!state_.active) return 0;
 
@@ -173,9 +177,14 @@ int TrackingChannel::feed(const std::complex<float>* iq, int n, std::vector<int8
             // Output the navigation soft symbol: sign of I_P (1 per ms).
             // A bit edge happens every 20 ms; the higher-level navigation
             // decoder integrates 20 of these symbols to get one nav bit.
+            // The parallel msCount/codePhase outputs capture the tracker's
+            // chip-level state AT this symbol's emission moment, which the
+            // higher layer (NavDecoder) keeps for sub-ms pseudorange.
             if (out_navBits) {
                 out_navBits->push_back((int8_t)((iP_ >= 0.0f) ? +1 : -1));
             }
+            if (out_msCounts)   out_msCounts->push_back(state_.msCount);
+            if (out_codePhases) out_codePhases->push_back(codePhaseChips_);
 
             // Reset accumulators for the next code period
             iE_=qE_=iP_=qP_=iL_=qL_=0.0f;
