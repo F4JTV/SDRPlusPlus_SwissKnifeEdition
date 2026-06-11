@@ -147,10 +147,12 @@ public:
         double maxElAzDeg = 0;
     };
 
-    // Compute up to `count` upcoming passes for `tle` at the current QTH, using
-    // temporary predict objects so it is independent of the satellite currently
-    // being tracked. Returns false for geostationary / never-rising objects.
-    bool computePasses(const TLE& tle, int count, std::vector<PassInfo>& out) {
+    // Compute up to `count` upcoming passes for `tle` at the current QTH whose
+    // maximum elevation is at least `minElDeg`, using temporary predict objects
+    // so it is independent of the satellite currently being tracked. Returns
+    // false for geostationary / never-rising objects.
+    bool computePasses(const TLE& tle, int count, std::vector<PassInfo>& out,
+                       double minElDeg = 0.0) {
         double lat, lon, alt, toff;
         {
             std::lock_guard<std::mutex> lck(mtx);
@@ -172,7 +174,10 @@ public:
         double t = (double)std::time(nullptr) + toff;
         predict_julian_date_t jd = predict_to_julian_double(t);
 
-        for (int i = 0; i < count; i++) {
+        // Bound the search so a satellite that rarely gets high passes can't loop
+        // forever when a high threshold filters everything out.
+        int rawCap = count * 12 + 40;
+        for (int i = 0; i < rawCap && (int)out.size() < count; i++) {
             struct predict_observation aos = predict_next_aos(obs, orb, jd);
             struct predict_observation los = predict_next_los(obs, orb, aos.time);
             struct predict_observation mx  = predict_at_max_elevation(obs, orb, aos.time);
@@ -183,7 +188,8 @@ public:
             p.maxElDeg   = mx.elevation * ST_RAD2DEG;
             p.maxElAzDeg = mx.azimuth   * ST_RAD2DEG;
             if (p.losUnix <= p.aosUnix) { break; } // sanity
-            out.push_back(p);
+
+            if (p.maxElDeg >= minElDeg) { out.push_back(p); }
 
             // Advance one minute past this LOS to find the following pass.
             jd = los.time + (60.0 / 86400.0);

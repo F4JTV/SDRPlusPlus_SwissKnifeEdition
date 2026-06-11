@@ -88,6 +88,7 @@ public:
         if (!c.contains("minEl"))       { c["minEl"] = 0.0; }
         if (!c.contains("updateMs"))    { c["updateMs"] = 1000; }
         if (!c.contains("stepHz"))      { c["stepHz"] = 10.0; }
+        if (!c.contains("schedMinEl"))  { c["schedMinEl"] = 0.0; }
         if (!c.contains("tcpHost"))     { c["tcpHost"] = "127.0.0.1"; }
         if (!c.contains("tcpPort"))     { c["tcpPort"] = 10100; }
 
@@ -103,6 +104,7 @@ public:
         minEl       = c["minEl"];
         updateMs    = c["updateMs"];
         stepHz      = c["stepHz"];
+        schedMinEl  = c["schedMinEl"];
         strncpy(tcpHost, std::string(c["tcpHost"]).c_str(), sizeof(tcpHost) - 1);
         tcpPort     = c["tcpPort"];
         config.release(false);
@@ -295,12 +297,13 @@ private:
         }
     }
 
-    // Add the next `count` passes' worth of predictions for a TLE to predList.
+    // Add the next `count` passes' worth of predictions for a TLE to predList,
+    // keeping only passes that reach at least schedMinEl degrees.
     void computePredictions(const sattrack::TLE& tle) {
         predList.clear();
         predSatNorad = tle.norad;
         predSatName = tle.name;
-        engine.computePasses(tle, 6, predList);
+        engine.computePasses(tle, 6, predList, schedMinEl);
     }
 
     // Arm a specific predicted pass for a satellite, capturing the downlink to
@@ -844,6 +847,13 @@ private:
                 ImGui::TextDisabled("Select a satellite above to predict its passes.");
             }
             else {
+                ImGui::LeftLabel("Min pass elev.");
+                ImGui::FillWidth();
+                float minElF = (float)schedMinEl;
+                if (ImGui::SliderFloat(CONCAT("##sched_minel_", name), &minElF, 0.0f, 60.0f, "%.0f deg")) {
+                    schedMinEl = (double)minElF;
+                    saveConf("schedMinEl", schedMinEl);
+                }
                 if (ImGui::Button(CONCAT("Compute passes##sched_", name), ImVec2(w, 0))) {
                     computePredictions(selTle.value());
                 }
@@ -1013,6 +1023,7 @@ private:
     std::atomic<int>                  activeSchedNorad{ -1 };
     std::atomic<bool>                 guiNeedsSatSync{ false };
     int                               schedLeadSec = 0; // start at AOS
+    double                            schedMinEl = 0.0;  // min pass elevation filter
     // prediction list (GUI thread only)
     std::vector<sattrack::TrackerEngine::PassInfo> predList;
     int                               predSatNorad = -1;
