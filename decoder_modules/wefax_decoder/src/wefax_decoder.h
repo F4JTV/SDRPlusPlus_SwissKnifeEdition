@@ -125,6 +125,14 @@ namespace wefax {
         // (also auto-selecting the IOC from the tone).
         void setAutoStart(bool on) { autoStart = on; }
         bool getAutoStart() const  { return autoStart; }
+        // When false, the 450 Hz APT stop tone does NOT end reception, so the
+        // decoder keeps running continuously until the user resets it.
+        void setAutoStopApt(bool on) { autoStopApt = on; }
+        bool getAutoStopApt() const  { return autoStopApt; }
+        // True while actively building the image (past the phasing preamble),
+        // used by the UI to show an "ongoing" indicator instead of a bar that
+        // would otherwise sit misleadingly at 100%.
+        bool isReceivingImage() const { return state == State::RECEIVING && linesReceived > 2; }
 
         // Automatic slant correction via phasing-pulse regression. When on,
         // RANSAC is used (robust against missed/spurious pulses); otherwise a
@@ -218,6 +226,9 @@ namespace wefax {
         // Every freq sample since the reception anchor (capped to MAX_LINES).
         std::vector<float> rawFreqBuffer;
         bool   bufferFull;            // hit the cap
+        // Guards growth of rawFreqBuffer (worker thread) against reads during a
+        // render triggered from the UI thread (save / manual re-render).
+        std::mutex rawMutex;
 
         // Nominal per-line length (samples), = round(60/lpm * sampleRate)
         int    samplesPerLineNominal;
@@ -251,6 +262,7 @@ namespace wefax {
 
         // ---- APT tone detection ----
         bool   autoStart;
+        bool   autoStopApt;
         // Running alternation-rate estimator (sign changes of freq-center).
         int    aptSign;
         int    aptCrossings;

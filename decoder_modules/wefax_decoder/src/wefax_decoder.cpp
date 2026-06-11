@@ -39,6 +39,7 @@ namespace wefax {
         reRenderRequested     = false;
 
         autoStart             = false;
+        autoStopApt           = true;
         aptSign               = 0;
         aptCrossings          = 0;
         aptWindowSamples      = 0;
@@ -162,13 +163,11 @@ namespace wefax {
 
     float WEFAXDecoder::getProgress() const {
         if (state == State::DONE) return 1.0f;
-        if (calibrationLocked) {
-            // Soft progress: fraction of a nominal 10-minute chart.
-            float soft = (float)linesReceived / (10.0f * (float)lpm);
-            return std::min(1.0f, soft);
-        }
-        // During phasing, show progress toward a locked calibration
-        // (pulses collected vs the ~8 needed to lock).
+        // Image reception is open-ended (continuous), so there is no meaningful
+        // completion fraction: signal "indeterminate" so the UI shows an
+        // ongoing indicator instead of a bar stuck at 100%.
+        if (isReceivingImage()) return -1.0f;
+        // During phasing, show progress toward a locked calibration.
         float conf = (float)syncPositions.size() / 8.0f;
         return std::min(1.0f, conf);
     }
@@ -236,12 +235,35 @@ namespace wefax {
             }
             if (state == State::DONE) continue;
 
-            // ---- RECEIVING ----
-            if (bufferFull) continue;
-
-            rawFreqBuffer.push_back(f);
-            if ((int)rawFreqBuffer.size() >= samplesPerLineNominal * WEFAX_MAX_LINES) {
-                bufferFull = true;
+            // ---- RECEIVING ----  (continuous: never auto-stops on buffer cap)
+            {
+                std::lock_guard<std::mutex> rlk(rawMutex);
+                rawFreqBuffer.push_back(f);
+                const size_t cap = (size_t)samplesPerLineNominal * (size_t)WEFAX_MAX_LINES;
+                if (rawFreqBuffer.size() >= cap) {
+                    // Scroll: drop the oldest block of whole lines and keep going,
+                    // so reception continues indefinitely with bounded memory.
+                    double period = effectiveLinePeriod();
+                    if (period < 1.0) period = (double)samplesPerLineNominal;
+                    long long trimSamples =
+                        (long long)std::llround((WEFAX_MAX_LINES / 8) * period);
+                    if (trimSamples < 1) trimSamples = 1;
+                    if (trimSamples > (long long)rawFreqBuffer.size())
+                        trimSamples = (long long)rawFreqBuffer.size();
+                    rawFreqBuffer.erase(rawFreqBuffer.begin(),
+                                        rawFreqBuffer.begin() + trimSamples);
+                    // Preserve the within-line phasing phase across the scroll.
+                    calibratedFirstSyncOffset =
+                        std::fmod(calibratedFirstSyncOffset - (double)trimSamples, period);
+                    if (calibratedFirstSyncOffset < 0) calibratedFirstSyncOffset += period;
+                    for (auto& p : syncPositions) p -= (int)trimSamples;
+                    syncPositions.erase(
+                        std::remove_if(syncPositions.begin(), syncPositions.end(),
+                                       [](int v){ return v < 0; }),
+                        syncPositions.end());
+                    lastRenderedLine = 0;
+                    reRenderRequested = true;
+                }
             }
 
             // APT stop tone -> finish.
@@ -296,11 +318,6 @@ namespace wefax {
             } else {
                 renderNewLines();
             }
-
-            if (bufferFull && state != State::DONE) {
-                switchState(State::DONE);
-                if (lineCallback) lineCallback(linesReceived);
-            }
         }
     }
 
@@ -342,7 +359,9 @@ namespace wefax {
                 aptStartHoldSamples = 0;
             }
         } else if (state == State::RECEIVING) {
-            // Stop tone: 450 Hz.
+            // Stop tone: 450 Hz. Only acted on if auto-stop is enabled, so the
+            // decoder can run continuously when the user wants non-stop capture.
+            if (!autoStopApt) { aptStopHoldSamples = 0; return; }
             if (toneHz > 400.0 && toneHz < 500.0) {
                 if (++aptStopHoldSamples >= holdNeeded) {
                     flog::info("[WEFAX] APT stop tone detected -> reception complete");
@@ -570,9 +589,10 @@ namespace wefax {
         if (period < 1.0) return;
         const double origin = effectiveLineOrigin();
         const double spp = period / (double)width;
-        const int    rawN = (int)rawFreqBuffer.size();
 
         std::lock_guard<std::mutex> lck(imageMutex);
+        std::lock_guard<std::mutex> rlk(rawMutex);
+        const int rawNow = (int)rawFreqBuffer.size();
         for (int c = firstLine; c <= lastLine && c < WEFAX_MAX_LINES; c++) {
             double lineStart = origin + (double)c * period;
             uint8_t* row = &imageBuffer[(size_t)c * width * 3];
@@ -582,7 +602,7 @@ namespace wefax {
                 int is0 = (int)std::floor(s0);
                 int is1 = (int)std::ceil(s1);
                 if (is0 < 0) is0 = 0;
-                if (is1 > rawN) is1 = rawN;
+                if (is1 > rawNow) is1 = rawNow;
                 float sum = 0.0f; int cnt = 0;
                 for (int s = is0; s < is1; s++) { sum += rawFreqBuffer[s]; cnt++; }
                 uint8_t g = (cnt > 0) ? freqToGray(sum / (float)cnt) : 0;
@@ -598,7 +618,8 @@ namespace wefax {
         if (period < 1.0) return;
         const double origin = effectiveLineOrigin();
         const double spp    = period / (double)width;
-        int avail = (int)std::floor(((double)rawFreqBuffer.size() - origin
+        size_t rawSz; { std::lock_guard<std::mutex> rlk(rawMutex); rawSz = rawFreqBuffer.size(); }
+        int avail = (int)std::floor(((double)rawSz - origin
                                      + (double)hShiftPixels * spp) / period);
         if (avail > WEFAX_MAX_LINES) avail = WEFAX_MAX_LINES;
         if (avail <= lastRenderedLine) return;
@@ -611,10 +632,12 @@ namespace wefax {
     }
 
     void WEFAXDecoder::renderSyncIfIdle() {
-        // During active reception the worker thread owns rawFreqBuffer (it keeps
-        // growing), so just ask it to re-render on its next pass. Otherwise the
-        // buffer is frozen and we can safely re-render here on the UI thread.
-        if (state == State::RECEIVING) { reRenderRequested = true; return; }
+        // Re-render the whole image from the raw buffer with the CURRENT slant /
+        // shift / median settings. Thread-safe against the worker thread via
+        // rawMutex + imageMutex, so it can run on the UI thread in any state --
+        // including while receiving or after the signal has stopped. This makes
+        // the saved image and the manual re-render always match the preview.
+        reRenderRequested = false;
         renderAll();
     }
 
@@ -623,11 +646,8 @@ namespace wefax {
         if (period < 1.0) return;
         const double origin = effectiveLineOrigin();
         const double spp    = period / (double)width;
-        // A line is only fully renderable once every sample its pixels read has
-        // arrived. The H-shift moves the sampling window by hShiftPixels*spp, so
-        // fold that into the count to avoid rendering a line too early (which
-        // would leave a black strip that never gets refilled).
-        int avail = (int)std::floor(((double)rawFreqBuffer.size() - origin
+        size_t rawSz; { std::lock_guard<std::mutex> rlk(rawMutex); rawSz = rawFreqBuffer.size(); }
+        int avail = (int)std::floor(((double)rawSz - origin
                                      + (double)hShiftPixels * spp) / period);
         if (avail < 0) avail = 0;
         if (avail > WEFAX_MAX_LINES) avail = WEFAX_MAX_LINES;

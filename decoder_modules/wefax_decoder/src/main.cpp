@@ -50,7 +50,7 @@ SDRPP_MOD_INFO{
     /* Name:            */ "wefax_decoder",
     /* Description:     */ "WEFAX / HF Radiofax Decoder (auto-slant)",
     /* Author:          */ "WEFAX Decoder Contributors",
-    /* Version:         */ 0, 1, 4,
+    /* Version:         */ 0, 1, 7,
     /* Max instances    */ -1
 };
 
@@ -130,6 +130,7 @@ public:
         formatId       = config.conf[name].value("formatId", 0);
         jpegQuality    = config.conf[name].value("jpegQuality", DEFAULT_JPEG_QUALITY);
         bool autoStartI  = config.conf[name].value("autoStart", false);
+        bool autoStopAptI = config.conf[name].value("autoStopApt", true);
         bool autoSlantI  = config.conf[name].value("autoSlant", true);
         bool ransacI     = config.conf[name].value("ransac", true);
         bool medianI     = config.conf[name].value("median", false);
@@ -140,6 +141,7 @@ public:
         config.release(true);
 
         decoder.setAutoStart(autoStartI);
+        decoder.setAutoStopApt(autoStopAptI);
         decoder.setAutoSlant(autoSlantI);
         decoder.setRansacEnabled(ransacI);
         decoder.setMedianFilterEnabled(medianI);
@@ -573,7 +575,6 @@ private:
                     _this->decoder.getImageWidth());
         ImGui::Text("Freq  : %.0f Hz", _this->decoder.getLastFreq());
         ImGui::Text("Lines : %d", _this->decoder.getLinesReceived());
-        ImGui::ProgressBar(_this->decoder.getProgress(), ImVec2(menuWidth, 0));
 
         // ---- Reception quality indicator ----
         {
@@ -678,6 +679,16 @@ private:
             config.release(true);
         }
 
+        bool astop = _this->decoder.getAutoStopApt();
+        if (ImGui::Checkbox(("Auto-stop on APT tone##wefax_astop_" + _this->name).c_str(),
+                            &astop)) {
+            _this->decoder.setAutoStopApt(astop);
+            config.acquire();
+            config.conf[_this->name]["autoStopApt"] = astop;
+            config.release(true);
+        }
+        if (!astop) ImGui::TextDisabled("Decoding runs non-stop until Reset");
+
         bool aslant = _this->decoder.getAutoSlant();
         if (ImGui::Checkbox(("Auto slant (phasing)##wefax_aslant_" + _this->name).c_str(),
                             &aslant)) {
@@ -741,12 +752,14 @@ private:
         if (ImGui::SliderFloat(("##wefax_ppm_" + _this->name).c_str(),
                                 &ppm, -10000.0f, 10000.0f, "%.0f")) {
             _this->manualSlantPpm = ppm;
-            _this->decoder.setManualSlantPpm(ppm);
+            _this->decoder.setManualSlantPpm(ppm);   // requests a re-render
             config.acquire();
             config.conf[_this->name]["manualSlantPpm"] = _this->manualSlantPpm;
             config.release(true);
-            refreshRender();
         }
+        // Synchronous re-render only when the drag finishes, so dragging stays
+        // smooth and never blocks the decode thread per frame.
+        if (ImGui::IsItemDeactivatedAfterEdit()) refreshRender();
 
         ImGui::LeftLabel("H-shift (px)");
         ImGui::FillWidth();
@@ -755,12 +768,12 @@ private:
         if (ImGui::SliderInt(("##wefax_hshift_" + _this->name).c_str(),
                               &hs, -hsMax, hsMax)) {
             _this->hShiftPixels = hs;
-            _this->decoder.setHShiftPixels(hs);
+            _this->decoder.setHShiftPixels(hs);   // requests a re-render
             config.acquire();
             config.conf[_this->name]["hShift"] = _this->hShiftPixels;
             config.release(true);
-            refreshRender();
         }
+        if (ImGui::IsItemDeactivatedAfterEdit()) refreshRender();
 
         if (!_this->lastSavedFile.empty()) {
             ImGui::TextDisabled("Saved: %s",
