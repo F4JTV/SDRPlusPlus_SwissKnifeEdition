@@ -16,6 +16,7 @@
 #include <mutex>
 #include "cw_dsp.h"
 #include "cw_decoder.h"
+#include "cw_squelch.h"
 
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
 
@@ -73,9 +74,11 @@ public:
         dsp.init(&envStream, CW_DSP_SR, 80.0);
         envSink.init(&dsp.out, _envHandler, this);
 
-        // Audio branch: CW beat note (BFO) -> resampler -> sink.
+        // Audio branch: CW beat note (BFO) -> squelch gate -> resampler -> sink.
         audioDemod.init(&audioStream, tone, 100.0 / CW_DSP_SR, 5.0 / CW_DSP_SR, CW_DSP_SR);
-        resamp.init(&audioDemod.out, CW_DSP_SR, audioSampleRate);
+        audioSquelch.init(&audioDemod.out, CW_DSP_SR);
+        audioSquelch.setFlag(decoder.squelchFlag());
+        resamp.init(&audioSquelch.out, CW_DSP_SR, audioSampleRate);
         srChangeHandler.ctx = this;
         srChangeHandler.handler = sampleRateChangeHandler;
         stream.init(&resamp.out, &srChangeHandler, audioSampleRate);
@@ -86,6 +89,7 @@ public:
         dsp.start();
         envSink.start();
         audioDemod.start();
+        audioSquelch.start();
         resamp.start();
         stream.start();
 
@@ -100,6 +104,7 @@ public:
             dsp.stop();
             envSink.stop();
             audioDemod.stop();
+            audioSquelch.stop();
             resamp.stop();
             sigpath::vfoManager.deleteVFO(vfo);
         }
@@ -119,6 +124,7 @@ public:
         dsp.start();
         envSink.start();
         audioDemod.start();
+        audioSquelch.start();
         resamp.start();
         enabled = true;
     }
@@ -128,6 +134,7 @@ public:
         dsp.stop();
         envSink.stop();
         audioDemod.stop();
+        audioSquelch.stop();
         resamp.stop();
         sigpath::vfoManager.deleteVFO(vfo);
         enabled = false;
@@ -298,6 +305,7 @@ private:
 
     // Audio branch (CW beat note -> sink).
     dsp::demod::CW<dsp::stereo_t> audioDemod;
+    AudioSquelch audioSquelch;
     dsp::multirate::RationalResampler<dsp::stereo_t> resamp;
     SinkManager::Stream stream;
     EventHandler<float> srChangeHandler;

@@ -18,6 +18,7 @@
 #include <vector>
 #include <functional>
 #include <mutex>
+#include <atomic>
 #include "morse.h"
 
 namespace cw {
@@ -123,6 +124,7 @@ namespace cw {
             std::lock_guard<std::mutex> lck(mtx);
             squelchOn = en;
             squelchLevel = level;
+            if (!en) { sqOpen.store(true, std::memory_order_relaxed); }
         }
         void setProsignDisplay(bool en) {
             std::lock_guard<std::mutex> lck(mtx);
@@ -132,6 +134,9 @@ namespace cw {
         int  getReceiveSpeed() { return cw_receive_speed; }
         double getMetric()     { return metric; }
         double getSigLevel()   { return siglevel; }
+
+        // Squelch state for the audio gate (true = open / audio passes).
+        std::atomic<bool>* squelchFlag() { return &sqOpen; }
 
         void reset() {
             std::lock_guard<std::mutex> lck(mtx);
@@ -249,7 +254,11 @@ namespace cw {
             CWupper = norm_sig  - 0.2 * diff;
             CWlower = norm_noise + 0.7 * diff;
 
-            if (!squelchOn || metric > squelchLevel) {
+            // Squelch decision, shared with the audio gate.
+            bool open = (!squelchOn) || (metric > squelchLevel);
+            sqOpen.store(open, std::memory_order_relaxed);
+
+            if (open) {
                 // Hysteresis detector: rising edge -> tone start.
                 if ((value > CWupper) && (cw_receive_state != RS_IN_TONE))
                     handleEvent(CW_KEYDOWN_EVENT, sc);
@@ -372,6 +381,7 @@ namespace cw {
         bool lastTrack = true;
         bool squelchOn = false;
         double squelchLevel = 10.0;
+        std::atomic<bool> sqOpen{ true };
 
         // timing state
         int two_dots = 2 * KWPM / 18;
