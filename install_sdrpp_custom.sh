@@ -118,5 +118,7 @@ cmake -S . -B build -DRTL_433_ROOT="$HOME/rtl_433"
 cmake --build build -j"$(nproc)"
 sudo cmake --install build
 
+sudo setcap cap_sys_time+ep $(which sdrpp)
+
 echo
 echo ">> Termine. SDR++ et tous les modules sont installes."
