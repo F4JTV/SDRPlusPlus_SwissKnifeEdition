@@ -1,96 +1,109 @@
 #pragma once
 #include "../decoder.h"
 #include <signal_path/vfo_manager.h>
-#include <utils/optionlist.h>
-#include <gui/widgets/symbol_diagram.h>
+#include <utils/flog.h>
 #include <gui/style.h>
 #include <dsp/sink/handler_sink.h>
+#include <imgui.h>
+#include <functional>
+#include "dsp.h"
 #include "flex.h"
 
+// VFO setup for FLEX. FLEX channels are 25 kHz wide in the standard
+// 929-932 MHz US band and the 138-174 MHz / 410-470 MHz bands.
+// We use 22050 sps internally to match multimon-ng's reference rate
+// (the symbol-detector constants are tuned around this value).
+#define FLEX_VFO_SAMPLERATE   22050.0
+#define FLEX_VFO_BANDWIDTH    15000.0
+
 class FLEXDecoder : public Decoder {
-    dsp::stream<float> dummy1;
-    dsp::stream<uint8_t> dummy2;
 public:
-    FLEXDecoder(const std::string& name, VFOManager::VFO* vfo) : diag(0.6, 1600) {
-        this->name = name;
-        this->vfo = vfo;
+    using MessageCallback = std::function<void(const flex::Message&)>;
 
-        // Define baudrate options
-        baudrates.define(1600, "1600 Baud", 1600);
-        baudrates.define(3200, "3200 Baud", 3200);
-        baudrates.define(6400, "6400 Baud", 6400);
+    FLEXDecoder(const std::string& name, VFOManager::VFO* vfo, MessageCallback onMessage)
+        : decoder(FLEX_VFO_SAMPLERATE)
+    {
+        this->name        = name;
+        this->vfo         = vfo;
+        this->onMessageCb = std::move(onMessage);
 
-        // Init DSP
-        vfo->setBandwidthLimits(12500, 12500, true);
-        vfo->setSampleRate(16000, 12500);
-        reshape.init(&dummy1, 1600.0, (1600 / 30.0) - 1600.0);
-        dataHandler.init(&dummy2, _dataHandler, this);
-        diagHandler.init(&reshape.out, _diagHandler, this);
+        // Configure the VFO
+        vfo->setBandwidthLimits(FLEX_VFO_BANDWIDTH, FLEX_VFO_BANDWIDTH, true);
+        vfo->setSampleRate(FLEX_VFO_SAMPLERATE, FLEX_VFO_BANDWIDTH);
+
+        // DSP chain
+        dsp.init(vfo->output, FLEX_VFO_SAMPLERATE);
+        dataHandler.init(&dsp.out, _dataHandler, this);
+
+        // Wire the protocol decoder's message event to our static handler
+        decoder.onMessage.bind(&FLEXDecoder::messageHandler, this);
     }
 
-    ~FLEXDecoder() {
-        stop();
-    }
+    ~FLEXDecoder() override { stop(); }
 
-    void showMenu() {
-        ImGui::LeftLabel("Baudrate");
-        ImGui::FillWidth();
-        if (ImGui::Combo(("##pager_decoder_flex_br_" + name).c_str(), &brId, baudrates.txt)) {
-            // TODO
+    void showMenu() override {
+        ImGui::TextDisabled("Auto-detects 1600/3200/6400 baud,");
+        ImGui::TextDisabled("2-FSK or 4-FSK, both polarities.");
+
+        // Live status line
+        if (decoder.isLocked()) {
+            unsigned int baud   = decoder.currentSyncBaud();
+            unsigned int levels = decoder.currentSyncLevels();
+            if (baud > 0 && levels > 0) {
+                ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1.0f),
+                                   "Locked: %u bps / %u-FSK", baud, levels);
+            } else {
+                ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1.0f), "Locked");
+            }
+        } else {
+            ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "Searching sync...");
         }
-
-        ImGui::FillWidth();
-        diag.draw();
     }
 
-    void setVFO(VFOManager::VFO* vfo) {
+    void setVFO(VFOManager::VFO* vfo) override {
         this->vfo = vfo;
-        vfo->setBandwidthLimits(12500, 12500, true);
-        vfo->setSampleRate(24000, 12500);
-        // dsp.setInput(vfo->output);
+        vfo->setBandwidthLimits(FLEX_VFO_BANDWIDTH, FLEX_VFO_BANDWIDTH, true);
+        vfo->setSampleRate(FLEX_VFO_SAMPLERATE, FLEX_VFO_BANDWIDTH);
+        dsp.setInput(vfo->output);
     }
 
-    void start() {
-        flog::debug("FLEX start");
-        // dsp.start();
-        reshape.start();
+    void start() override {
+        dsp.start();
         dataHandler.start();
-        diagHandler.start();
     }
 
-    void stop() {
-        flog::debug("FLEX stop");
-        // dsp.stop();
-        reshape.stop();
+    void stop() override {
+        dsp.stop();
         dataHandler.stop();
-        diagHandler.stop();
     }
 
 private:
-    static void _dataHandler(uint8_t* data, int count, void* ctx) {
+    static void _dataHandler(float* data, int count, void* ctx) {
         FLEXDecoder* _this = (FLEXDecoder*)ctx;
-        // _this->decoder.process(data, count);
+        _this->decoder.process(data, count);
     }
 
-    static void _diagHandler(float* data, int count, void* ctx) {
-        FLEXDecoder* _this = (FLEXDecoder*)ctx;
-        float* buf = _this->diag.acquireBuffer();
-        memcpy(buf, data, count * sizeof(float));
-        _this->diag.releaseBuffer();
+    void messageHandler(const flex::Message& m) {
+        char capbuf[24];
+        std::snprintf(capbuf, sizeof(capbuf), "%lld", (long long)m.capcode);
+        flog::info("FLEX: cap={} type={} baud={}/{}/{} {}.{} '{}'",
+                   capbuf,
+                   (int)m.type,
+                   m.baud,
+                   m.levels,
+                   m.phase,
+                   m.cycle,
+                   m.frame,
+                   m.content);
+        if (onMessageCb) { onMessageCb(m); }
     }
 
-    std::string name;
+    std::string                       name;
+    VFOManager::VFO*                  vfo = nullptr;
 
-    VFOManager::VFO* vfo;
-    dsp::buffer::Reshaper<float> reshape;
-    dsp::sink::Handler<uint8_t> dataHandler;
-    dsp::sink::Handler<float> diagHandler;
+    FLEXDSP                           dsp;
+    dsp::sink::Handler<float>         dataHandler;
+    flex::Decoder                     decoder;
 
-    flex::Decoder decoder;
-
-    ImGui::SymbolDiagram diag;
-
-    int brId = 0;
-
-    OptionList<int, int> baudrates;
+    MessageCallback                   onMessageCb;
 };

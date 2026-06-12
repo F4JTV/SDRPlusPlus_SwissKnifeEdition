@@ -14,6 +14,7 @@
 #include <cstdio>
 #include <cstring>
 #include <deque>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <fstream>
@@ -21,30 +22,107 @@
 
 #include "decoder.h"
 #include "pocsag/decoder.h"
-
-#define CONCAT(a, b) ((std::string(a) + b).c_str())
+#include "flex/decoder.h"
 
 // Hard cap on the number of messages kept in memory for the GUI
-#define POCSAG_MAX_MESSAGES_IN_RAM   1024
+#define PAGER_MAX_MESSAGES_IN_RAM   1024
 
 SDRPP_MOD_INFO{
     /* Name:            */ "pager_decoder",
-    /* Description:     */ "POCSAG Pager Decoder (512 / 1200 / 2400 baud)",
+    /* Description:     */ "POCSAG and FLEX Pager Decoder",
     /* Author:          */ "SDR++ Community",
-    /* Version:         */ 0, 2, 0,
+    /* Version:         */ 0, 3, 0,
     /* Max instances    */ -1
 };
 
 ConfigManager config;
 
+// =====================================================================
+// Unified message representation for the GUI table. Both POCSAG and
+// FLEX decoders emit their own protocol-specific Message struct; we
+// convert them to this common form on arrival.
+// =====================================================================
+struct UnifiedMessage {
+    enum Protocol { PROTO_POCSAG, PROTO_FLEX };
+
+    std::time_t timestamp;
+    Protocol    protocol;
+    int64_t     address;        // POCSAG address or FLEX capcode
+    std::string typeName;       // "Alpha", "Numeric", "Tone", ...
+    std::string content;
+    std::string info;           // Right-hand status (FEC "+3" or "1600/2/A" for FLEX)
+    bool        isToneOnly;     // Used by the "Hide tone-only" filter
+    bool        hasErrors;      // Used by the "Hide errors" filter
+};
+
+// Convert a POCSAG message to the unified form
+static UnifiedMessage fromPocsag(const pocsag::Message& m) {
+    UnifiedMessage u;
+    u.timestamp = m.timestamp;
+    u.protocol  = UnifiedMessage::PROTO_POCSAG;
+    u.address   = (int64_t)m.address;
+    switch (m.type) {
+        case pocsag::MESSAGE_TYPE_NUMERIC:      u.typeName = "Numeric"; break;
+        case pocsag::MESSAGE_TYPE_ALPHANUMERIC: u.typeName = "Alpha";   break;
+        case pocsag::MESSAGE_TYPE_TONE_ONLY:    u.typeName = "Tone";    break;
+        default:                                u.typeName = "?";       break;
+    }
+    u.content    = m.content;
+    u.isToneOnly = (m.type == pocsag::MESSAGE_TYPE_TONE_ONLY);
+    u.hasErrors  = (m.errors > 0);
+
+    char buf[32];
+    if (m.errors > 0)         { std::snprintf(buf, sizeof(buf), "%d/%d", m.corrected, m.errors); }
+    else if (m.corrected > 0) { std::snprintf(buf, sizeof(buf), "+%d", m.corrected); }
+    else                      { std::snprintf(buf, sizeof(buf), "OK"); }
+    u.info = buf;
+
+    return u;
+}
+
+// Convert a FLEX message to the unified form
+static UnifiedMessage fromFlex(const flex::Message& m) {
+    UnifiedMessage u;
+    u.timestamp = m.timestamp;
+    u.protocol  = UnifiedMessage::PROTO_FLEX;
+    u.address   = m.capcode;
+    switch (m.type) {
+        case flex::PAGE_TYPE_TONE:              u.typeName = "Tone";       break;
+        case flex::PAGE_TYPE_STANDARD_NUMERIC:
+        case flex::PAGE_TYPE_SPECIAL_NUMERIC:
+        case flex::PAGE_TYPE_NUMBERED_NUMERIC:  u.typeName = "Numeric";    break;
+        case flex::PAGE_TYPE_ALPHANUMERIC:      u.typeName = "Alpha";      break;
+        case flex::PAGE_TYPE_SECURE:            u.typeName = "Secure";     break;
+        case flex::PAGE_TYPE_BINARY:            u.typeName = "Binary";     break;
+        case flex::PAGE_TYPE_SHORT_INSTRUCTION: u.typeName = "ShortInst";  break;
+        default:                                u.typeName = "?";          break;
+    }
+    u.content    = m.content;
+    u.isToneOnly = (m.type == flex::PAGE_TYPE_TONE);
+    u.hasErrors  = false;  // FLEX BCH errors are dropped at decode time, not surfaced here
+
+    char buf[32];
+    std::snprintf(buf, sizeof(buf), "%d/%d/%c", m.baud, m.levels, m.phase);
+    u.info = buf;
+
+    return u;
+}
+
 class PagerDecoderModule : public ModuleManager::Instance {
 public:
+    enum Protocol { PROTO_POCSAG = 0, PROTO_FLEX = 1 };
+
     PagerDecoderModule(std::string name)
         : logFolderSelect("%ROOT%")
     {
         this->name = name;
 
-        // Define the snap-interval options shown in the UI combo
+        // Protocol selector options
+        protocols.define(PROTO_POCSAG, "POCSAG", PROTO_POCSAG);
+        protocols.define(PROTO_FLEX,   "FLEX",   PROTO_FLEX);
+        protoId = protocols.keyId(PROTO_POCSAG);
+
+        // Snap-interval options (applies to both protocols)
         snapIntervals.define(1,     "1 Hz",     1);
         snapIntervals.define(10,    "10 Hz",    10);
         snapIntervals.define(100,   "100 Hz",   100);
@@ -53,78 +131,95 @@ public:
         snapIntervals.define(6250,  "6.25 kHz", 6250);
         snapIntervals.define(12500, "12.5 kHz", 12500);
         snapIntervals.define(25000, "25 kHz",   25000);
-        snapId = snapIntervals.keyId(1000);   // default
+        snapId = snapIntervals.keyId(1000);
 
-        // Create the VFO with default POCSAG parameters
-        vfo = sigpath::vfoManager.createVFO(name,
-                                            ImGui::WaterfallVFO::REF_CENTER,
-                                            0,        // offset
-                                            12500,    // bandwidth
-                                            24000,    // sample rate
-                                            12500,    // bw lower limit
-                                            12500,    // bw upper limit
-                                            true);
-        vfo->setSnapInterval(snapIntervals.value(snapId));
+        // Build the active decoder for whatever protocol is currently selected.
+        // Loads settings inside, so config-driven values are applied here.
+        rebuildDecoder();
 
-        // Build the POCSAG decoder, wiring its message callback to ours
-        decoder = std::make_unique<POCSAGDecoder>(name, vfo,
-            [this](const pocsag::Message& m) { this->onMessageReceived(m); });
-
-        // Load persistent settings for this instance
-        loadSettings();
-
-        // Tell the decoder to save settings any time the user changes them
-        decoder->onSettingsChanged([this]() { this->saveSettings(); });
-
-        // Start the DSP chain
-        decoder->start();
-
-        // Register the menu entry
         gui::menu.registerEntry(name, menuHandler, this, this);
     }
 
     ~PagerDecoderModule() {
         gui::menu.removeEntry(name);
-        if (enabled) {
-            decoder->stop();
-            decoder.reset();
-            sigpath::vfoManager.deleteVFO(vfo);
-        }
+        if (enabled) { tearDownDecoder(); }
     }
 
     void postInit() {}
 
     void enable() {
-        double bw = gui::waterfall.getBandwidth();
-        vfo = sigpath::vfoManager.createVFO(name,
-                                            ImGui::WaterfallVFO::REF_CENTER,
-                                            std::clamp<double>(0, -bw / 2.0, bw / 2.0),
-                                            12500, 24000, 12500, 12500, true);
-        vfo->setSnapInterval(snapIntervals.value(snapId));
-
-        decoder = std::make_unique<POCSAGDecoder>(name, vfo,
-            [this](const pocsag::Message& m) { this->onMessageReceived(m); });
-        loadSettings();
-        decoder->onSettingsChanged([this]() { this->saveSettings(); });
-        decoder->start();
+        if (enabled) { return; }
+        rebuildDecoder();
         enabled = true;
     }
 
     void disable() {
         if (!enabled) { return; }
-        decoder->stop();
-        decoder.reset();
-        sigpath::vfoManager.deleteVFO(vfo);
-        vfo = nullptr;
+        tearDownDecoder();
         enabled = false;
     }
 
-    bool isEnabled() {
-        return enabled;
-    }
+    bool isEnabled() { return enabled; }
 
 private:
-    // -------- Settings persistence -----------------------------------
+    // -----------------------------------------------------------------
+    // Decoder lifecycle - the underlying VFO and Decoder change when
+    // the user picks a different protocol, since each protocol expects
+    // a different VFO sample rate and bandwidth.
+    // -----------------------------------------------------------------
+    void rebuildDecoder() {
+        tearDownDecoder();
+
+        // Defaults; the per-protocol Decoder applies its own bandwidth/
+        // sample-rate limits in its constructor. We just need a placeholder
+        // here that the decoder can rewrite.
+        double bw = gui::waterfall.getBandwidth();
+        vfo = sigpath::vfoManager.createVFO(name,
+                                            ImGui::WaterfallVFO::REF_CENTER,
+                                            std::clamp<double>(0, -bw / 2.0, bw / 2.0),
+                                            12500, 24000, 12500, 12500, true);
+
+        // Apply snap interval now so the VFO has the right step from the start
+        vfo->setSnapInterval(snapIntervals.value(snapId));
+
+        Protocol p = protocols.value(protoId);
+        if (p == PROTO_POCSAG) {
+            pocsagDecoder = std::make_unique<POCSAGDecoder>(name, vfo,
+                [this](const pocsag::Message& m) {
+                    this->onMessageReceived(fromPocsag(m));
+                });
+            pocsagDecoder->onSettingsChanged([this]() { this->saveSettings(); });
+            flexDecoder.reset();
+            activeDecoder = pocsagDecoder.get();
+        } else {
+            flexDecoder = std::make_unique<FLEXDecoder>(name, vfo,
+                [this](const flex::Message& m) {
+                    this->onMessageReceived(fromFlex(m));
+                });
+            pocsagDecoder.reset();
+            activeDecoder = flexDecoder.get();
+        }
+
+        loadSettings();
+        activeDecoder->start();
+    }
+
+    void tearDownDecoder() {
+        if (activeDecoder) {
+            activeDecoder->stop();
+            activeDecoder = nullptr;
+        }
+        pocsagDecoder.reset();
+        flexDecoder.reset();
+        if (vfo) {
+            sigpath::vfoManager.deleteVFO(vfo);
+            vfo = nullptr;
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // Settings persistence
+    // -----------------------------------------------------------------
     void loadSettings() {
         config.acquire();
         if (!config.conf.contains(name)) {
@@ -132,18 +227,28 @@ private:
         }
         json& c = config.conf[name];
 
-        if (c.contains("baudrate")) {
-            decoder->setBaudrateFromConfig(c["baudrate"].get<int>());
+        if (c.contains("protocol")) {
+            Protocol p = (Protocol)c["protocol"].get<int>();
+            if (protocols.keyExists(p)) { protoId = protocols.keyId(p); }
         }
-        if (c.contains("decodeMode")) {
-            decoder->setDecodeModeFromConfig(c["decodeMode"].get<int>());
+
+        // POCSAG-specific settings
+        if (pocsagDecoder) {
+            if (c.contains("baudrate")) {
+                pocsagDecoder->setBaudrateFromConfig(c["baudrate"].get<int>());
+            }
+            if (c.contains("decodeMode")) {
+                pocsagDecoder->setDecodeModeFromConfig(c["decodeMode"].get<int>());
+            }
+            if (c.contains("invert")) {
+                pocsagDecoder->setInvertedFromConfig(c["invert"].get<bool>());
+            }
+            if (c.contains("lowPass")) {
+                pocsagDecoder->setLowPassFromConfig(c["lowPass"].get<bool>());
+            }
         }
-        if (c.contains("invert")) {
-            decoder->setInvertedFromConfig(c["invert"].get<bool>());
-        }
-        if (c.contains("lowPass")) {
-            decoder->setLowPassFromConfig(c["lowPass"].get<bool>());
-        }
+
+        // Common settings
         if (c.contains("snapInterval")) {
             int snap = c["snapInterval"].get<int>();
             if (snapIntervals.keyExists(snap)) {
@@ -164,10 +269,13 @@ private:
         if (!config.conf.contains(name)) {
             config.conf[name] = json({});
         }
-        config.conf[name]["baudrate"]          = decoder->getBaudrate();
-        config.conf[name]["decodeMode"]        = decoder->getDecodeMode();
-        config.conf[name]["invert"]            = decoder->getInverted();
-        config.conf[name]["lowPass"]           = decoder->getLowPass();
+        config.conf[name]["protocol"]          = (int)protocols.value(protoId);
+        if (pocsagDecoder) {
+            config.conf[name]["baudrate"]      = pocsagDecoder->getBaudrate();
+            config.conf[name]["decodeMode"]    = pocsagDecoder->getDecodeMode();
+            config.conf[name]["invert"]        = pocsagDecoder->getInverted();
+            config.conf[name]["lowPass"]       = pocsagDecoder->getLowPass();
+        }
         config.conf[name]["snapInterval"]      = snapIntervals.value(snapId);
         config.conf[name]["logToFile"]         = logToFile;
         config.conf[name]["logFolder"]         = logFolderSelect.path;
@@ -176,13 +284,14 @@ private:
         config.release(true);
     }
 
-    // -------- Message handling ---------------------------------------
-    // Called from the DSP thread when a complete message is decoded
-    void onMessageReceived(const pocsag::Message& m) {
+    // -----------------------------------------------------------------
+    // Message handling
+    // -----------------------------------------------------------------
+    void onMessageReceived(const UnifiedMessage& m) {
         {
             std::lock_guard<std::mutex> lck(messagesMtx);
             messages.push_back(m);
-            while (messages.size() > POCSAG_MAX_MESSAGES_IN_RAM) {
+            while (messages.size() > PAGER_MAX_MESSAGES_IN_RAM) {
                 messages.pop_front();
             }
         }
@@ -201,60 +310,53 @@ private:
         return buf;
     }
 
-    static const char* typeName(pocsag::MessageType t) {
-        switch (t) {
-            case pocsag::MESSAGE_TYPE_NUMERIC:      return "Numeric";
-            case pocsag::MESSAGE_TYPE_ALPHANUMERIC: return "Alpha";
-            case pocsag::MESSAGE_TYPE_TONE_ONLY:    return "Tone";
-            default:                                return "?";
-        }
+    static const char* protoName(UnifiedMessage::Protocol p) {
+        return (p == UnifiedMessage::PROTO_POCSAG) ? "POCSAG" : "FLEX";
     }
 
-    // Build the actual log file path from the user-selected folder.
-    // We always write to "<folder>/pocsag_log.tsv" so the user only needs
-    // to pick a directory (matching the Recorder module's pattern).
-    // Not const because FolderSelect's accessors are not const.
     std::string logFilePath() {
         if (!logFolderSelect.pathIsValid() || logFolderSelect.path.empty()) {
             return "";
         }
-        return logFolderSelect.expandString(logFolderSelect.path) + "/pocsag_log.tsv";
+        return logFolderSelect.expandString(logFolderSelect.path) + "/pager_log.tsv";
     }
 
-    void appendToLogFile(const pocsag::Message& m) {
+    void appendToLogFile(const UnifiedMessage& m) {
         std::string fp = logFilePath();
         if (fp.empty()) { return; }
-        // Apply the same filters that the GUI applies, so the on-disk log
-        // matches what the user actually sees
-        if (hideErrorMessages && m.errors > 0)                            { return; }
-        if (hideToneOnly       && m.type == pocsag::MESSAGE_TYPE_TONE_ONLY) { return; }
+        if (hideErrorMessages && m.hasErrors)  { return; }
+        if (hideToneOnly      && m.isToneOnly) { return; }
         std::ofstream f(fp, std::ios::app);
         if (!f.is_open()) { return; }
         f << formatTimestamp(m.timestamp)
+          << '\t' << protoName(m.protocol)
           << '\t' << m.address
-          << '\t' << (int)m.function
-          << '\t' << typeName(m.type)
+          << '\t' << m.typeName
+          << '\t' << m.info
           << '\t' << m.content
           << '\n';
     }
 
-    // -------- GUI ----------------------------------------------------
+    // -----------------------------------------------------------------
+    // GUI
+    // -----------------------------------------------------------------
     static void menuHandler(void* ctx) {
         PagerDecoderModule* _this = (PagerDecoderModule*)ctx;
         float menuWidth = ImGui::GetContentRegionAvail().x;
 
         if (!_this->enabled) { style::beginDisabled(); }
 
-        // Protocol selector kept as a one-entry combo for forward
-        // compatibility; only POCSAG is implemented in this module.
+        // Protocol selector
         ImGui::LeftLabel("Protocol");
         ImGui::FillWidth();
-        const char* protoTxt = "POCSAG\0";
-        int protoId = 0;
-        ImGui::Combo(("##pager_decoder_proto_" + _this->name).c_str(), &protoId, protoTxt);
+        if (ImGui::Combo(("##pager_decoder_proto_" + _this->name).c_str(),
+                         &_this->protoId, _this->protocols.txt))
+        {
+            _this->saveSettings();
+            _this->rebuildDecoder();
+        }
 
-        // VFO snap interval (kHz step). Convenience for tuning to a known
-        // pager channel grid.
+        // Snap interval (applies to both protocols)
         ImGui::LeftLabel("Snap");
         ImGui::FillWidth();
         if (ImGui::Combo(("##pager_decoder_snap_" + _this->name).c_str(),
@@ -267,19 +369,16 @@ private:
         }
 
         // Per-protocol menu
-        if (_this->decoder) { _this->decoder->showMenu(); }
+        if (_this->activeDecoder) { _this->activeDecoder->showMenu(); }
 
         ImGui::Separator();
 
-        // Show/hide the messages window
         if (ImGui::Button(("Show Messages##pager_decoder_show_" + _this->name).c_str(),
                           ImVec2(menuWidth, 0)))
         {
             _this->showMessagesWindow = true;
         }
 
-        // Log-to-file toggle + folder picker (like the Recorder module).
-        // The file is named "pocsag_log.tsv" inside the selected folder.
         if (ImGui::Checkbox(("Log to file##pager_decoder_log_" + _this->name).c_str(),
                             &_this->logToFile))
         {
@@ -290,36 +389,26 @@ private:
                 _this->saveSettings();
             }
             if (_this->logFolderSelect.pathIsValid()) {
-                ImGui::TextDisabled("File: pocsag_log.tsv");
+                ImGui::TextDisabled("File: pager_log.tsv");
             } else {
-                ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.5f, 1.0f),
-                                   "Invalid folder");
+                ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.5f, 1.0f), "Invalid folder");
             }
         }
 
         if (!_this->enabled) { style::endDisabled(); }
 
-        // Detached messages window
-        if (_this->showMessagesWindow) {
-            _this->drawMessagesWindow();
-        }
+        if (_this->showMessagesWindow) { _this->drawMessagesWindow(); }
     }
 
     void drawMessagesWindow() {
-        std::string title = "POCSAG Messages (" + name + ")###pager_msg_" + name;
-        ImGui::SetNextWindowSize(ImVec2(700, 400), ImGuiCond_FirstUseEver);
+        std::string title = "Pager Messages (" + name + ")###pager_msg_" + name;
+        ImGui::SetNextWindowSize(ImVec2(820, 400), ImGuiCond_FirstUseEver);
         if (!ImGui::Begin(title.c_str(), &showMessagesWindow)) {
             ImGui::End();
             return;
         }
 
-        // Prevent the waterfall from reacting to clicks/drags that originate
-        // inside our window. Without this, dragging the title bar over the
-        // waterfall area would move the selected VFO because the waterfall's
-        // input handler uses raw mouse state plus a geometric hit test that
-        // ignores overlapping ImGui windows. We use the public lock flag the
-        // core resets to "showCredits" at the start of every MainWindow::draw,
-        // so we only need to assert it when our window is actually engaged.
+        // Stop the waterfall from reacting to clicks/drags inside our window
         if (ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows
                                    | ImGuiHoveredFlags_AllowWhenBlockedByActiveItem)
             || ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows))
@@ -333,21 +422,14 @@ private:
             messages.clear();
         }
         ImGui::SameLine();
-        if (ImGui::Button("Save as TSV##pager_msg_save")) {
-            saveAllMessagesToFile();
-        }
+        if (ImGui::Button("Save as TSV##pager_msg_save")) { saveAllMessagesToFile(); }
         ImGui::SameLine();
         ImGui::Checkbox("Auto-scroll##pager_msg_autoscroll", &autoScroll);
         ImGui::SameLine();
-        if (ImGui::Checkbox("Hide errors##pager_msg_hideerr", &hideErrorMessages)) {
-            saveSettings();
-        }
+        if (ImGui::Checkbox("Hide errors##pager_msg_hideerr", &hideErrorMessages)) { saveSettings(); }
         ImGui::SameLine();
-        if (ImGui::Checkbox("Hide tone-only##pager_msg_hidetone", &hideToneOnly)) {
-            saveSettings();
-        }
+        if (ImGui::Checkbox("Hide tone-only##pager_msg_hidetone", &hideToneOnly)) { saveSettings(); }
 
-        // Messages table
         const ImGuiTableFlags tableFlags =
             ImGuiTableFlags_Borders     |
             ImGuiTableFlags_RowBg       |
@@ -358,20 +440,18 @@ private:
         if (ImGui::BeginTable(("##pager_msg_table_" + name).c_str(), 6, tableFlags)) {
             ImGui::TableSetupScrollFreeze(0, 1);
             ImGui::TableSetupColumn("Timestamp", ImGuiTableColumnFlags_WidthFixed, 150.0f);
-            ImGui::TableSetupColumn("Address",   ImGuiTableColumnFlags_WidthFixed,  90.0f);
-            ImGui::TableSetupColumn("Func",      ImGuiTableColumnFlags_WidthFixed,  40.0f);
-            ImGui::TableSetupColumn("Type",      ImGuiTableColumnFlags_WidthFixed,  70.0f);
-            ImGui::TableSetupColumn("FEC",       ImGuiTableColumnFlags_WidthFixed,  60.0f);
+            ImGui::TableSetupColumn("Proto",     ImGuiTableColumnFlags_WidthFixed,  60.0f);
+            ImGui::TableSetupColumn("Address",   ImGuiTableColumnFlags_WidthFixed, 100.0f);
+            ImGui::TableSetupColumn("Type",      ImGuiTableColumnFlags_WidthFixed,  80.0f);
+            ImGui::TableSetupColumn("Info",      ImGuiTableColumnFlags_WidthFixed,  80.0f);
             ImGui::TableSetupColumn("Message",   ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableHeadersRow();
 
             {
                 std::lock_guard<std::mutex> lck(messagesMtx);
                 for (const auto& m : messages) {
-                    // Hide messages that still contain uncorrectable codewords
-                    if (hideErrorMessages && m.errors > 0) { continue; }
-                    // Hide tone-only (also catches noise-induced false-positive empties)
-                    if (hideToneOnly && m.type == pocsag::MESSAGE_TYPE_TONE_ONLY) { continue; }
+                    if (hideErrorMessages && m.hasErrors)  { continue; }
+                    if (hideToneOnly      && m.isToneOnly) { continue; }
 
                     ImGui::TableNextRow();
 
@@ -379,24 +459,25 @@ private:
                     ImGui::TextUnformatted(formatTimestamp(m.timestamp).c_str());
 
                     ImGui::TableSetColumnIndex(1);
-                    ImGui::Text("%u", (unsigned)m.address);
+                    if (m.protocol == UnifiedMessage::PROTO_POCSAG) {
+                        ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "POCSAG");
+                    } else {
+                        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.4f, 1.0f), "FLEX");
+                    }
 
                     ImGui::TableSetColumnIndex(2);
-                    ImGui::Text("%u", (unsigned)m.function);
+                    ImGui::Text("%lld", (long long)m.address);
 
                     ImGui::TableSetColumnIndex(3);
-                    ImGui::TextUnformatted(typeName(m.type));
+                    ImGui::TextUnformatted(m.typeName.c_str());
 
                     ImGui::TableSetColumnIndex(4);
-                    if (m.errors > 0) {
-                        // Only reachable when the user has disabled the filter
-                        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f),
-                                           "%d/%d", m.corrected, m.errors);
-                    } else if (m.corrected > 0) {
-                        ImGui::TextColored(ImVec4(0.6f, 0.9f, 0.6f, 1.0f),
-                                           "+%d", m.corrected);
+                    if (m.hasErrors) {
+                        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", m.info.c_str());
+                    } else if (!m.info.empty() && m.info[0] == '+') {
+                        ImGui::TextColored(ImVec4(0.6f, 0.9f, 0.6f, 1.0f), "%s", m.info.c_str());
                     } else {
-                        ImGui::TextUnformatted("OK");
+                        ImGui::TextUnformatted(m.info.c_str());
                     }
 
                     ImGui::TableSetColumnIndex(5);
@@ -404,7 +485,6 @@ private:
                 }
             }
 
-            // Stick to the bottom when new messages arrive
             if (autoScroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY() - 10.0f) {
                 ImGui::SetScrollHereY(1.0f);
             }
@@ -416,18 +496,11 @@ private:
     }
 
     void saveAllMessagesToFile() {
-        // The "Save as TSV" button writes a one-shot SNAPSHOT of every
-        // message currently in memory. This is distinct from "Log to file"
-        // which appends in real time as each message arrives.
-        // We name the snapshot with a timestamp so repeated saves don't
-        // overwrite previous exports.
         std::time_t now = std::time(nullptr);
         char fnbuf[64];
-        std::strftime(fnbuf, sizeof(fnbuf), "pocsag_%Y%m%d_%H%M%S.tsv",
+        std::strftime(fnbuf, sizeof(fnbuf), "pager_%Y%m%d_%H%M%S.tsv",
                       std::localtime(&now));
 
-        // Use the same folder the user picked for live logging if it's
-        // valid, otherwise fall back to the SDR++ root.
         std::string dir;
         if (logFolderSelect.pathIsValid() && !logFolderSelect.path.empty()) {
             dir = logFolderSelect.expandString(logFolderSelect.path);
@@ -438,55 +511,60 @@ private:
 
         std::ofstream f(outPath);
         if (!f.is_open()) {
-            flog::error("POCSAG: cannot open {} for writing", outPath);
+            flog::error("Pager: cannot open {} for writing", outPath);
             return;
         }
-        f << "timestamp\taddress\tfunction\ttype\tmessage\n";
+        f << "timestamp\tprotocol\taddress\ttype\tinfo\tmessage\n";
         std::lock_guard<std::mutex> lck(messagesMtx);
         int written = 0;
         for (const auto& m : messages) {
-            // Apply the same filters as the GUI table so the export matches
-            // what the user is currently seeing
-            if (hideErrorMessages && m.errors > 0)                            { continue; }
-            if (hideToneOnly       && m.type == pocsag::MESSAGE_TYPE_TONE_ONLY) { continue; }
+            if (hideErrorMessages && m.hasErrors)  { continue; }
+            if (hideToneOnly      && m.isToneOnly) { continue; }
             f << formatTimestamp(m.timestamp)
+              << '\t' << protoName(m.protocol)
               << '\t' << m.address
-              << '\t' << (int)m.function
-              << '\t' << typeName(m.type)
+              << '\t' << m.typeName
+              << '\t' << m.info
               << '\t' << m.content
               << '\n';
             written++;
         }
-        flog::info("POCSAG: saved {} messages to {}", written, outPath);
+        flog::info("Pager: saved {} messages to {}", written, outPath);
     }
 
-    // -------- Members ------------------------------------------------
+    // -----------------------------------------------------------------
+    // Members
+    // -----------------------------------------------------------------
     std::string                       name;
     bool                              enabled = true;
 
     VFOManager::VFO*                  vfo = nullptr;
-    std::unique_ptr<POCSAGDecoder>    decoder;
+    std::unique_ptr<POCSAGDecoder>    pocsagDecoder;
+    std::unique_ptr<FLEXDecoder>      flexDecoder;
+    Decoder*                          activeDecoder = nullptr;
 
-    // Messages buffer (DSP-thread producer / main-thread consumer)
-    std::mutex                        messagesMtx;
-    std::deque<pocsag::Message>       messages;
+    // Protocol selector
+    int                                       protoId = 0;
+    OptionList<Protocol, Protocol>            protocols;
 
-    // UI/runtime options
+    // Snap interval
+    int                                       snapId = 0;
+    OptionList<int, int>                      snapIntervals;
+
+    // Message buffer
+    std::mutex                                messagesMtx;
+    std::deque<UnifiedMessage>                messages;
+
+    // UI / runtime options
     bool                              showMessagesWindow = false;
     bool                              autoScroll         = true;
-    bool                              hideErrorMessages  = true;  // Default: only show clean / corrected messages
-    bool                              hideToneOnly       = true;  // Default: hide tone-only (suppresses most false-positive noise)
+    bool                              hideErrorMessages  = true;
+    bool                              hideToneOnly       = true;
     bool                              logToFile          = false;
-    FolderSelect                      logFolderSelect;            // Initialized in the constructor to "%ROOT%"
-
-    // VFO snap interval (Hz). Default 1 kHz - common for handheld tuning
-    // on POCSAG channels, where carriers sit on integer kHz boundaries.
-    int                               snapId = 0;
-    OptionList<int, int>              snapIntervals;
+    FolderSelect                      logFolderSelect;
 };
 
 MOD_EXPORT void _INIT_() {
-    // Initial default config
     json def = json({});
     std::string root = (std::string)core::args["root"];
     config.setPath(root + "/pager_decoder_config.json");
