@@ -69,6 +69,7 @@ option(OPT_BUILD_DSD_DECODER "Build the DSD-FME digital voice/data decoder modul
 option(OPT_BUILD_FT8_DECODER "Build the FT8/FT4/WSPR decoder module (Dependencies: fftw3)" ON)
 option(OPT_BUILD_GPS_DECODER "Build the GPS L1 C/A decoder module" ON)
 option(OPT_BUILD_MFSK_DECODER "Build the MFSK decoder module" ON)
+option(OPT_BUILD_NAVTEX_DECODER "Build NAVTEX decoder" ON)
 option(OPT_BUILD_PSK_DECODER "Build the PSK decoder module" ON)
 option(OPT_BUILD_RADIOSONDE_DECODER "Build the radiosonde decoder module (no dependencies required)" ON)
 option(OPT_BUILD_RTL_433_BRIDGE "Build the rtl_433 bridge module (links librtl_433, ~320 protocols; needs RTL_433_ROOT)" ON)
@@ -377,6 +378,10 @@ endif (OPT_BUILD_GPS_DECODER)
 if (OPT_BUILD_MFSK_DECODER)
 add_subdirectory("decoder_modules/mfsk_decoder")
 endif (OPT_BUILD_MFSK_DECODER)
+
+if (OPT_BUILD_NAVTEX_DECODER)
+add_subdirectory("decoder_modules/navtex_decoder")
+endif (OPT_BUILD_NAVTEX_DECODER)
 
 if (OPT_BUILD_PSK_DECODER)
 add_subdirectory("decoder_modules/psk_decoder")
