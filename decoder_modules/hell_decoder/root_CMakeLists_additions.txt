@@ -1,7 +1,0 @@
-# Add to the options block (near the other OPT_BUILD_*_DECODER lines):
-option(OPT_BUILD_HELL_DECODER "Build the Hellschreiber decoder module" ON)
-
-# Add to the add_subdirectory block (near the other decoder modules):
-if (OPT_BUILD_HELL_DECODER)
-add_subdirectory("decoder_modules/hell_decoder")
-endif (OPT_BUILD_HELL_DECODER)
