@@ -77,8 +77,8 @@ option(OPT_BUILD_RTL_433_BRIDGE "Build the rtl_433 bridge module (links librtl_4
 option(OPT_BUILD_RTTY_DECODER "Build RTTY decoder" ON)
 option(OPT_BUILD_SSTV_DECODER "Build SSTV decoder" ON)
 option(OPT_BUILD_TETRA_DEMODULATOR "Build the TETRA demodulator module (no extra deps)" ON)
-option(OPT_BUILD_VDL2_DECODER "Build the VDL Mode 2 decoder module (no dependencies required)" ON)
 option(OPT_BUILD_THOR_DECODER "Build the THOR decoder module" ON)
+option(OPT_BUILD_VDL2_DECODER "Build the VDL Mode 2 decoder module (no dependencies required)" ON)
 option(OPT_BUILD_WEFAX_DECODER "Build the WEFAX / HF radiofax decoder module (no dependencies required)" ON)
 
 # Misc
