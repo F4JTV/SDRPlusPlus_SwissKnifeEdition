@@ -63,6 +63,7 @@ option(OPT_BUILD_AIS_DECODER "Build the AIS decoder module with TCP output (no d
 option(OPT_BUILD_APRS_DECODER "Build the APRS decoder module (no dependencies required)" ON)
 option(OPT_BUILD_COSPAS_SARSAT_DECODER "Build the Cospas-Sarsat 406 MHz decoder module (no dependencies required)" ON)
 option(OPT_BUILD_CW_DECODER "Build the CW (Morse) decoder module (no dependencies required)" ON)
+option(OPT_BUILD_DOMINOEX_DECODER "Build DominoEX decoder" ON)
 option(OPT_BUILD_DRM_DECODER "Build the DRM (Digital Radio Mondiale) decoder module" ON)
 option(OPT_BUILD_DRM_IMAGE_DECODER "Build the HamDRM digital image (DRM SSTV) decoder (Dependencies: fftw3)" ON)
 option(OPT_BUILD_DSD_DECODER "Build the DSD-FME digital voice/data decoder module (needs the dsd-fme binary at runtime)" ON)
@@ -356,6 +357,10 @@ endif (OPT_BUILD_COSPAS_SARSAT_DECODER)
 if (OPT_BUILD_CW_DECODER)
 add_subdirectory("decoder_modules/cw_decoder")
 endif (OPT_BUILD_CW_DECODER)
+
+if (OPT_BUILD_DOMINOEX_DECODER)
+add_subdirectory("decoder_modules/dominoex_decoder")
+endif (OPT_BUILD_DOMINOEX_DECODER)
 
 if (OPT_BUILD_DRM_DECODER)
 add_subdirectory("decoder_modules/drm_decoder")
