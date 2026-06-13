@@ -68,6 +68,7 @@ option(OPT_BUILD_DRM_IMAGE_DECODER "Build the HamDRM digital image (DRM SSTV) de
 option(OPT_BUILD_DSD_DECODER "Build the DSD-FME digital voice/data decoder module (needs the dsd-fme binary at runtime)" ON)
 option(OPT_BUILD_FT8_DECODER "Build the FT8/FT4/WSPR decoder module (Dependencies: fftw3)" ON)
 option(OPT_BUILD_GPS_DECODER "Build the GPS L1 C/A decoder module" ON)
+option(OPT_BUILD_HELL_DECODER "Build the Hellschreiber decoder module" ON)
 option(OPT_BUILD_MFSK_DECODER "Build the MFSK decoder module" ON)
 option(OPT_BUILD_NAVTEX_DECODER "Build NAVTEX decoder" ON)
 option(OPT_BUILD_PSK_DECODER "Build the PSK decoder module" ON)
@@ -374,6 +375,10 @@ endif (OPT_BUILD_FT8_DECODER)
 if (OPT_BUILD_GPS_DECODER)
 add_subdirectory("decoder_modules/gps_decoder")
 endif (OPT_BUILD_GPS_DECODER)
+
+if (OPT_BUILD_HELL_DECODER)
+add_subdirectory("decoder_modules/hell_decoder")
+endif (OPT_BUILD_HELL_DECODER)
 
 if (OPT_BUILD_MFSK_DECODER)
 add_subdirectory("decoder_modules/mfsk_decoder")
