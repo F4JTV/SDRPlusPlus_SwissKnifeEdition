@@ -94,7 +94,7 @@ python3 -m pip install --user --break-system-packages -r ./requirements.txt
 python3 ./manage.py migrate
 
 # =========================================================
-# 6) libacars + dumpvdl2 (VDL2)
+# 6) libacars + dumpvdl2 (VDL2) + dumphfdl (HFDL)
 # =========================================================
 clone_or_update https://github.com/F4JTV/libacars.git "$HOME/libacars"
 cd ~/libacars
@@ -105,6 +105,13 @@ sudo ldconfig
 
 clone_or_update https://github.com/F4JTV/dumpvdl2.git "$HOME/dumpvdl2"
 cd ~/dumpvdl2
+cmake -S . -B build
+cmake --build build -j"$(nproc)"
+sudo cmake --install build
+sudo ldconfig
+
+clone_or_update https://github.com/F4JTV/dumphfdl.git "$HOME/dumphfdl"
+cd ~/dumphfdl
 cmake -S . -B build
 cmake --build build -j"$(nproc)"
 sudo cmake --install build
