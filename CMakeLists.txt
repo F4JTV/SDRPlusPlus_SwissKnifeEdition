@@ -61,6 +61,7 @@ option(OPT_BUILD_ACARS_DECODER "Build the VHF ACARS decoder module (no dependenc
 option(OPT_BUILD_ADSB_DECODER "Build the ADS-B (1090 MHz) decoder module (no dependencies required)" ON)
 option(OPT_BUILD_AIS_DECODER "Build the AIS decoder module with TCP output (no dependencies required)" ON)
 option(OPT_BUILD_APRS_DECODER "Build the APRS decoder module (no dependencies required)" ON)
+option(OPT_BUILD_CONTESTIA_DECODER "Build the Contestia MFSK decoder module" ON)
 option(OPT_BUILD_COSPAS_SARSAT_DECODER "Build the Cospas-Sarsat 406 MHz decoder module (no dependencies required)" ON)
 option(OPT_BUILD_CW_DECODER "Build the CW (Morse) decoder module (no dependencies required)" ON)
 option(OPT_BUILD_DOMINOEX_DECODER "Build DominoEX decoder" ON)
@@ -350,6 +351,10 @@ endif (OPT_BUILD_AIS_DECODER)
 if (OPT_BUILD_APRS_DECODER)
 add_subdirectory("decoder_modules/aprs_decoder")
 endif (OPT_BUILD_APRS_DECODER)
+
+if (OPT_BUILD_CONTESTIA_DECODER)
+add_subdirectory("decoder_modules/contestia_decoder")
+endif (OPT_BUILD_CONTESTIA_DECODER)
 
 if (OPT_BUILD_COSPAS_SARSAT_DECODER)
 add_subdirectory("decoder_modules/cospas_sarsat_decoder")
