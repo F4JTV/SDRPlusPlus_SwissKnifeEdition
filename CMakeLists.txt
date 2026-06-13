@@ -78,6 +78,7 @@ option(OPT_BUILD_RTTY_DECODER "Build RTTY decoder" ON)
 option(OPT_BUILD_SSTV_DECODER "Build SSTV decoder" ON)
 option(OPT_BUILD_TETRA_DEMODULATOR "Build the TETRA demodulator module (no extra deps)" ON)
 option(OPT_BUILD_VDL2_DECODER "Build the VDL Mode 2 decoder module (no dependencies required)" ON)
+option(OPT_BUILD_THOR_DECODER "Build the THOR decoder module" ON)
 option(OPT_BUILD_WEFAX_DECODER "Build the WEFAX / HF radiofax decoder module (no dependencies required)" ON)
 
 # Misc
@@ -411,6 +412,10 @@ endif (OPT_BUILD_SSTV_DECODER)
 if (OPT_BUILD_TETRA_DEMODULATOR)
 add_subdirectory("decoder_modules/tetra_decoder")
 endif (OPT_BUILD_TETRA_DEMODULATOR)
+
+if (OPT_BUILD_THOR_DECODER)
+add_subdirectory("decoder_modules/thor_decoder")
+endif (OPT_BUILD_THOR_DECODER)
 
 if (OPT_BUILD_VDL2_DECODER)
 add_subdirectory("decoder_modules/vdl2_decoder")
