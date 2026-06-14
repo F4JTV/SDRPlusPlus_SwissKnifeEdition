@@ -54,7 +54,7 @@ SDRPP_MOD_INFO{
     /* Name:            */ "dsd_decoder",
     /* Description:     */ "Digital voice / data decoder (DMR, P25, NXDN, dPMR, YSF, ProVoice, EDACS, X2-TDMA, M17) via DSD-FME",
     /* Author:          */ "SDR++ Community",
-    /* Version:         */ 0, 7, 3,
+    /* Version:         */ 0, 7, 4,
     /* Max instances    */ -1
 };
 
@@ -1296,7 +1296,7 @@ private:
                     accent = IM_COL32(80, 200, 100, 255);
                     label  = "CONTROL CHANNEL (server)";
                     snprintf(freqTxt, sizeof(freqTxt), "%.6f MHz", _this->ccFreq / 1e6);
-                    int nCli = _this->rigServer.isRunning() ? _this->rigServer.passiveClientCount() : 0;
+                    int nCli = _this->rigServer.isRunning() ? _this->rigServer.vcClientCount() : 0;
                     snprintf(detailTxt, sizeof(detailTxt),
                              "%llu grants relayed   %d VC client(s) connected",
                              (unsigned long long)_this->grantCount.load(), nCli);
@@ -1373,7 +1373,7 @@ private:
                     ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f),
                                        "Server: listening on 127.0.0.1:%d — %d VC client(s)",
                                        _this->rigServer.getPort(),
-                                       _this->rigServer.passiveClientCount());
+                                       _this->rigServer.vcClientCount());
                 } else {
                     ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.45f, 1.0f),
                                        "Server: failed to listen (port in use?)");

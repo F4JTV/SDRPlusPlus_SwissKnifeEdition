@@ -89,13 +89,11 @@ public:
         std::lock_guard<std::mutex> lck(mtx);
         return (int)clients.size();
     }
-    // Number of clients that have NEVER sent us any data — typically the
-    // passive listeners (our VC instances). The dsd-fme subprocess does
-    // a "\dump_state" handshake on connect, so it counts as an active
-    // client and is excluded from this number.
-    int passiveClientCount() {
-        return clientCount() - activeCount.load();
-    }
+    // Number of clients that explicitly identified themselves as a VC by
+    // sending the magic "_vc_register" line on connect. dsd-fme never sends
+    // this so it is correctly excluded from this count. See RigctlClient
+    // which performs the registration on every successful (re)connect.
+    int vcClientCount() const { return vcCount.load(); }
 
     // Push "F <hz>\n" to every connected client. Used by the CC instance to
     // forward grants to all the VC instances listening to us. Best-effort:
@@ -135,7 +133,7 @@ private:
     }
 
     void clientLoop(std::shared_ptr<net::Socket> s) {
-        bool sentSomething = false;
+        bool isVC = false;   // becomes true after this client sends _vc_register
         while (running && s->isOpen()) {
             std::string line;
             int r = s->recvline(line, 1024, 500);
@@ -149,17 +147,20 @@ private:
             }
             if (r < 0)  { continue; }    // select() error / would-block
 
-            // First time we get any data from this client, mark it as
-            // "active" — that's typically dsd-fme issuing rigctl commands,
-            // not one of our passive VC listeners (which never send).
-            if (!sentSomething) {
-                sentSomething = true;
-                activeCount++;
-            }
-
             // Trim trailing CR / spaces.
             while (!line.empty() && (line.back() == '\r' || line.back() == ' ')) {
                 line.pop_back();
+            }
+
+            // Special pre-handle: our VC instances send "_vc_register" on
+            // connect so the CC server can count them separately from
+            // dsd-fme (which never sends this command).
+            if (!isVC && line == "_vc_register") {
+                isVC = true;
+                vcCount++;
+                try { s->sendstr("OK\n"); }
+                catch (...) { break; }
+                continue;
             }
 
             std::string reply = handle(line);
@@ -171,7 +172,7 @@ private:
         }
         try { s->close(); } catch (...) {}
 
-        if (sentSomething) { activeCount--; }
+        if (isVC) { vcCount--; }
 
         std::lock_guard<std::mutex> lck(mtx);
         clients.erase(std::remove(clients.begin(), clients.end(), s), clients.end());
@@ -230,7 +231,7 @@ private:
     }
 
     std::atomic<bool> running{false};
-    std::atomic<int>  activeCount{0};
+    std::atomic<int>  vcCount{0};
     std::shared_ptr<net::Listener>             listener;
     int                                        port = 4532;
     std::thread                                acceptThread;

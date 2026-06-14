@@ -109,6 +109,13 @@ private:
                     connected = (sock && sock->isOpen());
                     if (connected) {
                         flog::info("dsd_decoder: rigctl client connected to {}:{}", h, p);
+                        // Identify ourselves as a VC so the CC's server can
+                        // count us separately from dsd-fme (which speaks the
+                        // standard rigctl protocol and never sends this).
+                        // The server replies "OK\n" which we ignore via the
+                        // regular read loop below.
+                        try { sock->sendstr("_vc_register\n"); }
+                        catch (...) { /* will reconnect */ }
                     }
                 }
                 catch (const std::exception&) {
