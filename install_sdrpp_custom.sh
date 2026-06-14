@@ -22,6 +22,8 @@ clone_or_update() {
     fi
 }
 
+mkdir "$HOME/sdrpp_ext_soft"
+
 # =========================================================
 # 1) Dependances
 # =========================================================
@@ -59,7 +61,7 @@ clone_or_update https://github.com/F4JTV/dream.git \
 # =========================================================
 # 3) mbelib + dsd-fme (DSD)
 # =========================================================
-clone_or_update https://github.com/F4JTV/mbelib.git "$HOME/mbelib"
+clone_or_update https://github.com/F4JTV/mbelib.git "$HOME/sdrpp_ext_soft/mbelib"
 cd ~/mbelib
 cmake -S . -B build
 cmake --build build -j"$(nproc)"
@@ -67,7 +69,7 @@ sudo cmake --install build
 sudo ldconfig
 
 # dsd-fme 
-clone_or_update https://github.com/F4JTV/dsd-fme.git "$HOME/dsd-fme"
+clone_or_update https://github.com/F4JTV/dsd-fme.git "$HOME/sdrpp_ext_soft/dsd-fme"
 cd ~/dsd-fme
 cmake -S . -B build
 cmake --build build -j"$(nproc)"
@@ -77,7 +79,7 @@ sudo ldconfig
 # =========================================================
 # 4) rtl_433 (RTL-433)
 # =========================================================
-clone_or_update https://github.com/F4JTV/rtl_433.git "$HOME/rtl_433"
+clone_or_update https://github.com/F4JTV/rtl_433.git "$HOME/sdrpp_ext_soft/rtl_433"
 cd ~/rtl_433
 cmake -S . -B build \
       -DENABLE_RTLSDR=OFF -DENABLE_SOAPYSDR=OFF -DENABLE_OPENSSL=OFF \
@@ -96,21 +98,21 @@ python3 ./manage.py migrate
 # =========================================================
 # 6) libacars + dumpvdl2 (VDL2) + dumphfdl (HFDL)
 # =========================================================
-clone_or_update https://github.com/F4JTV/libacars.git "$HOME/libacars"
+clone_or_update https://github.com/F4JTV/libacars.git "$HOME/sdrpp_ext_soft/libacars"
 cd ~/libacars
 cmake -S . -B build
 cmake --build build -j"$(nproc)"
 sudo cmake --install build
 sudo ldconfig
 
-clone_or_update https://github.com/F4JTV/dumpvdl2.git "$HOME/dumpvdl2"
+clone_or_update https://github.com/F4JTV/dumpvdl2.git "$HOME/sdrpp_ext_soft/dumpvdl2"
 cd ~/dumpvdl2
 cmake -S . -B build
 cmake --build build -j"$(nproc)"
 sudo cmake --install build
 sudo ldconfig
 
-clone_or_update https://github.com/F4JTV/dumphfdl.git "$HOME/dumphfdl"
+clone_or_update https://github.com/F4JTV/dumphfdl.git "$HOME/sdrpp_ext_soft/dumphfdl"
 cd ~/dumphfdl
 cmake -S . -B build
 cmake --build build -j"$(nproc)"
@@ -121,7 +123,7 @@ sudo ldconfig
 # 7) Compilation + installation SDR++ et modules
 # =========================================================
 cd ~/SDRPlusPlus
-cmake -S . -B build -DRTL_433_ROOT="$HOME/rtl_433"
+cmake -S . -B build -DRTL_433_ROOT="$HOME/sdrpp_ext_soft/rtl_433"
 cmake --build build -j"$(nproc)"
 sudo cmake --install build
 
