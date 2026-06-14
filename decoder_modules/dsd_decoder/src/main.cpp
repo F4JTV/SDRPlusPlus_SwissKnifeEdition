@@ -54,7 +54,7 @@ SDRPP_MOD_INFO{
     /* Name:            */ "dsd_decoder",
     /* Description:     */ "Digital voice / data decoder (DMR, P25, NXDN, dPMR, YSF, ProVoice, EDACS, X2-TDMA, M17) via DSD-FME",
     /* Author:          */ "SDR++ Community",
-    /* Version:         */ 0, 7, 0,
+    /* Version:         */ 0, 7, 1,
     /* Max instances    */ -1
 };
 

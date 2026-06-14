@@ -131,8 +131,15 @@ private:
         while (running && s->isOpen()) {
             std::string line;
             int r = s->recvline(line, 1024, 500);
-            if (r == 0) { break; }           // peer closed
-            if (r < 0)  { continue; }         // timeout / would-block
+            if (r == 0) {
+                // 0 from SDR++'s recvline means EITHER a select() timeout
+                // (no data within 500 ms — keep waiting) OR a peer-closed
+                // socket (recv() internally closed it). Distinguish via
+                // isOpen() so idle clients aren't dropped every 500 ms.
+                if (!s->isOpen()) { break; }
+                continue;
+            }
+            if (r < 0)  { continue; }    // select() error / would-block
 
             // Trim trailing CR / spaces.
             while (!line.empty() && (line.back() == '\r' || line.back() == ' ')) {

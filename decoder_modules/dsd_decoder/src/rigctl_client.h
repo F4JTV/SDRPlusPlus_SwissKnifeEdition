@@ -121,11 +121,20 @@ private:
             // Read lines from the server. recvline has its own 500 ms timeout
             // so we periodically re-check running / dirty without a separate
             // cv.wait — that way successive lines are processed immediately.
+            //
+            // Note: SDR++'s net API returns 0 from recvline for BOTH a select()
+            // timeout AND a peer-closed socket. We distinguish them via
+            // isOpen(): on peer-close, recv() internally calls close() so
+            // isOpen() turns false; on timeout the socket stays open.
             std::string line;
             int r = sock->recvline(line, 1024, 500);
             if (r == 0) {
-                connected = false;
-                closeSocket();
+                if (!sock->isOpen()) {
+                    // Real disconnection — reconnect on next iteration.
+                    connected = false;
+                    closeSocket();
+                }
+                // else: just no data in the last 500 ms, keep waiting.
                 continue;
             }
             if (r < 0) { continue; }
