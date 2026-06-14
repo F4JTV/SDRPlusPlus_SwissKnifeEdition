@@ -54,7 +54,7 @@ SDRPP_MOD_INFO{
     /* Name:            */ "dsd_decoder",
     /* Description:     */ "Digital voice / data decoder (DMR, P25, NXDN, dPMR, YSF, ProVoice, EDACS, X2-TDMA, M17) via DSD-FME",
     /* Author:          */ "SDR++ Community",
-    /* Version:         */ 0, 7, 1,
+    /* Version:         */ 0, 7, 3,
     /* Max instances    */ -1
 };
 
@@ -1296,7 +1296,7 @@ private:
                     accent = IM_COL32(80, 200, 100, 255);
                     label  = "CONTROL CHANNEL (server)";
                     snprintf(freqTxt, sizeof(freqTxt), "%.6f MHz", _this->ccFreq / 1e6);
-                    int nCli = _this->rigServer.isRunning() ? _this->rigServer.clientCount() : 0;
+                    int nCli = _this->rigServer.isRunning() ? _this->rigServer.passiveClientCount() : 0;
                     snprintf(detailTxt, sizeof(detailTxt),
                              "%llu grants relayed   %d VC client(s) connected",
                              (unsigned long long)_this->grantCount.load(), nCli);
@@ -1371,9 +1371,9 @@ private:
 
                 if (_this->rigServer.isRunning()) {
                     ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f),
-                                       "Server: listening on 127.0.0.1:%d — %d client(s)",
+                                       "Server: listening on 127.0.0.1:%d — %d VC client(s)",
                                        _this->rigServer.getPort(),
-                                       _this->rigServer.clientCount());
+                                       _this->rigServer.passiveClientCount());
                 } else {
                     ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.45f, 1.0f),
                                        "Server: failed to listen (port in use?)");
@@ -1444,54 +1444,6 @@ private:
                 } else {
                     ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f),
                                        "Client: not connected (retrying every 3s)");
-                }
-
-                ImGui::TextWrapped(
-                    "This instance follows voice grants relayed by the CC "
-                    "instance. The CC freq is owned by the CC instance — "
-                    "this VC will stay tuned to whatever the last received "
-                    "grant pointed to, until the next one arrives.");
-            }
-
-            // ============== Recent grants table (CC and VC) ================
-            if (_this->channelType != ChannelType::None) {
-                if (ImGui::TreeNode(CONCAT("Recent grants##dsd_recent_", _this->name))) {
-                    const ImGuiTableFlags tf = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
-                                               ImGuiTableFlags_SizingStretchProp;
-                    if (ImGui::BeginTable(CONCAT("##dsd_grants_tbl_", _this->name), 5, tf)) {
-                        ImGui::TableSetupColumn("Time",     ImGuiTableColumnFlags_WidthFixed, 70.0f);
-                        ImGui::TableSetupColumn("Freq",     ImGuiTableColumnFlags_WidthFixed, 100.0f);
-                        ImGui::TableSetupColumn("Dur (s)",  ImGuiTableColumnFlags_WidthFixed, 60.0f);
-                        ImGui::TableSetupColumn("TG",       ImGuiTableColumnFlags_WidthStretch);
-                        ImGui::TableSetupColumn("SRC",      ImGuiTableColumnFlags_WidthStretch);
-                        ImGui::TableHeadersRow();
-                        std::time_t now = std::time(nullptr);
-                        std::lock_guard<std::mutex> lck(_this->grantMtx);
-                        for (auto it = _this->grantHistory.rbegin(); it != _this->grantHistory.rend(); ++it) {
-                            const auto& g = *it;
-                            char tbuf[16]; std::tm tmv;
-#ifdef _WIN32
-                            localtime_s(&tmv, &g.ts);
-#else
-                            localtime_r(&g.ts, &tmv);
-#endif
-                            std::strftime(tbuf, sizeof(tbuf), "%H:%M:%S", &tmv);
-                            std::time_t et = g.endTs ? g.endTs : now;
-                            int dur = (int)(et - g.ts);
-                            ImGui::TableNextRow();
-                            if (!g.endTs) {
-                                ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0,
-                                    ImGui::GetColorU32(ImVec4(0.40f, 0.25f, 0.05f, 0.45f)));
-                            }
-                            ImGui::TableSetColumnIndex(0); ImGui::TextUnformatted(tbuf);
-                            ImGui::TableSetColumnIndex(1); ImGui::Text("%.4f MHz", g.freq / 1e6);
-                            ImGui::TableSetColumnIndex(2); ImGui::Text("%d", dur);
-                            ImGui::TableSetColumnIndex(3); ImGui::TextUnformatted(g.tg.c_str());
-                            ImGui::TableSetColumnIndex(4); ImGui::TextUnformatted(g.src.c_str());
-                        }
-                        ImGui::EndTable();
-                    }
-                    ImGui::TreePop();
                 }
             }
         }

@@ -89,6 +89,13 @@ public:
         std::lock_guard<std::mutex> lck(mtx);
         return (int)clients.size();
     }
+    // Number of clients that have NEVER sent us any data — typically the
+    // passive listeners (our VC instances). The dsd-fme subprocess does
+    // a "\dump_state" handshake on connect, so it counts as an active
+    // client and is excluded from this number.
+    int passiveClientCount() {
+        return clientCount() - activeCount.load();
+    }
 
     // Push "F <hz>\n" to every connected client. Used by the CC instance to
     // forward grants to all the VC instances listening to us. Best-effort:
@@ -128,6 +135,7 @@ private:
     }
 
     void clientLoop(std::shared_ptr<net::Socket> s) {
+        bool sentSomething = false;
         while (running && s->isOpen()) {
             std::string line;
             int r = s->recvline(line, 1024, 500);
@@ -140,6 +148,14 @@ private:
                 continue;
             }
             if (r < 0)  { continue; }    // select() error / would-block
+
+            // First time we get any data from this client, mark it as
+            // "active" — that's typically dsd-fme issuing rigctl commands,
+            // not one of our passive VC listeners (which never send).
+            if (!sentSomething) {
+                sentSomething = true;
+                activeCount++;
+            }
 
             // Trim trailing CR / spaces.
             while (!line.empty() && (line.back() == '\r' || line.back() == ' ')) {
@@ -154,6 +170,8 @@ private:
             }
         }
         try { s->close(); } catch (...) {}
+
+        if (sentSomething) { activeCount--; }
 
         std::lock_guard<std::mutex> lck(mtx);
         clients.erase(std::remove(clients.begin(), clients.end(), s), clients.end());
@@ -212,6 +230,7 @@ private:
     }
 
     std::atomic<bool> running{false};
+    std::atomic<int>  activeCount{0};
     std::shared_ptr<net::Listener>             listener;
     int                                        port = 4532;
     std::thread                                acceptThread;
