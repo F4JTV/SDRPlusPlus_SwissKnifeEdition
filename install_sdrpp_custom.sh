@@ -62,7 +62,7 @@ clone_or_update https://github.com/F4JTV/dream.git \
 # 3) mbelib + dsd-fme (DSD)
 # =========================================================
 clone_or_update https://github.com/F4JTV/mbelib.git "$HOME/sdrpp_ext_soft/mbelib"
-cd ~/mbelib
+cd "$HOME/sdrpp_ext_soft/mbelib"
 cmake -S . -B build
 cmake --build build -j"$(nproc)"
 sudo cmake --install build
@@ -70,7 +70,7 @@ sudo ldconfig
 
 # dsd-fme 
 clone_or_update https://github.com/F4JTV/dsd-fme.git "$HOME/sdrpp_ext_soft/dsd-fme"
-cd ~/dsd-fme
+cd "$HOME/sdrpp_ext_soft/dsd-fme"
 cmake -S . -B build
 cmake --build build -j"$(nproc)"
 sudo cmake --install build
@@ -80,7 +80,7 @@ sudo ldconfig
 # 4) rtl_433 (RTL-433)
 # =========================================================
 clone_or_update https://github.com/F4JTV/rtl_433.git "$HOME/sdrpp_ext_soft/rtl_433"
-cd ~/rtl_433
+cd "$HOME/sdrpp_ext_soft/rtl_433"
 cmake -S . -B build \
       -DENABLE_RTLSDR=OFF -DENABLE_SOAPYSDR=OFF -DENABLE_OPENSSL=OFF \
       -DBUILD_TESTING=OFF \
@@ -99,21 +99,21 @@ python3 ./manage.py migrate
 # 6) libacars + dumpvdl2 (VDL2) + dumphfdl (HFDL)
 # =========================================================
 clone_or_update https://github.com/F4JTV/libacars.git "$HOME/sdrpp_ext_soft/libacars"
-cd ~/libacars
+cd "$HOME/sdrpp_ext_soft/libacars"
 cmake -S . -B build
 cmake --build build -j"$(nproc)"
 sudo cmake --install build
 sudo ldconfig
 
 clone_or_update https://github.com/F4JTV/dumpvdl2.git "$HOME/sdrpp_ext_soft/dumpvdl2"
-cd ~/dumpvdl2
+cd "$HOME/sdrpp_ext_soft/dumpvdl2"
 cmake -S . -B build
 cmake --build build -j"$(nproc)"
 sudo cmake --install build
 sudo ldconfig
 
 clone_or_update https://github.com/F4JTV/dumphfdl.git "$HOME/sdrpp_ext_soft/dumphfdl"
-cd ~/dumphfdl
+cd "$HOME/sdrpp_ext_soft/dumphfdl"
 cmake -S . -B build
 cmake --build build -j"$(nproc)"
 sudo cmake --install build
