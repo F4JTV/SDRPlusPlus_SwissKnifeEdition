@@ -22,6 +22,11 @@ clone_or_update() {
     fi
 }
 
+# Flags pour reduire les warnings bruyants des bibliotheques tierces compilees
+# in-tree (Dream surtout, ainsi que le code vendor FT8/WSPR, welle.io, etc.).
+# Purement cosmetique : n'affecte pas le code des modules.
+THIRD_PARTY_WARN_FLAGS="-Wno-stringop-overflow -Wno-format-truncation"
+
 mkdir "$HOME/sdrpp_ext_soft"
 
 # =========================================================
@@ -123,7 +128,9 @@ sudo ldconfig
 # 7) Compilation + installation SDR++ et modules
 # =========================================================
 cd ~/SDRPlusPlus
-cmake -S . -B build -DRTL_433_ROOT="$HOME/sdrpp_ext_soft/rtl_433"
+cmake -S . -B build -DRTL_433_ROOT="$HOME/sdrpp_ext_soft/rtl_433" \
+      -DCMAKE_C_FLAGS="$THIRD_PARTY_WARN_FLAGS" \
+      -DCMAKE_CXX_FLAGS="$THIRD_PARTY_WARN_FLAGS"
 cmake --build build -j"$(nproc)"
 sudo cmake --install build
 
