@@ -27,7 +27,7 @@ clone_or_update() {
 # Purement cosmetique : n'affecte pas le code des modules.
 THIRD_PARTY_WARN_FLAGS="-Wno-stringop-overflow -Wno-format-truncation"
 
-mkdir "$HOME/sdrpp_ext_soft"
+mkdir -p "$HOME/sdrpp_ext_soft"
 
 # =========================================================
 # 1) Dependances
