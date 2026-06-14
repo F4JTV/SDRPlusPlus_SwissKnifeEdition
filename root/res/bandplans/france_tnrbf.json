@@ -1,0 +1,2613 @@
+{
+    "name": "France (TNRBF / ANFR)",
+    "country_name": "France",
+    "country_code": "FR",
+    "author_name": "SDR++ community",
+    "author_url": "https://github.com/AlexandreRouma/SDRPlusPlus",
+    "bands": [
+        {
+            "name": "Auxiliaires de la météorologie",
+            "type": "space",
+            "start": 8300,
+            "end": 9000
+        },
+        {
+            "name": "Radionavigation / Auxiliaires de la météorologie",
+            "type": "radionavigation",
+            "start": 9000,
+            "end": 11300
+        },
+        {
+            "name": "Radionavigation",
+            "type": "radionavigation",
+            "start": 11300,
+            "end": 14000
+        },
+        {
+            "name": "Mobile maritime / Fixe",
+            "type": "marine",
+            "start": 14000,
+            "end": 19950
+        },
+        {
+            "name": "Fréquences étalon et signaux horaires",
+            "type": "space",
+            "start": 19950,
+            "end": 20050
+        },
+        {
+            "name": "Mobile maritime / Fréquences étalon et signaux horaires",
+            "type": "marine",
+            "start": 20050,
+            "end": 70000
+        },
+        {
+            "name": "Radionavigation maritime",
+            "type": "marine",
+            "start": 70000,
+            "end": 72000
+        },
+        {
+            "name": "Mobile maritime / Radionavigation maritime",
+            "type": "marine",
+            "start": 72000,
+            "end": 84000
+        },
+        {
+            "name": "Radionavigation maritime",
+            "type": "marine",
+            "start": 84000,
+            "end": 86000
+        },
+        {
+            "name": "Mobile maritime / Radionavigation maritime",
+            "type": "marine",
+            "start": 86000,
+            "end": 90000
+        },
+        {
+            "name": "Radionavigation maritime",
+            "type": "marine",
+            "start": 90000,
+            "end": 110000
+        },
+        {
+            "name": "Mobile maritime / Radionavigation maritime",
+            "type": "marine",
+            "start": 110000,
+            "end": 112000
+        },
+        {
+            "name": "Radionavigation maritime",
+            "type": "marine",
+            "start": 112000,
+            "end": 117600
+        },
+        {
+            "name": "Mobile maritime / Radionavigation maritime",
+            "type": "marine",
+            "start": 117600,
+            "end": 126000
+        },
+        {
+            "name": "Radionavigation maritime",
+            "type": "marine",
+            "start": 126000,
+            "end": 129000
+        },
+        {
+            "name": "Mobile maritime / Radionavigation maritime",
+            "type": "marine",
+            "start": 129000,
+            "end": 130000
+        },
+        {
+            "name": "Mobile maritime / Fixe",
+            "type": "marine",
+            "start": 130000,
+            "end": 135700
+        },
+        {
+            "name": "Amateur 2200 m",
+            "type": "amateur",
+            "start": 135700,
+            "end": 137800
+        },
+        {
+            "name": "Mobile maritime / Fixe",
+            "type": "marine",
+            "start": 137800,
+            "end": 148500
+        },
+        {
+            "name": "Radiodiffusion",
+            "type": "broadcast",
+            "start": 148500,
+            "end": 255000
+        },
+        {
+            "name": "Radiodiffusion / Radionavigation aéronautique",
+            "type": "broadcast",
+            "start": 255000,
+            "end": 283500
+        },
+        {
+            "name": "Radionavigation maritime / Radionavigation aéronautique",
+            "type": "marine",
+            "start": 283500,
+            "end": 315000
+        },
+        {
+            "name": "Radionavigation aéronautique",
+            "type": "aviation",
+            "start": 315000,
+            "end": 405000
+        },
+        {
+            "name": "Radionavigation",
+            "type": "radionavigation",
+            "start": 405000,
+            "end": 415000
+        },
+        {
+            "name": "Radionavigation aéronautique",
+            "type": "aviation",
+            "start": 415000,
+            "end": 435000
+        },
+        {
+            "name": "Mobile maritime",
+            "type": "marine",
+            "start": 435000,
+            "end": 472000
+        },
+        {
+            "name": "Amateur 630 m",
+            "type": "amateur",
+            "start": 472000,
+            "end": 479000
+        },
+        {
+            "name": "Mobile maritime",
+            "type": "marine",
+            "start": 479000,
+            "end": 505000
+        },
+        {
+            "name": "Mobile maritime / Radionavigation aéronautique",
+            "type": "marine",
+            "start": 505000,
+            "end": 526500
+        },
+        {
+            "name": "Radiodiffusion",
+            "type": "broadcast",
+            "start": 526500,
+            "end": 1606500
+        },
+        {
+            "name": "Mobile maritime / Radiorepérage",
+            "type": "marine",
+            "start": 1606500,
+            "end": 1625000
+        },
+        {
+            "name": "Radiolocalisation",
+            "type": "radiolocation",
+            "start": 1625000,
+            "end": 1635000
+        },
+        {
+            "name": "Mobile maritime / Radiorepérage",
+            "type": "marine",
+            "start": 1635000,
+            "end": 1800000
+        },
+        {
+            "name": "Radiolocalisation",
+            "type": "radiolocation",
+            "start": 1800000,
+            "end": 1810000
+        },
+        {
+            "name": "Amateur 160 m",
+            "type": "amateur",
+            "start": 1810000,
+            "end": 1850000
+        },
+        {
+            "name": "Radiorepérage / Mobile (sauf aéronautique)",
+            "type": "radiolocation",
+            "start": 1850000,
+            "end": 2000000
+        },
+        {
+            "name": "Radiorepérage / Mobile (sauf aéro. R)",
+            "type": "radiolocation",
+            "start": 2000000,
+            "end": 2045000
+        },
+        {
+            "name": "Mobile maritime / Radiorepérage",
+            "type": "marine",
+            "start": 2045000,
+            "end": 2160000
+        },
+        {
+            "name": "Radiolocalisation",
+            "type": "radiolocation",
+            "start": 2160000,
+            "end": 2170000
+        },
+        {
+            "name": "Mobile maritime",
+            "type": "marine",
+            "start": 2170000,
+            "end": 2173500
+        },
+        {
+            "name": "Mobile",
+            "type": "mobile",
+            "start": 2173500,
+            "end": 2190500
+        },
+        {
+            "name": "Mobile maritime",
+            "type": "marine",
+            "start": 2190500,
+            "end": 2194000
+        },
+        {
+            "name": "Mobile maritime / Radiorepérage",
+            "type": "marine",
+            "start": 2194000,
+            "end": 2300000
+        },
+        {
+            "name": "Radiodiffusion / Mobile (sauf aéro. R)",
+            "type": "broadcast",
+            "start": 2300000,
+            "end": 2498000
+        },
+        {
+            "name": "Fréquences étalon et signaux horaires",
+            "type": "space",
+            "start": 2498000,
+            "end": 2502000
+        },
+        {
+            "name": "Mobile maritime / Radiorepérage",
+            "type": "marine",
+            "start": 2502000,
+            "end": 2625000
+        },
+        {
+            "name": "Mobile maritime / Radionavigation maritime",
+            "type": "marine",
+            "start": 2625000,
+            "end": 2650000
+        },
+        {
+            "name": "Radiorepérage / Mobile (sauf aéro. R)",
+            "type": "radiolocation",
+            "start": 2650000,
+            "end": 2850000
+        },
+        {
+            "name": "Mobile aéronautique (R)",
+            "type": "aviation",
+            "start": 2850000,
+            "end": 3025000
+        },
+        {
+            "name": "Mobile aéronautique (OR)",
+            "type": "aviation",
+            "start": 3025000,
+            "end": 3155000
+        },
+        {
+            "name": "Mobile maritime / Mobile terrestre",
+            "type": "marine",
+            "start": 3155000,
+            "end": 3200000
+        },
+        {
+            "name": "Radiodiffusion / Mobile (sauf aéro. R)",
+            "type": "broadcast",
+            "start": 3200000,
+            "end": 3230000
+        },
+        {
+            "name": "Radiodiffusion / Mobile (sauf aéronautique)",
+            "type": "broadcast",
+            "start": 3230000,
+            "end": 3400000
+        },
+        {
+            "name": "Mobile aéronautique (R)",
+            "type": "aviation",
+            "start": 3400000,
+            "end": 3500000
+        },
+        {
+            "name": "Amateur 80 m",
+            "type": "amateur",
+            "start": 3500000,
+            "end": 3800000
+        },
+        {
+            "name": "Mobile aéronautique (OR) / Mobile terrestre",
+            "type": "aviation",
+            "start": 3800000,
+            "end": 3900000
+        },
+        {
+            "name": "Mobile aéronautique (OR)",
+            "type": "aviation",
+            "start": 3900000,
+            "end": 3950000
+        },
+        {
+            "name": "Radiodiffusion / Fixe",
+            "type": "broadcast",
+            "start": 3950000,
+            "end": 4000000
+        },
+        {
+            "name": "Mobile maritime / Fixe",
+            "type": "marine",
+            "start": 4000000,
+            "end": 4063000
+        },
+        {
+            "name": "Mobile maritime",
+            "type": "marine",
+            "start": 4063000,
+            "end": 4438000
+        },
+        {
+            "name": "Mobile (sauf aéro. R) / Fixe",
+            "type": "mobile",
+            "start": 4438000,
+            "end": 4650000
+        },
+        {
+            "name": "Mobile aéronautique (R)",
+            "type": "aviation",
+            "start": 4650000,
+            "end": 4700000
+        },
+        {
+            "name": "Mobile aéronautique (OR)",
+            "type": "aviation",
+            "start": 4700000,
+            "end": 4750000
+        },
+        {
+            "name": "Radiodiffusion / Mobile aéronautique (OR)",
+            "type": "broadcast",
+            "start": 4750000,
+            "end": 4850000
+        },
+        {
+            "name": "Radiodiffusion / Mobile terrestre",
+            "type": "broadcast",
+            "start": 4850000,
+            "end": 4995000
+        },
+        {
+            "name": "Fréquences étalon et signaux horaires",
+            "type": "space",
+            "start": 4995000,
+            "end": 5005000
+        },
+        {
+            "name": "Radiodiffusion / Fixe",
+            "type": "broadcast",
+            "start": 5005000,
+            "end": 5060000
+        },
+        {
+            "name": "Fixe",
+            "type": "fixed",
+            "start": 5060000,
+            "end": 5250000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe",
+            "type": "mobile",
+            "start": 5250000,
+            "end": 5450000
+        },
+        {
+            "name": "Mobile aéronautique (OR) / Mobile terrestre",
+            "type": "aviation",
+            "start": 5450000,
+            "end": 5480000
+        },
+        {
+            "name": "Mobile aéronautique (R)",
+            "type": "aviation",
+            "start": 5480000,
+            "end": 5680000
+        },
+        {
+            "name": "Mobile aéronautique (OR)",
+            "type": "aviation",
+            "start": 5680000,
+            "end": 5730000
+        },
+        {
+            "name": "Mobile terrestre / Fixe",
+            "type": "mobile",
+            "start": 5730000,
+            "end": 5950000
+        },
+        {
+            "name": "Radiodiffusion",
+            "type": "broadcast",
+            "start": 5950000,
+            "end": 6200000
+        },
+        {
+            "name": "Mobile maritime",
+            "type": "marine",
+            "start": 6200000,
+            "end": 6525000
+        },
+        {
+            "name": "Mobile aéronautique (R)",
+            "type": "aviation",
+            "start": 6525000,
+            "end": 6685000
+        },
+        {
+            "name": "Mobile aéronautique (OR)",
+            "type": "aviation",
+            "start": 6685000,
+            "end": 6765000
+        },
+        {
+            "name": "Fixe",
+            "type": "fixed",
+            "start": 6765000,
+            "end": 7000000
+        },
+        {
+            "name": "Amateur 40 m",
+            "type": "amateur",
+            "start": 7000000,
+            "end": 7200000
+        },
+        {
+            "name": "Radiodiffusion",
+            "type": "broadcast",
+            "start": 7200000,
+            "end": 7450000
+        },
+        {
+            "name": "Fixe",
+            "type": "fixed",
+            "start": 7450000,
+            "end": 8100000
+        },
+        {
+            "name": "Mobile maritime / Fixe",
+            "type": "marine",
+            "start": 8100000,
+            "end": 8195000
+        },
+        {
+            "name": "Mobile maritime",
+            "type": "marine",
+            "start": 8195000,
+            "end": 8815000
+        },
+        {
+            "name": "Mobile aéronautique (R)",
+            "type": "aviation",
+            "start": 8815000,
+            "end": 8965000
+        },
+        {
+            "name": "Mobile aéronautique (OR)",
+            "type": "aviation",
+            "start": 8965000,
+            "end": 9040000
+        },
+        {
+            "name": "Fixe",
+            "type": "fixed",
+            "start": 9040000,
+            "end": 9500000
+        },
+        {
+            "name": "Radiodiffusion",
+            "type": "broadcast",
+            "start": 9500000,
+            "end": 9900000
+        },
+        {
+            "name": "Fixe",
+            "type": "fixed",
+            "start": 9900000,
+            "end": 9995000
+        },
+        {
+            "name": "Fréquences étalon et signaux horaires",
+            "type": "space",
+            "start": 9995000,
+            "end": 10005000
+        },
+        {
+            "name": "Mobile aéronautique (R)",
+            "type": "aviation",
+            "start": 10005000,
+            "end": 10100000
+        },
+        {
+            "name": "Amateur 30 m",
+            "type": "amateur",
+            "start": 10100000,
+            "end": 10150000
+        },
+        {
+            "name": "Fixe",
+            "type": "fixed",
+            "start": 10150000,
+            "end": 11175000
+        },
+        {
+            "name": "Mobile aéronautique (OR)",
+            "type": "aviation",
+            "start": 11175000,
+            "end": 11275000
+        },
+        {
+            "name": "Mobile aéronautique (R)",
+            "type": "aviation",
+            "start": 11275000,
+            "end": 11400000
+        },
+        {
+            "name": "Fixe",
+            "type": "fixed",
+            "start": 11400000,
+            "end": 11650000
+        },
+        {
+            "name": "Radiodiffusion",
+            "type": "broadcast",
+            "start": 11650000,
+            "end": 12050000
+        },
+        {
+            "name": "Fixe",
+            "type": "fixed",
+            "start": 12050000,
+            "end": 12230000
+        },
+        {
+            "name": "Mobile maritime",
+            "type": "marine",
+            "start": 12230000,
+            "end": 13200000
+        },
+        {
+            "name": "Mobile aéronautique (OR)",
+            "type": "aviation",
+            "start": 13200000,
+            "end": 13260000
+        },
+        {
+            "name": "Mobile aéronautique (R)",
+            "type": "aviation",
+            "start": 13260000,
+            "end": 13360000
+        },
+        {
+            "name": "Radioastronomie",
+            "type": "space",
+            "start": 13360000,
+            "end": 13410000
+        },
+        {
+            "name": "Fixe",
+            "type": "fixed",
+            "start": 13410000,
+            "end": 13600000
+        },
+        {
+            "name": "Radiodiffusion",
+            "type": "broadcast",
+            "start": 13600000,
+            "end": 13800000
+        },
+        {
+            "name": "Fixe",
+            "type": "fixed",
+            "start": 13800000,
+            "end": 14000000
+        },
+        {
+            "name": "Amateur 20 m",
+            "type": "amateur",
+            "start": 14000000,
+            "end": 14350000
+        },
+        {
+            "name": "Fixe",
+            "type": "fixed",
+            "start": 14350000,
+            "end": 14990000
+        },
+        {
+            "name": "Fréquences étalon et signaux horaires",
+            "type": "space",
+            "start": 14990000,
+            "end": 15010000
+        },
+        {
+            "name": "Mobile aéronautique (OR)",
+            "type": "aviation",
+            "start": 15010000,
+            "end": 15100000
+        },
+        {
+            "name": "Radiodiffusion",
+            "type": "broadcast",
+            "start": 15100000,
+            "end": 15600000
+        },
+        {
+            "name": "Fixe",
+            "type": "fixed",
+            "start": 15600000,
+            "end": 16360000
+        },
+        {
+            "name": "Mobile maritime",
+            "type": "marine",
+            "start": 16360000,
+            "end": 17410000
+        },
+        {
+            "name": "Fixe",
+            "type": "fixed",
+            "start": 17410000,
+            "end": 17550000
+        },
+        {
+            "name": "Radiodiffusion",
+            "type": "broadcast",
+            "start": 17550000,
+            "end": 17900000
+        },
+        {
+            "name": "Mobile aéronautique (R)",
+            "type": "aviation",
+            "start": 17900000,
+            "end": 17970000
+        },
+        {
+            "name": "Mobile aéronautique (OR)",
+            "type": "aviation",
+            "start": 17970000,
+            "end": 18030000
+        },
+        {
+            "name": "Fixe",
+            "type": "fixed",
+            "start": 18030000,
+            "end": 18068000
+        },
+        {
+            "name": "Amateur 17 m",
+            "type": "amateur",
+            "start": 18068000,
+            "end": 18168000
+        },
+        {
+            "name": "Fixe",
+            "type": "fixed",
+            "start": 18168000,
+            "end": 18780000
+        },
+        {
+            "name": "Mobile maritime",
+            "type": "marine",
+            "start": 18780000,
+            "end": 18900000
+        },
+        {
+            "name": "Fixe",
+            "type": "fixed",
+            "start": 18900000,
+            "end": 19680000
+        },
+        {
+            "name": "Mobile maritime",
+            "type": "marine",
+            "start": 19680000,
+            "end": 19800000
+        },
+        {
+            "name": "Fixe",
+            "type": "fixed",
+            "start": 19800000,
+            "end": 19990000
+        },
+        {
+            "name": "Fréquences étalon et signaux horaires",
+            "type": "space",
+            "start": 19990000,
+            "end": 20010000
+        },
+        {
+            "name": "Fixe",
+            "type": "fixed",
+            "start": 20010000,
+            "end": 21000000
+        },
+        {
+            "name": "Amateur 15 m",
+            "type": "amateur",
+            "start": 21000000,
+            "end": 21450000
+        },
+        {
+            "name": "Radiodiffusion",
+            "type": "broadcast",
+            "start": 21450000,
+            "end": 21850000
+        },
+        {
+            "name": "Fixe",
+            "type": "fixed",
+            "start": 21850000,
+            "end": 21924000
+        },
+        {
+            "name": "Mobile aéronautique (R)",
+            "type": "aviation",
+            "start": 21924000,
+            "end": 22000000
+        },
+        {
+            "name": "Mobile maritime",
+            "type": "marine",
+            "start": 22000000,
+            "end": 22855000
+        },
+        {
+            "name": "Fixe",
+            "type": "fixed",
+            "start": 22855000,
+            "end": 23200000
+        },
+        {
+            "name": "Mobile aéronautique (OR) / Fixe",
+            "type": "aviation",
+            "start": 23200000,
+            "end": 23350000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe",
+            "type": "mobile",
+            "start": 23350000,
+            "end": 24000000
+        },
+        {
+            "name": "Mobile terrestre / Fixe",
+            "type": "mobile",
+            "start": 24000000,
+            "end": 24890000
+        },
+        {
+            "name": "Amateur 12 m",
+            "type": "amateur",
+            "start": 24890000,
+            "end": 24990000
+        },
+        {
+            "name": "Fréquences étalon et signaux horaires",
+            "type": "space",
+            "start": 24990000,
+            "end": 25010000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe",
+            "type": "mobile",
+            "start": 25010000,
+            "end": 25070000
+        },
+        {
+            "name": "Mobile maritime",
+            "type": "marine",
+            "start": 25070000,
+            "end": 25210000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe",
+            "type": "mobile",
+            "start": 25210000,
+            "end": 25550000
+        },
+        {
+            "name": "Radioastronomie",
+            "type": "space",
+            "start": 25550000,
+            "end": 25670000
+        },
+        {
+            "name": "Radiodiffusion",
+            "type": "broadcast",
+            "start": 25670000,
+            "end": 26100000
+        },
+        {
+            "name": "Mobile maritime",
+            "type": "marine",
+            "start": 26100000,
+            "end": 26175000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe",
+            "type": "mobile",
+            "start": 26175000,
+            "end": 27500000
+        },
+        {
+            "name": "Auxiliaires de la météorologie / Mobile",
+            "type": "space",
+            "start": 27500000,
+            "end": 28000000
+        },
+        {
+            "name": "Amateur 10 m",
+            "type": "amateur",
+            "start": 28000000,
+            "end": 29700000
+        },
+        {
+            "name": "Mobile / Fixe (Défense)",
+            "type": "military",
+            "start": 29700000,
+            "end": 30005000
+        },
+        {
+            "name": "Exploitation spatiale / Recherche spatiale",
+            "type": "space",
+            "start": 30005000,
+            "end": 30010000
+        },
+        {
+            "name": "Mobile / Fixe (Défense)",
+            "type": "military",
+            "start": 30010000,
+            "end": 30825000
+        },
+        {
+            "name": "Mobile / Fixe",
+            "type": "mobile",
+            "start": 30825000,
+            "end": 32125000
+        },
+        {
+            "name": "Mobile / Fixe (Défense)",
+            "type": "military",
+            "start": 32125000,
+            "end": 32600000
+        },
+        {
+            "name": "Mobile / Fixe",
+            "type": "mobile",
+            "start": 32600000,
+            "end": 33000000
+        },
+        {
+            "name": "Mobile / Fixe (Défense)",
+            "type": "military",
+            "start": 33000000,
+            "end": 34850000
+        },
+        {
+            "name": "Mobile / Fixe",
+            "type": "mobile",
+            "start": 34850000,
+            "end": 36600000
+        },
+        {
+            "name": "Mobile / Fixe (Défense)",
+            "type": "military",
+            "start": 36600000,
+            "end": 37500000
+        },
+        {
+            "name": "Mobile / Fixe",
+            "type": "mobile",
+            "start": 37500000,
+            "end": 38250000
+        },
+        {
+            "name": "Mobile / Fixe (Défense)",
+            "type": "military",
+            "start": 38250000,
+            "end": 39000000
+        },
+        {
+            "name": "Mobile / Fixe",
+            "type": "mobile",
+            "start": 39000000,
+            "end": 47000000
+        },
+        {
+            "name": "Radiodiffusion",
+            "type": "broadcast",
+            "start": 47000000,
+            "end": 68000000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe",
+            "type": "mobile",
+            "start": 68000000,
+            "end": 69250000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe (Défense)",
+            "type": "military",
+            "start": 69250000,
+            "end": 70250000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe",
+            "type": "mobile",
+            "start": 70250000,
+            "end": 70525000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe (Défense)",
+            "type": "military",
+            "start": 70525000,
+            "end": 70975000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe",
+            "type": "mobile",
+            "start": 70975000,
+            "end": 73300000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe (Défense)",
+            "type": "military",
+            "start": 73300000,
+            "end": 74800000
+        },
+        {
+            "name": "Radionavigation aéronautique",
+            "type": "aviation",
+            "start": 74800000,
+            "end": 75200000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe",
+            "type": "mobile",
+            "start": 75200000,
+            "end": 77475000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe (Défense)",
+            "type": "military",
+            "start": 77475000,
+            "end": 80000000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe",
+            "type": "mobile",
+            "start": 80000000,
+            "end": 82475000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe (Défense)",
+            "type": "military",
+            "start": 82475000,
+            "end": 83000000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe",
+            "type": "mobile",
+            "start": 83000000,
+            "end": 87500000
+        },
+        {
+            "name": "Radiodiffusion",
+            "type": "broadcast",
+            "start": 87500000,
+            "end": 108000000
+        },
+        {
+            "name": "Mobile aéronautique (R) / Radionavigation aéronautique",
+            "type": "aviation",
+            "start": 108000000,
+            "end": 117975000
+        },
+        {
+            "name": "Mobile aéronautique (R) / Mobile aéronautique (R) par satellite",
+            "type": "aviation",
+            "start": 117975000,
+            "end": 137000000
+        },
+        {
+            "name": "Mobile aéronautique (OR) / Exploitation spatiale",
+            "type": "aviation",
+            "start": 137000000,
+            "end": 138000000
+        },
+        {
+            "name": "Mobile aéronautique (OR)",
+            "type": "aviation",
+            "start": 138000000,
+            "end": 144000000
+        },
+        {
+            "name": "Amateur 2 m",
+            "type": "amateur",
+            "start": 144000000,
+            "end": 146000000
+        },
+        {
+            "name": "Mobile (sauf aéro. R) / Fixe (Défense)",
+            "type": "military",
+            "start": 146000000,
+            "end": 148000000
+        },
+        {
+            "name": "Exploitation spatiale / Mobile par satellite",
+            "type": "space",
+            "start": 148000000,
+            "end": 149900000
+        },
+        {
+            "name": "Recherche spatiale / Mobile par satellite",
+            "type": "space",
+            "start": 149900000,
+            "end": 150050000
+        },
+        {
+            "name": "Radioastronomie / Mobile (sauf aéronautique)",
+            "type": "space",
+            "start": 150050000,
+            "end": 153000000
+        },
+        {
+            "name": "Mobile (sauf aéro. R) / Fixe",
+            "type": "mobile",
+            "start": 153000000,
+            "end": 156000000
+        },
+        {
+            "name": "Mobile maritime / Mobile (sauf aéro. R)",
+            "type": "marine",
+            "start": 156000000,
+            "end": 157450000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe",
+            "type": "mobile",
+            "start": 157450000,
+            "end": 174000000
+        },
+        {
+            "name": "Radiodiffusion",
+            "type": "broadcast",
+            "start": 174000000,
+            "end": 223000000
+        },
+        {
+            "name": "Radiodiffusion / Mobile terrestre",
+            "type": "broadcast",
+            "start": 223000000,
+            "end": 225000000
+        },
+        {
+            "name": "Mobile / Fixe (Défense)",
+            "type": "military",
+            "start": 225000000,
+            "end": 235000000
+        },
+        {
+            "name": "Mobile par satellite / Mobile",
+            "type": "satellite",
+            "start": 235000000,
+            "end": 272000000
+        },
+        {
+            "name": "Exploitation spatiale / Mobile par satellite",
+            "type": "space",
+            "start": 272000000,
+            "end": 273000000
+        },
+        {
+            "name": "Mobile par satellite / Mobile",
+            "type": "satellite",
+            "start": 273000000,
+            "end": 322000000
+        },
+        {
+            "name": "Mobile / Fixe (Défense)",
+            "type": "military",
+            "start": 322000000,
+            "end": 326000000
+        },
+        {
+            "name": "Radioastronomie / Mobile",
+            "type": "space",
+            "start": 326000000,
+            "end": 328000000
+        },
+        {
+            "name": "Mobile / Fixe (Défense)",
+            "type": "military",
+            "start": 328000000,
+            "end": 328600000
+        },
+        {
+            "name": "Radionavigation aéronautique",
+            "type": "aviation",
+            "start": 328600000,
+            "end": 335400000
+        },
+        {
+            "name": "Mobile par satellite / Mobile",
+            "type": "satellite",
+            "start": 335400000,
+            "end": 380000000
+        },
+        {
+            "name": "Mobile",
+            "type": "mobile",
+            "start": 380000000,
+            "end": 383500000
+        },
+        {
+            "name": "Mobile par satellite / Mobile",
+            "type": "satellite",
+            "start": 383500000,
+            "end": 390000000
+        },
+        {
+            "name": "Mobile",
+            "type": "mobile",
+            "start": 390000000,
+            "end": 393500000
+        },
+        {
+            "name": "Mobile par satellite / Mobile",
+            "type": "satellite",
+            "start": 393500000,
+            "end": 399900000
+        },
+        {
+            "name": "Mobile par satellite",
+            "type": "satellite",
+            "start": 399900000,
+            "end": 400050000
+        },
+        {
+            "name": "Fréq. étalon/horaires par satellite",
+            "type": "space",
+            "start": 400050000,
+            "end": 400150000
+        },
+        {
+            "name": "Météorologie par satellite / Auxiliaires de la météorologie",
+            "type": "space",
+            "start": 400150000,
+            "end": 401000000
+        },
+        {
+            "name": "Auxiliaires de la météorologie / Météorologie par satellite",
+            "type": "space",
+            "start": 401000000,
+            "end": 403000000
+        },
+        {
+            "name": "Auxiliaires de la météorologie",
+            "type": "space",
+            "start": 403000000,
+            "end": 406000000
+        },
+        {
+            "name": "Mobile par satellite",
+            "type": "satellite",
+            "start": 406000000,
+            "end": 406100000
+        },
+        {
+            "name": "Radioastronomie / Mobile (sauf aéronautique)",
+            "type": "space",
+            "start": 406100000,
+            "end": 410000000
+        },
+        {
+            "name": "Recherche spatiale / Mobile (sauf aéronautique)",
+            "type": "space",
+            "start": 410000000,
+            "end": 420000000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe (Défense)",
+            "type": "military",
+            "start": 420000000,
+            "end": 424500000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe",
+            "type": "mobile",
+            "start": 424500000,
+            "end": 430000000
+        },
+        {
+            "name": "Amateur 70 cm",
+            "type": "amateur",
+            "start": 430000000,
+            "end": 440000000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe (Défense)",
+            "type": "military",
+            "start": 440000000,
+            "end": 441500000
+        },
+        {
+            "name": "Mobile (sauf aéronautique)",
+            "type": "mobile",
+            "start": 441500000,
+            "end": 443550000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe (Défense)",
+            "type": "military",
+            "start": 443550000,
+            "end": 444500000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe",
+            "type": "mobile",
+            "start": 444500000,
+            "end": 447000000
+        },
+        {
+            "name": "Exploitation spatiale / Recherche spatiale",
+            "type": "space",
+            "start": 447000000,
+            "end": 453000000
+        },
+        {
+            "name": "Mobile / Fixe",
+            "type": "mobile",
+            "start": 453000000,
+            "end": 470000000
+        },
+        {
+            "name": "Radiodiffusion",
+            "type": "broadcast",
+            "start": 470000000,
+            "end": 694000000
+        },
+        {
+            "name": "Mobile (sauf aéronautique)",
+            "type": "mobile",
+            "start": 694000000,
+            "end": 791000000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe",
+            "type": "mobile",
+            "start": 791000000,
+            "end": 862000000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) (Défense)",
+            "type": "military",
+            "start": 862000000,
+            "end": 869200000
+        },
+        {
+            "name": "Mobile (sauf aéronautique)",
+            "type": "mobile",
+            "start": 869200000,
+            "end": 869700000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) (Défense)",
+            "type": "military",
+            "start": 869700000,
+            "end": 880000000
+        },
+        {
+            "name": "Mobile (sauf aéronautique)",
+            "type": "mobile",
+            "start": 880000000,
+            "end": 915000000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) (Défense)",
+            "type": "military",
+            "start": 915000000,
+            "end": 925000000
+        },
+        {
+            "name": "Mobile (sauf aéronautique)",
+            "type": "mobile",
+            "start": 925000000,
+            "end": 960000000
+        },
+        {
+            "name": "Mobile aéronautique (R) / Radionavigation aéronautique",
+            "type": "aviation",
+            "start": 960000000,
+            "end": 1164000000
+        },
+        {
+            "name": "Radionavigation aéronautique / Radionavigation par satellite",
+            "type": "aviation",
+            "start": 1164000000,
+            "end": 1240000000
+        },
+        {
+            "name": "Amateur 23 cm",
+            "type": "amateur",
+            "start": 1240000000,
+            "end": 1300000000
+        },
+        {
+            "name": "Radionavigation aéronautique / Radionavigation par satellite",
+            "type": "aviation",
+            "start": 1300000000,
+            "end": 1350000000
+        },
+        {
+            "name": "Radiolocalisation / Mobile",
+            "type": "radiolocation",
+            "start": 1350000000,
+            "end": 1400000000
+        },
+        {
+            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "type": "space",
+            "start": 1400000000,
+            "end": 1427000000
+        },
+        {
+            "name": "Exploitation spatiale / Mobile (sauf aéronautique)",
+            "type": "space",
+            "start": 1427000000,
+            "end": 1429000000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe",
+            "type": "mobile",
+            "start": 1429000000,
+            "end": 1518000000
+        },
+        {
+            "name": "Mobile par satellite / Mobile (sauf aéronautique)",
+            "type": "satellite",
+            "start": 1518000000,
+            "end": 1525000000
+        },
+        {
+            "name": "Exploitation spatiale / Mobile par satellite",
+            "type": "space",
+            "start": 1525000000,
+            "end": 1535000000
+        },
+        {
+            "name": "Mobile par satellite",
+            "type": "satellite",
+            "start": 1535000000,
+            "end": 1559000000
+        },
+        {
+            "name": "Radionavigation aéronautique / Radionavigation par satellite",
+            "type": "aviation",
+            "start": 1559000000,
+            "end": 1610000000
+        },
+        {
+            "name": "Mobile aéronautique (R) par satellite / Radionavigation aéronautique",
+            "type": "aviation",
+            "start": 1610000000,
+            "end": 1621350000
+        },
+        {
+            "name": "Mobile maritime par satellite / Mobile aéronautique (R) par satellite",
+            "type": "marine",
+            "start": 1621350000,
+            "end": 1626500000
+        },
+        {
+            "name": "Mobile par satellite",
+            "type": "satellite",
+            "start": 1626500000,
+            "end": 1660000000
+        },
+        {
+            "name": "Radioastronomie / Mobile par satellite",
+            "type": "space",
+            "start": 1660000000,
+            "end": 1660500000
+        },
+        {
+            "name": "Radioastronomie / Recherche spatiale (passive)",
+            "type": "space",
+            "start": 1660500000,
+            "end": 1668400000
+        },
+        {
+            "name": "Auxiliaires de la météorologie / Radioastronomie",
+            "type": "space",
+            "start": 1668400000,
+            "end": 1670000000
+        },
+        {
+            "name": "Météorologie par satellite / Auxiliaires de la météorologie",
+            "type": "space",
+            "start": 1670000000,
+            "end": 1700000000
+        },
+        {
+            "name": "Météorologie par satellite / Mobile (sauf aéronautique)",
+            "type": "space",
+            "start": 1700000000,
+            "end": 1710000000
+        },
+        {
+            "name": "Mobile",
+            "type": "mobile",
+            "start": 1710000000,
+            "end": 1785000000
+        },
+        {
+            "name": "Mobile (Défense)",
+            "type": "military",
+            "start": 1785000000,
+            "end": 1800000000
+        },
+        {
+            "name": "Mobile",
+            "type": "mobile",
+            "start": 1800000000,
+            "end": 1880000000
+        },
+        {
+            "name": "Mobile / Fixe",
+            "type": "mobile",
+            "start": 1880000000,
+            "end": 1900000000
+        },
+        {
+            "name": "Mobile",
+            "type": "mobile",
+            "start": 1900000000,
+            "end": 1980000000
+        },
+        {
+            "name": "Mobile par satellite / Mobile",
+            "type": "satellite",
+            "start": 1980000000,
+            "end": 2010000000
+        },
+        {
+            "name": "Mobile",
+            "type": "mobile",
+            "start": 2010000000,
+            "end": 2025000000
+        },
+        {
+            "name": "Exploration de la Terre par satellite / Exploitation spatiale",
+            "type": "space",
+            "start": 2025000000,
+            "end": 2110000000
+        },
+        {
+            "name": "Mobile",
+            "type": "mobile",
+            "start": 2110000000,
+            "end": 2170000000
+        },
+        {
+            "name": "Mobile par satellite / Mobile",
+            "type": "satellite",
+            "start": 2170000000,
+            "end": 2200000000
+        },
+        {
+            "name": "Exploration de la Terre par satellite / Exploitation spatiale",
+            "type": "space",
+            "start": 2200000000,
+            "end": 2290000000
+        },
+        {
+            "name": "Mobile",
+            "type": "mobile",
+            "start": 2290000000,
+            "end": 2300000000
+        },
+        {
+            "name": "Amateur 13 cm",
+            "type": "amateur",
+            "start": 2300000000,
+            "end": 2450000000
+        },
+        {
+            "name": "Mobile",
+            "type": "mobile",
+            "start": 2450000000,
+            "end": 2483500000
+        },
+        {
+            "name": "Radiorepérage par satellite / Mobile par satellite",
+            "type": "radiolocation",
+            "start": 2483500000,
+            "end": 2500000000
+        },
+        {
+            "name": "Mobile (sauf aéronautique)",
+            "type": "mobile",
+            "start": 2500000000,
+            "end": 2690000000
+        },
+        {
+            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "type": "space",
+            "start": 2690000000,
+            "end": 2700000000
+        },
+        {
+            "name": "Radionavigation aéronautique / Radiolocalisation",
+            "type": "aviation",
+            "start": 2700000000,
+            "end": 2900000000
+        },
+        {
+            "name": "Radionavigation / Radiolocalisation",
+            "type": "radionavigation",
+            "start": 2900000000,
+            "end": 3100000000
+        },
+        {
+            "name": "Radiolocalisation",
+            "type": "radiolocation",
+            "start": 3100000000,
+            "end": 3400000000
+        },
+        {
+            "name": "Fixe par satellite / Mobile (sauf aéronautique)",
+            "type": "satellite",
+            "start": 3400000000,
+            "end": 4200000000
+        },
+        {
+            "name": "Mobile aéronautique (R) / Radionavigation aéronautique",
+            "type": "aviation",
+            "start": 4200000000,
+            "end": 4400000000
+        },
+        {
+            "name": "Mobile / Fixe (Défense)",
+            "type": "military",
+            "start": 4400000000,
+            "end": 4800000000
+        },
+        {
+            "name": "Mobile / Fixe",
+            "type": "mobile",
+            "start": 4800000000,
+            "end": 4990000000
+        },
+        {
+            "name": "Radioastronomie",
+            "type": "space",
+            "start": 4990000000,
+            "end": 5000000000
+        },
+        {
+            "name": "Mobile aéronautique (R) par satellite / Radionavigation aéronautique",
+            "type": "aviation",
+            "start": 5000000000,
+            "end": 5030000000
+        },
+        {
+            "name": "Mobile aéronautique (R) / Radionavigation aéronautique",
+            "type": "aviation",
+            "start": 5030000000,
+            "end": 5091000000
+        },
+        {
+            "name": "Mobile aéronautique (R) / Mobile aéronautique",
+            "type": "aviation",
+            "start": 5091000000,
+            "end": 5150000000
+        },
+        {
+            "name": "Mobile aéronautique / Radiorepérage par satellite",
+            "type": "aviation",
+            "start": 5150000000,
+            "end": 5250000000
+        },
+        {
+            "name": "Radiolocalisation / Exploration de la Terre par satellite",
+            "type": "radiolocation",
+            "start": 5250000000,
+            "end": 5350000000
+        },
+        {
+            "name": "Radionavigation aéronautique / Radiolocalisation",
+            "type": "aviation",
+            "start": 5350000000,
+            "end": 5460000000
+        },
+        {
+            "name": "Radionavigation / Radiolocalisation",
+            "type": "radionavigation",
+            "start": 5460000000,
+            "end": 5470000000
+        },
+        {
+            "name": "Radionavigation maritime / Radiolocalisation",
+            "type": "marine",
+            "start": 5470000000,
+            "end": 5650000000
+        },
+        {
+            "name": "Amateur 6 cm",
+            "type": "amateur",
+            "start": 5650000000,
+            "end": 5850000000
+        },
+        {
+            "name": "Fixe par satellite / Mobile",
+            "type": "satellite",
+            "start": 5850000000,
+            "end": 6425000000
+        },
+        {
+            "name": "Fréq. étalon/horaires par satellite / Fixe par satellite",
+            "type": "space",
+            "start": 6425000000,
+            "end": 6700000000
+        },
+        {
+            "name": "Fixe par satellite / Mobile",
+            "type": "satellite",
+            "start": 6700000000,
+            "end": 7075000000
+        },
+        {
+            "name": "Mobile / Fixe",
+            "type": "mobile",
+            "start": 7075000000,
+            "end": 7145000000
+        },
+        {
+            "name": "Recherche spatiale / Mobile",
+            "type": "space",
+            "start": 7145000000,
+            "end": 7190000000
+        },
+        {
+            "name": "Exploration de la Terre par satellite / Recherche spatiale",
+            "type": "space",
+            "start": 7190000000,
+            "end": 7235000000
+        },
+        {
+            "name": "Exploration de la Terre par satellite / Mobile",
+            "type": "space",
+            "start": 7235000000,
+            "end": 7250000000
+        },
+        {
+            "name": "Fixe par satellite / Mobile par satellite",
+            "type": "satellite",
+            "start": 7250000000,
+            "end": 7375000000
+        },
+        {
+            "name": "Mobile maritime par satellite / Fixe par satellite",
+            "type": "marine",
+            "start": 7375000000,
+            "end": 7450000000
+        },
+        {
+            "name": "Mobile maritime par satellite / Météorologie par satellite",
+            "type": "marine",
+            "start": 7450000000,
+            "end": 7550000000
+        },
+        {
+            "name": "Mobile maritime par satellite / Fixe par satellite",
+            "type": "marine",
+            "start": 7550000000,
+            "end": 7750000000
+        },
+        {
+            "name": "Météorologie par satellite / Mobile (sauf aéronautique)",
+            "type": "space",
+            "start": 7750000000,
+            "end": 7900000000
+        },
+        {
+            "name": "Fixe par satellite / Mobile par satellite",
+            "type": "satellite",
+            "start": 7900000000,
+            "end": 8025000000
+        },
+        {
+            "name": "Exploration de la Terre par satellite / Fixe par satellite",
+            "type": "space",
+            "start": 8025000000,
+            "end": 8175000000
+        },
+        {
+            "name": "Météorologie par satellite / Exploration de la Terre par satellite",
+            "type": "space",
+            "start": 8175000000,
+            "end": 8215000000
+        },
+        {
+            "name": "Exploration de la Terre par satellite / Fixe par satellite",
+            "type": "space",
+            "start": 8215000000,
+            "end": 8400000000
+        },
+        {
+            "name": "Fixe",
+            "type": "fixed",
+            "start": 8400000000,
+            "end": 8500000000
+        },
+        {
+            "name": "Radiolocalisation (Défense)",
+            "type": "military",
+            "start": 8500000000,
+            "end": 8550000000
+        },
+        {
+            "name": "Radiolocalisation / Exploration de la Terre par satellite",
+            "type": "radiolocation",
+            "start": 8550000000,
+            "end": 8650000000
+        },
+        {
+            "name": "Radiolocalisation (Défense)",
+            "type": "military",
+            "start": 8650000000,
+            "end": 8750000000
+        },
+        {
+            "name": "Radionavigation aéronautique / Radiolocalisation",
+            "type": "aviation",
+            "start": 8750000000,
+            "end": 8850000000
+        },
+        {
+            "name": "Radionavigation maritime / Radiolocalisation",
+            "type": "marine",
+            "start": 8850000000,
+            "end": 9000000000
+        },
+        {
+            "name": "Radionavigation maritime / Radionavigation aéronautique",
+            "type": "marine",
+            "start": 9000000000,
+            "end": 9200000000
+        },
+        {
+            "name": "Radionavigation maritime / Radiolocalisation",
+            "type": "marine",
+            "start": 9200000000,
+            "end": 9300000000
+        },
+        {
+            "name": "Radionavigation / Radiolocalisation",
+            "type": "radionavigation",
+            "start": 9300000000,
+            "end": 9500000000
+        },
+        {
+            "name": "Radiolocalisation / Exploration de la Terre par satellite",
+            "type": "radiolocation",
+            "start": 9500000000,
+            "end": 10000000000
+        },
+        {
+            "name": "Amateur 3 cm",
+            "type": "amateur",
+            "start": 10000000000,
+            "end": 10500000000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe",
+            "type": "mobile",
+            "start": 10500000000,
+            "end": 10600000000
+        },
+        {
+            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "type": "space",
+            "start": 10600000000,
+            "end": 10700000000
+        },
+        {
+            "name": "Fixe par satellite / Fixe",
+            "type": "satellite",
+            "start": 10700000000,
+            "end": 11700000000
+        },
+        {
+            "name": "Radiodiffusion par satellite",
+            "type": "broadcast",
+            "start": 11700000000,
+            "end": 12500000000
+        },
+        {
+            "name": "Fixe par satellite",
+            "type": "satellite",
+            "start": 12500000000,
+            "end": 12750000000
+        },
+        {
+            "name": "Fixe par satellite / Fixe",
+            "type": "satellite",
+            "start": 12750000000,
+            "end": 13250000000
+        },
+        {
+            "name": "Radionavigation aéronautique / Exploration de la Terre par satellite",
+            "type": "aviation",
+            "start": 13250000000,
+            "end": 13400000000
+        },
+        {
+            "name": "Radiolocalisation / Exploration de la Terre par satellite",
+            "type": "radiolocation",
+            "start": 13400000000,
+            "end": 13750000000
+        },
+        {
+            "name": "Radiolocalisation / Fixe par satellite",
+            "type": "radiolocation",
+            "start": 13750000000,
+            "end": 14000000000
+        },
+        {
+            "name": "Fixe par satellite",
+            "type": "satellite",
+            "start": 14000000000,
+            "end": 14250000000
+        },
+        {
+            "name": "Fixe par satellite / Fixe",
+            "type": "satellite",
+            "start": 14250000000,
+            "end": 14300000000
+        },
+        {
+            "name": "Fixe par satellite / Mobile (sauf aéronautique)",
+            "type": "satellite",
+            "start": 14300000000,
+            "end": 14500000000
+        },
+        {
+            "name": "Mobile / Fixe",
+            "type": "mobile",
+            "start": 14500000000,
+            "end": 15250000000
+        },
+        {
+            "name": "Fixe",
+            "type": "fixed",
+            "start": 15250000000,
+            "end": 15350000000
+        },
+        {
+            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "type": "space",
+            "start": 15350000000,
+            "end": 15400000000
+        },
+        {
+            "name": "Radionavigation aéronautique / Radiolocalisation",
+            "type": "aviation",
+            "start": 15400000000,
+            "end": 15700000000
+        },
+        {
+            "name": "Radiolocalisation (Défense)",
+            "type": "military",
+            "start": 15700000000,
+            "end": 17200000000
+        },
+        {
+            "name": "Radiolocalisation / Exploration de la Terre par satellite",
+            "type": "radiolocation",
+            "start": 17200000000,
+            "end": 17300000000
+        },
+        {
+            "name": "Fixe par satellite",
+            "type": "satellite",
+            "start": 17300000000,
+            "end": 17700000000
+        },
+        {
+            "name": "Fixe par satellite / Fixe",
+            "type": "satellite",
+            "start": 17700000000,
+            "end": 18600000000
+        },
+        {
+            "name": "Exploration de la Terre par satellite / Fixe par satellite",
+            "type": "space",
+            "start": 18600000000,
+            "end": 18800000000
+        },
+        {
+            "name": "Fixe par satellite / Fixe",
+            "type": "satellite",
+            "start": 18800000000,
+            "end": 19700000000
+        },
+        {
+            "name": "Fixe par satellite",
+            "type": "satellite",
+            "start": 19700000000,
+            "end": 20200000000
+        },
+        {
+            "name": "Fixe par satellite / Mobile par satellite",
+            "type": "satellite",
+            "start": 20200000000,
+            "end": 21200000000
+        },
+        {
+            "name": "Exploration de la Terre par satellite / Recherche spatiale (passive)",
+            "type": "space",
+            "start": 21200000000,
+            "end": 21400000000
+        },
+        {
+            "name": "Radiodiffusion par satellite / Mobile",
+            "type": "broadcast",
+            "start": 21400000000,
+            "end": 22000000000
+        },
+        {
+            "name": "Radioastronomie / Mobile",
+            "type": "space",
+            "start": 22000000000,
+            "end": 22210000000
+        },
+        {
+            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "type": "space",
+            "start": 22210000000,
+            "end": 22500000000
+        },
+        {
+            "name": "Fixe",
+            "type": "fixed",
+            "start": 22500000000,
+            "end": 22550000000
+        },
+        {
+            "name": "Inter-satellites / Recherche spatiale",
+            "type": "space",
+            "start": 22550000000,
+            "end": 23150000000
+        },
+        {
+            "name": "Inter-satellites / Fixe",
+            "type": "space",
+            "start": 23150000000,
+            "end": 23550000000
+        },
+        {
+            "name": "Fixe",
+            "type": "fixed",
+            "start": 23550000000,
+            "end": 23600000000
+        },
+        {
+            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "type": "space",
+            "start": 23600000000,
+            "end": 24000000000
+        },
+        {
+            "name": "Amateur 1,2 cm",
+            "type": "amateur",
+            "start": 24000000000,
+            "end": 24250000000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe",
+            "type": "mobile",
+            "start": 24250000000,
+            "end": 24450000000
+        },
+        {
+            "name": "Inter-satellites / Mobile (sauf aéronautique)",
+            "type": "space",
+            "start": 24450000000,
+            "end": 24650000000
+        },
+        {
+            "name": "Inter-satellites / Fixe par satellite",
+            "type": "space",
+            "start": 24650000000,
+            "end": 24750000000
+        },
+        {
+            "name": "Fixe par satellite / Mobile (sauf aéronautique)",
+            "type": "satellite",
+            "start": 24750000000,
+            "end": 25250000000
+        },
+        {
+            "name": "Inter-satellites / Mobile",
+            "type": "space",
+            "start": 25250000000,
+            "end": 25500000000
+        },
+        {
+            "name": "Inter-satellites / Exploration de la Terre par satellite",
+            "type": "space",
+            "start": 25500000000,
+            "end": 27000000000
+        },
+        {
+            "name": "Inter-satellites / Mobile",
+            "type": "space",
+            "start": 27000000000,
+            "end": 27500000000
+        },
+        {
+            "name": "Inter-satellites / Fixe par satellite",
+            "type": "space",
+            "start": 27500000000,
+            "end": 28450000000
+        },
+        {
+            "name": "Fixe par satellite",
+            "type": "satellite",
+            "start": 28450000000,
+            "end": 28500000000
+        },
+        {
+            "name": "Mobile / Fixe",
+            "type": "mobile",
+            "start": 28500000000,
+            "end": 29100000000
+        },
+        {
+            "name": "Fixe par satellite / Mobile",
+            "type": "satellite",
+            "start": 29100000000,
+            "end": 29500000000
+        },
+        {
+            "name": "Fixe par satellite",
+            "type": "satellite",
+            "start": 29500000000,
+            "end": 30000000000
+        },
+        {
+            "name": "Fixe par satellite / Mobile par satellite",
+            "type": "satellite",
+            "start": 30000000000,
+            "end": 31000000000
+        },
+        {
+            "name": "Mobile / Fixe",
+            "type": "mobile",
+            "start": 31000000000,
+            "end": 31300000000
+        },
+        {
+            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "type": "space",
+            "start": 31300000000,
+            "end": 31800000000
+        },
+        {
+            "name": "Radionavigation / Recherche spatiale",
+            "type": "radionavigation",
+            "start": 31800000000,
+            "end": 32300000000
+        },
+        {
+            "name": "Radionavigation / Inter-satellites",
+            "type": "radionavigation",
+            "start": 32300000000,
+            "end": 33000000000
+        },
+        {
+            "name": "Radionavigation / Fixe",
+            "type": "radionavigation",
+            "start": 33000000000,
+            "end": 33400000000
+        },
+        {
+            "name": "Radiolocalisation (Défense)",
+            "type": "military",
+            "start": 33400000000,
+            "end": 34200000000
+        },
+        {
+            "name": "Radiolocalisation / Recherche spatiale",
+            "type": "radiolocation",
+            "start": 34200000000,
+            "end": 34700000000
+        },
+        {
+            "name": "Radiolocalisation",
+            "type": "radiolocation",
+            "start": 34700000000,
+            "end": 35200000000
+        },
+        {
+            "name": "Radiolocalisation / Auxiliaires de la météorologie",
+            "type": "radiolocation",
+            "start": 35200000000,
+            "end": 35500000000
+        },
+        {
+            "name": "Radiolocalisation / Exploitation spatiale",
+            "type": "radiolocation",
+            "start": 35500000000,
+            "end": 36000000000
+        },
+        {
+            "name": "Exploration de la Terre par satellite / Recherche spatiale (passive)",
+            "type": "space",
+            "start": 36000000000,
+            "end": 37000000000
+        },
+        {
+            "name": "Recherche spatiale / Mobile (sauf aéronautique)",
+            "type": "space",
+            "start": 37000000000,
+            "end": 37268000000
+        },
+        {
+            "name": "Recherche spatiale / Fixe",
+            "type": "space",
+            "start": 37268000000,
+            "end": 37500000000
+        },
+        {
+            "name": "Recherche spatiale / Fixe par satellite",
+            "type": "space",
+            "start": 37500000000,
+            "end": 38000000000
+        },
+        {
+            "name": "Fixe par satellite / Fixe",
+            "type": "satellite",
+            "start": 38000000000,
+            "end": 38220000000
+        },
+        {
+            "name": "Fixe par satellite",
+            "type": "satellite",
+            "start": 38220000000,
+            "end": 38276000000
+        },
+        {
+            "name": "Fixe par satellite / Mobile",
+            "type": "satellite",
+            "start": 38276000000,
+            "end": 39480000000
+        },
+        {
+            "name": "Fixe par satellite",
+            "type": "satellite",
+            "start": 39480000000,
+            "end": 39500000000
+        },
+        {
+            "name": "Fixe par satellite / Mobile par satellite",
+            "type": "satellite",
+            "start": 39500000000,
+            "end": 40000000000
+        },
+        {
+            "name": "Exploration de la Terre par satellite / Recherche spatiale",
+            "type": "space",
+            "start": 40000000000,
+            "end": 40500000000
+        },
+        {
+            "name": "Radiodiffusion par satellite / Radiodiffusion",
+            "type": "broadcast",
+            "start": 40500000000,
+            "end": 42500000000
+        },
+        {
+            "name": "Radioastronomie / Fixe par satellite",
+            "type": "space",
+            "start": 42500000000,
+            "end": 43500000000
+        },
+        {
+            "name": "Mobile par satellite / Mobile",
+            "type": "satellite",
+            "start": 43500000000,
+            "end": 45500000000
+        },
+        {
+            "name": "Radionavigation par satellite / Radionavigation",
+            "type": "radionavigation",
+            "start": 45500000000,
+            "end": 47000000000
+        },
+        {
+            "name": "Amateur 6 mm",
+            "type": "amateur",
+            "start": 47000000000,
+            "end": 47200000000
+        },
+        {
+            "name": "Fixe par satellite / Mobile",
+            "type": "satellite",
+            "start": 47200000000,
+            "end": 48540000000
+        },
+        {
+            "name": "Radioastronomie / Fixe par satellite",
+            "type": "space",
+            "start": 48540000000,
+            "end": 49440000000
+        },
+        {
+            "name": "Fixe par satellite / Mobile",
+            "type": "satellite",
+            "start": 49440000000,
+            "end": 50200000000
+        },
+        {
+            "name": "Exploration de la Terre par satellite / Recherche spatiale (passive)",
+            "type": "space",
+            "start": 50200000000,
+            "end": 50400000000
+        },
+        {
+            "name": "Fixe par satellite / Mobile",
+            "type": "satellite",
+            "start": 50400000000,
+            "end": 52400000000
+        },
+        {
+            "name": "Mobile / Fixe",
+            "type": "mobile",
+            "start": 52400000000,
+            "end": 52600000000
+        },
+        {
+            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "type": "space",
+            "start": 52600000000,
+            "end": 54250000000
+        },
+        {
+            "name": "Exploration de la Terre par satellite / Recherche spatiale (passive)",
+            "type": "space",
+            "start": 54250000000,
+            "end": 59000000000
+        },
+        {
+            "name": "Radiolocalisation / Exploration de la Terre par satellite",
+            "type": "radiolocation",
+            "start": 59000000000,
+            "end": 64000000000
+        },
+        {
+            "name": "Inter-satellites / Mobile (sauf aéronautique)",
+            "type": "space",
+            "start": 64000000000,
+            "end": 65000000000
+        },
+        {
+            "name": "Exploration de la Terre par satellite / Inter-satellites",
+            "type": "space",
+            "start": 65000000000,
+            "end": 66000000000
+        },
+        {
+            "name": "Radionavigation / Radionavigation par satellite",
+            "type": "radionavigation",
+            "start": 66000000000,
+            "end": 71000000000
+        },
+        {
+            "name": "Fixe par satellite / Mobile par satellite",
+            "type": "satellite",
+            "start": 71000000000,
+            "end": 74000000000
+        },
+        {
+            "name": "Radiodiffusion par satellite / Radiodiffusion",
+            "type": "broadcast",
+            "start": 74000000000,
+            "end": 76000000000
+        },
+        {
+            "name": "Amateur 4 mm",
+            "type": "amateur",
+            "start": 76000000000,
+            "end": 81000000000
+        },
+        {
+            "name": "Radioastronomie / Fixe par satellite",
+            "type": "space",
+            "start": 81000000000,
+            "end": 86000000000
+        },
+        {
+            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "type": "space",
+            "start": 86000000000,
+            "end": 92000000000
+        },
+        {
+            "name": "Radiolocalisation / Radioastronomie",
+            "type": "radiolocation",
+            "start": 92000000000,
+            "end": 94000000000
+        },
+        {
+            "name": "Radiolocalisation / Exploration de la Terre par satellite",
+            "type": "radiolocation",
+            "start": 94000000000,
+            "end": 94100000000
+        },
+        {
+            "name": "Radiolocalisation / Radioastronomie",
+            "type": "radiolocation",
+            "start": 94100000000,
+            "end": 95000000000
+        },
+        {
+            "name": "Radionavigation par satellite / Radionavigation",
+            "type": "radionavigation",
+            "start": 95000000000,
+            "end": 96000000000
+        },
+        {
+            "name": "Radionavigation / Radionavigation par satellite",
+            "type": "radionavigation",
+            "start": 96000000000,
+            "end": 100000000000
+        },
+        {
+            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "type": "space",
+            "start": 100000000000,
+            "end": 102000000000
+        },
+        {
+            "name": "Radioastronomie / Mobile",
+            "type": "space",
+            "start": 102000000000,
+            "end": 105000000000
+        },
+        {
+            "name": "Radioastronomie / Recherche spatiale (passive)",
+            "type": "space",
+            "start": 105000000000,
+            "end": 109500000000
+        },
+        {
+            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "type": "space",
+            "start": 109500000000,
+            "end": 111800000000
+        },
+        {
+            "name": "Radioastronomie / Recherche spatiale (passive)",
+            "type": "space",
+            "start": 111800000000,
+            "end": 114250000000
+        },
+        {
+            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "type": "space",
+            "start": 114250000000,
+            "end": 116000000000
+        },
+        {
+            "name": "Exploration de la Terre par satellite / Recherche spatiale (passive)",
+            "type": "space",
+            "start": 116000000000,
+            "end": 122250000000
+        },
+        {
+            "name": "Amateur 2,5 mm",
+            "type": "amateur",
+            "start": 122250000000,
+            "end": 123000000000
+        },
+        {
+            "name": "Radionavigation par satellite / Radionavigation",
+            "type": "radionavigation",
+            "start": 123000000000,
+            "end": 130000000000
+        },
+        {
+            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "type": "space",
+            "start": 130000000000,
+            "end": 134000000000
+        },
+        {
+            "name": "Amateur 2 mm",
+            "type": "amateur",
+            "start": 134000000000,
+            "end": 141000000000
+        },
+        {
+            "name": "Radiolocalisation / Radioastronomie",
+            "type": "radiolocation",
+            "start": 141000000000,
+            "end": 148500000000
+        },
+        {
+            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "type": "space",
+            "start": 148500000000,
+            "end": 151500000000
+        },
+        {
+            "name": "Radiolocalisation / Radioastronomie",
+            "type": "radiolocation",
+            "start": 151500000000,
+            "end": 155500000000
+        },
+        {
+            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "type": "space",
+            "start": 155500000000,
+            "end": 158500000000
+        },
+        {
+            "name": "Fixe par satellite / Mobile par satellite",
+            "type": "satellite",
+            "start": 158500000000,
+            "end": 164000000000
+        },
+        {
+            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "type": "space",
+            "start": 164000000000,
+            "end": 167000000000
+        },
+        {
+            "name": "Inter-satellites / Fixe par satellite",
+            "type": "space",
+            "start": 167000000000,
+            "end": 174500000000
+        },
+        {
+            "name": "Inter-satellites / Mobile",
+            "type": "space",
+            "start": 174500000000,
+            "end": 174800000000
+        },
+        {
+            "name": "Exploration de la Terre par satellite / Recherche spatiale (passive)",
+            "type": "space",
+            "start": 174800000000,
+            "end": 182000000000
+        },
+        {
+            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "type": "space",
+            "start": 182000000000,
+            "end": 185000000000
+        },
+        {
+            "name": "Exploration de la Terre par satellite / Recherche spatiale (passive)",
+            "type": "space",
+            "start": 185000000000,
+            "end": 191800000000
+        },
+        {
+            "name": "Radionavigation par satellite / Radionavigation",
+            "type": "radionavigation",
+            "start": 191800000000,
+            "end": 200000000000
+        },
+        {
+            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "type": "space",
+            "start": 200000000000,
+            "end": 209000000000
+        },
+        {
+            "name": "Radioastronomie / Fixe par satellite",
+            "type": "space",
+            "start": 209000000000,
+            "end": 217000000000
+        },
+        {
+            "name": "Radioastronomie / Recherche spatiale (passive)",
+            "type": "space",
+            "start": 217000000000,
+            "end": 226000000000
+        },
+        {
+            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "type": "space",
+            "start": 226000000000,
+            "end": 231500000000
+        },
+        {
+            "name": "Mobile / Fixe",
+            "type": "mobile",
+            "start": 231500000000,
+            "end": 232000000000
+        },
+        {
+            "name": "Fixe par satellite / Mobile",
+            "type": "satellite",
+            "start": 232000000000,
+            "end": 235000000000
+        },
+        {
+            "name": "Exploration de la Terre par satellite / Recherche spatiale (passive)",
+            "type": "space",
+            "start": 235000000000,
+            "end": 238000000000
+        },
+        {
+            "name": "Radionavigation par satellite / Radionavigation",
+            "type": "radionavigation",
+            "start": 238000000000,
+            "end": 240000000000
+        },
+        {
+            "name": "Radiolocalisation / Exploration de la Terre par satellite",
+            "type": "radiolocation",
+            "start": 240000000000,
+            "end": 241000000000
+        },
+        {
+            "name": "Amateur 1 mm",
+            "type": "amateur",
+            "start": 241000000000,
+            "end": 250000000000
+        },
+        {
+            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "type": "space",
+            "start": 250000000000,
+            "end": 252000000000
+        },
+        {
+            "name": "Radionavigation par satellite / Radionavigation",
+            "type": "radionavigation",
+            "start": 252000000000,
+            "end": 265000000000
+        },
+        {
+            "name": "Radioastronomie / Fixe par satellite",
+            "type": "space",
+            "start": 265000000000,
+            "end": 3000000000000
+        }
+    ]
+}
