@@ -45,6 +45,7 @@
 #include "subprocess.h"
 #include "tcp_sender.h"
 #include "rigctl_internal.h"
+#include "rigctl_client.h"
 #include <gui/tuner.h>
 
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
@@ -53,7 +54,7 @@ SDRPP_MOD_INFO{
     /* Name:            */ "dsd_decoder",
     /* Description:     */ "Digital voice / data decoder (DMR, P25, NXDN, dPMR, YSF, ProVoice, EDACS, X2-TDMA, M17) via DSD-FME",
     /* Author:          */ "SDR++ Community",
-    /* Version:         */ 0, 6, 4,
+    /* Version:         */ 0, 7, 0,
     /* Max instances    */ -1
 };
 
@@ -61,7 +62,10 @@ ConfigManager config;
 
 // Input audio contract: FM-discriminated, 48 kHz mono s16le, piped to dsd-fme's stdin.
 static constexpr double DSD_INPUT_SR  = 48000.0;
-// Output audio contract from dsd-fme over UDP: s16le, MONO, 8 kHz (forced via -1).
+// Output audio contract from dsd-fme over UDP: s16le, 8 kHz. Channel count
+// depends on the protocol (typically mono; DMR Stereo interleaves slot1/slot2).
+// We treat the stream as mono-equivalent: each s16 sample is upsampled 6x and
+// duplicated to both stereo channels before writing to the SDR++ sink chain.
 static constexpr int    DSD_OUTPUT_SR = 8000;
 // Sample rate at which we publish the output audio stream to SDR++'s sink.
 static constexpr float  SDRPP_OUT_SR  = 48000.0f;
@@ -159,8 +163,9 @@ public:
         tcpSender.start();
         tcpSender.setEnabled(tcpEnabled);
 
-        // ---- If trunking was enabled at save time, restore the server now --
-        if (trunking || scanMode) { startRigServer(); }
+        // ---- Restore the trunking role if any was persisted -----------
+        if (channelType == ChannelType::CC) { startRigServer(); }
+        else if (channelType == ChannelType::VC) { startRigClient(); }
 
         // ---- build VFO + DSP and start the decoder (initial enable) --------
         startupChain(/*useWaterfallBw=*/false);
@@ -174,6 +179,7 @@ public:
         // in-flight swap() unblocks cleanly.
         if (enabled) { teardownChain(); }
         stopRigServer();
+        stopRigClient();
         tcpSender.stop();
         outAudioStream.stop();
         sigpath::sinkManager.unregisterStream(name);
@@ -246,7 +252,6 @@ private:
         std::vector<std::string> a;
         a.push_back(exePath.empty() ? std::string("dsd-fme") : exePath);
         a.push_back("-i"); a.push_back("-");                              // PCM on stdin
-        a.push_back("-1");                                                // force mono audio
         a.push_back("-o");                                                // audio over UDP
         a.push_back("udp:127.0.0.1:" + std::to_string(udpPort));
 
@@ -262,21 +267,16 @@ private:
 
         if (!encKey.empty()) { a.push_back("-H"); a.push_back(encKey); }
 
-        // Trunking: tell dsd-fme to drive a rigctl-compatible server (the
-        // built-in rigctl_server module of SDR++) for frequency hopping.
-        // -T enables CC-tracking with channel grants; -Y enables a simple
-        // scan-for-sync sweep. They are usually mutually exclusive but
-        // dsd-fme will accept both flags being present.
-        if (trunking || scanMode) {
+        // Trunking. Only the CONTROL CHANNEL instance feeds dsd-fme's
+        // trunking flags: -T enables CC tracking and -U points dsd-fme at
+        // our embedded rigctl server (which we then mirror to VC clients).
+        // VC instances just decode voice for whatever freq SDR++ is tuned
+        // to — they don't need dsd-fme to know anything about trunking.
+        if (channelType == ChannelType::CC) {
             a.push_back("-U"); a.push_back(std::to_string(rigctlPort));
-        }
-        if (trunking) { a.push_back("-T"); }
-        if (scanMode) { a.push_back("-Y"); }
-        if ((trunking || scanMode) && !trunkChanMap.empty()) {
-            a.push_back("-C"); a.push_back(trunkChanMap);
-        }
-        if ((trunking || scanMode) && !trunkGroups.empty()) {
-            a.push_back("-G"); a.push_back(trunkGroups);
+            a.push_back("-T");
+            if (!trunkChanMap.empty()) { a.push_back("-C"); a.push_back(trunkChanMap); }
+            if (!trunkGroups.empty())  { a.push_back("-G"); a.push_back(trunkGroups);  }
         }
 
         std::istringstream iss(extraArgs);
@@ -455,7 +455,8 @@ private:
     // proactively re-tune back to the CC — useful because some systems don't
     // emit an explicit "release" RIGCTL command and just go silent.
 
-    enum class RigState { Inactive, CC, VC };
+    enum class ChannelType { None = 0, CC = 1, VC = 2 };
+    enum class RigState    { Inactive, CC, VC };
 
     struct GrantEvent {
         std::time_t ts    = 0;   // when the grant arrived
@@ -465,27 +466,33 @@ private:
         std::string src;
     };
 
+    // Called from a rigctl SERVER client thread when dsd-fme (or any other
+    // rigctl client) sends us a "F <freq>". In CC mode we DO NOT retune our
+    // own VFO — we stay parked on the control channel — but we broadcast the
+    // grant to every other rigctl client connected to us (i.e. the VC
+    // instances) so they can follow the voice.
     bool onRigSetFreq(double f) {
-        // Called from a rigctl server client thread.
         if (!enabled || !vfo) { return false; }
+        if (channelType != ChannelType::CC) { return false; }
 
         std::time_t now = std::time(nullptr);
         const double EPS = 100.0; // Hz tolerance when comparing to ccFreq
 
         bool toCC = (ccFreq > 0.0) && std::abs(f - ccFreq) < EPS;
+
         if (toCC) {
-            tuner::tune(tuner::TUNER_MODE_NORMAL, name, ccFreq);
+            // dsd-fme tells us to return to CC after a call ends. We're
+            // already on the CC by design — just close any open grant. We
+            // still broadcast the F so VCs can mark the call as ended too.
             std::lock_guard<std::mutex> lck(grantMtx);
-            // Close any open grant.
             if (!grantHistory.empty() && grantHistory.back().endTs == 0) {
                 grantHistory.back().endTs = now;
             }
-            rigState = RigState::CC;
             currentVCFreq = 0.0;
+            // No state change: CC stays CC (we never become VC ourselves).
         } else {
-            tuner::tune(tuner::TUNER_MODE_NORMAL, name, f);
+            // A voice grant. Open a new entry and broadcast to VCs.
             std::lock_guard<std::mutex> lck(grantMtx);
-            // Close previous grant if still open before opening the new one.
             if (!grantHistory.empty() && grantHistory.back().endTs == 0) {
                 grantHistory.back().endTs = now;
             }
@@ -495,16 +502,44 @@ private:
             grantHistory.push_back(g);
             while (grantHistory.size() > GRANT_HISTORY_MAX) { grantHistory.pop_front(); }
             grantCount++;
-            rigState        = RigState::VC;
-            currentVCFreq   = f;
-            vcStartTime     = now;
+            currentVCFreq       = f;
+            vcStartTime         = now;
             lastVoiceActivityTs = now;
         }
+
+        // Forward to every connected VC client. broadcastSetFreq is
+        // best-effort and non-blocking.
+        rigServer.broadcastSetFreq(f);
         return true;
     }
 
+    // Called from the rigctl CLIENT worker thread, when our CC peer sends us
+    // a "F <freq>". VC mode retunes ITS OWN VFO via the SDR++ tuner; CC and
+    // None ignore the callback.
+    void onRigctlClientSetFreq(double f) {
+        if (!enabled || !vfo) { return; }
+        if (channelType != ChannelType::VC) { return; }
+        if (f <= 0.0) { return; }
+
+        tuner::tune(tuner::TUNER_MODE_NORMAL, name, f);
+
+        std::time_t now = std::time(nullptr);
+        std::lock_guard<std::mutex> lck(grantMtx);
+        if (!grantHistory.empty() && grantHistory.back().endTs == 0) {
+            grantHistory.back().endTs = now;
+        }
+        GrantEvent g;
+        g.ts   = now;
+        g.freq = f;
+        grantHistory.push_back(g);
+        while (grantHistory.size() > GRANT_HISTORY_MAX) { grantHistory.pop_front(); }
+        grantCount++;
+        currentVCFreq       = f;
+        vcStartTime         = now;
+        lastVoiceActivityTs = now;
+    }
+
     double getCurrentVfoFreq() {
-        // Absolute frequency of our VFO = source center + VFO offset.
         double f = gui::waterfall.getCenterFrequency();
         if (sigpath::vfoManager.vfoExists(name)) {
             f += sigpath::vfoManager.getOffset(name);
@@ -513,23 +548,12 @@ private:
     }
 
     // Called from the GUI thread at frame rate. Cheap, branches early.
-    void rigStateTick() {
-        if (rigState != RigState::VC) { return; }
-        if (!autoReturnEnabled) { return; }
-        if (ccFreq <= 0.0)      { return; }
-        std::time_t now = std::time(nullptr);
-        if (now - lastVoiceActivityTs > (std::time_t)autoReturnSec) {
-            // No voice frames for autoReturnSec seconds — assume the call
-            // is over and dsd-fme just didn't tell us. Park on CC.
-            tuner::tune(tuner::TUNER_MODE_NORMAL, name, ccFreq);
-            std::lock_guard<std::mutex> lck(grantMtx);
-            if (!grantHistory.empty() && grantHistory.back().endTs == 0) {
-                grantHistory.back().endTs = now;
-            }
-            rigState      = RigState::CC;
-            currentVCFreq = 0.0;
-        }
-    }
+    // CC and VC have very different "tick" semantics:
+    //   * CC: nothing to do (we never auto-retune).
+    //   * VC: nothing to do either — per spec, the VC stays on the last
+    //     received freq until the next grant arrives. No auto-mute, no
+    //     auto-return.
+    void rigStateTick() { /* intentionally empty for the split CC/VC model */ }
 
     void startRigServer() {
         rigServer.onSetFreq      = [this](double f) { return onRigSetFreq(f); };
@@ -548,6 +572,45 @@ private:
         rigState      = RigState::Inactive;
         currentVCFreq = 0.0;
     }
+
+    void startRigClient() {
+        rigClient.onSetFreq = [this](double f) { onRigctlClientSetFreq(f); };
+        rigClient.configure(vcServerHost, vcServerPort);
+        rigClient.start();
+        rigClient.setEnabled(true);
+        rigState = RigState::VC;
+    }
+
+    void stopRigClient() {
+        rigClient.setEnabled(false);
+        rigClient.stop();
+        rigState      = RigState::Inactive;
+        currentVCFreq = 0.0;
+    }
+
+    // Apply the channel type, starting/stopping the right side(s) and
+    // restarting dsd-fme so the right argv (presence/absence of -T -U) is
+    // picked up. Safe to call repeatedly; transitions to the same type are
+    // no-ops.
+    void applyChannelType(ChannelType newType) {
+        if (newType == channelType) { return; }
+        // Tear down whatever the previous type had spun up.
+        switch (channelType) {
+            case ChannelType::CC: stopRigServer(); break;
+            case ChannelType::VC: stopRigClient(); break;
+            default: break;
+        }
+        channelType = newType;
+        // Bring up the new role.
+        switch (channelType) {
+            case ChannelType::CC: startRigServer(); break;
+            case ChannelType::VC: startRigClient(); break;
+            default:              rigState = RigState::Inactive; break;
+        }
+        // dsd-fme command-line differs for CC (gets -T -U) vs VC/None: restart.
+        restartDecoder();
+    }
+
 
     // ================= DSP -> PCM queue (INPUT to dsd-fme) ==========
 
@@ -1062,8 +1125,12 @@ private:
         if (c.contains("lrrpFolder") && lrrpFolderSelect) {
             lrrpFolderSelect->setPath(c["lrrpFolder"].get<std::string>(), false);
         }
-        if (c.contains("trunking"))     { trunking      = c["trunking"].get<bool>(); }
-        if (c.contains("scanMode"))     { scanMode      = c["scanMode"].get<bool>(); }
+        if (c.contains("channelType")) {
+            int t = c["channelType"].get<int>();
+            if (t >= 0 && t <= 2) { channelType = (ChannelType)t; }
+        }
+        if (c.contains("vcServerHost")) { vcServerHost = c["vcServerHost"].get<std::string>(); }
+        if (c.contains("vcServerPort")) { vcServerPort = c["vcServerPort"].get<int>(); }
         if (c.contains("rigctlPort"))   { rigctlPort    = c["rigctlPort"].get<int>(); }
         if (c.contains("trunkChanMap")) { trunkChanMap  = c["trunkChanMap"].get<std::string>(); }
         if (c.contains("trunkGroups"))  { trunkGroups   = c["trunkGroups"].get<std::string>(); }
@@ -1089,8 +1156,9 @@ private:
         config.conf[name]["exePath"]    = exePath;
         config.conf[name]["snap"]       = snapIntervals.key(snapId);
         if (lrrpFolderSelect) { config.conf[name]["lrrpFolder"] = lrrpFolderSelect->path; }
-        config.conf[name]["trunking"]     = trunking;
-        config.conf[name]["scanMode"]     = scanMode;
+        config.conf[name]["channelType"]  = (int)channelType;
+        config.conf[name]["vcServerHost"] = vcServerHost;
+        config.conf[name]["vcServerPort"] = vcServerPort;
         config.conf[name]["rigctlPort"]   = rigctlPort;
         config.conf[name]["trunkChanMap"] = trunkChanMap;
         config.conf[name]["trunkGroups"]  = trunkGroups;
@@ -1196,233 +1264,236 @@ private:
             ImGui::TextDisabled("UDP audio port: %u", (unsigned)_this->udpPort);
         }
 
-        // ---- Trunking (internal RIGCTL server, CC/VC tracking) -------------
+        // ---- Trunking (None / Control Channel / Voice Channel) -------------
         if (ImGui::CollapsingHeader(CONCAT("Trunking##dsd_trk_hdr_", _this->name))) {
-            // Cheap per-frame tick: if we're on a VC and voice has gone quiet,
-            // auto-park back on the CC.
-            _this->rigStateTick();
 
-            if (ImGui::Checkbox(CONCAT("Enable trunking (-T)##dsd_trk_en_", _this->name), &_this->trunking)) {
+            // ---- Channel type combo (drives the whole sub-UI below) -------
+            const char* const TYPE_LABELS[] = { "None", "Control Channel (CC)", "Voice Channel (VC)" };
+            int curType = (int)_this->channelType;
+            ImGui::LeftLabel("Channel type");
+            ImGui::FillWidth();
+            if (ImGui::Combo(CONCAT("##dsd_chtype_", _this->name), &curType,
+                             TYPE_LABELS, IM_ARRAYSIZE(TYPE_LABELS))) {
+                _this->applyChannelType((ChannelType)curType);
                 _this->saveSettings();
-                if (_this->trunking || _this->scanMode) { _this->startRigServer(); }
-                else                                     { _this->stopRigServer();  }
-                _this->restartDecoder();
-            }
-            if (ImGui::Checkbox(CONCAT("Scan mode (-Y)##dsd_trk_scan_", _this->name), &_this->scanMode)) {
-                _this->saveSettings();
-                if (_this->trunking || _this->scanMode) { _this->startRigServer(); }
-                else                                     { _this->stopRigServer();  }
-                _this->restartDecoder();
             }
 
-            bool gateOff = !(_this->trunking || _this->scanMode);
-            if (gateOff) { style::beginDisabled(); }
-
-            // --- Big CC/VC status banner --------------------------------
-            RigState rs = _this->rigState.load();
+            // ---- Big colored status banner (state-aware) ------------------
             ImVec2 region = ImGui::GetContentRegionAvail();
-            ImVec2 cur = ImGui::GetCursorScreenPos();
+            ImVec2 cur    = ImGui::GetCursorScreenPos();
             const float bannerH = 56.0f;
             ImDrawList* dl = ImGui::GetWindowDrawList();
 
             ImU32 bg, fg, accent;
-            const char* label  = "INACTIVE";
-            char freqTxt[64]   = "—";
-            char detailTxt[160] = "";
-            switch (rs) {
-                case RigState::CC: {
+            const char* label    = "INACTIVE";
+            char freqTxt[64]     = "—";
+            char detailTxt[200]  = "";
+
+            switch (_this->channelType) {
+                case ChannelType::CC: {
                     bg     = IM_COL32(20, 110, 30, 255);
                     fg     = IM_COL32(180, 255, 180, 255);
                     accent = IM_COL32(80, 200, 100, 255);
-                    label  = "CONTROL CHANNEL";
+                    label  = "CONTROL CHANNEL (server)";
                     snprintf(freqTxt, sizeof(freqTxt), "%.6f MHz", _this->ccFreq / 1e6);
+                    int nCli = _this->rigServer.isRunning() ? _this->rigServer.clientCount() : 0;
                     snprintf(detailTxt, sizeof(detailTxt),
-                             "Waiting for voice grants — %llu followed so far",
-                             (unsigned long long)_this->grantCount.load());
+                             "%llu grants relayed   %d VC client(s) connected",
+                             (unsigned long long)_this->grantCount.load(), nCli);
                     break;
                 }
-                case RigState::VC: {
-                    bg     = IM_COL32(150, 80, 10, 255);
-                    fg     = IM_COL32(255, 220, 160, 255);
-                    accent = IM_COL32(255, 160, 50, 255);
-                    label  = "VOICE CHANNEL";
-                    snprintf(freqTxt, sizeof(freqTxt), "%.6f MHz", _this->currentVCFreq / 1e6);
-                    std::time_t now = std::time(nullptr);
-                    int dur = (int)(now - _this->vcStartTime);
-                    std::string tg, src;
-                    {
-                        std::lock_guard<std::mutex> lck(_this->grantMtx);
-                        if (!_this->grantHistory.empty()) {
-                            tg  = _this->grantHistory.back().tg;
-                            src = _this->grantHistory.back().src;
-                        }
+                case ChannelType::VC: {
+                    bool conn = _this->rigClient.isConnected();
+                    bool hasGrant = (_this->currentVCFreq > 0.0);
+                    if (conn && hasGrant) {
+                        bg     = IM_COL32(150, 80, 10, 255);
+                        fg     = IM_COL32(255, 220, 160, 255);
+                        accent = IM_COL32(255, 160, 50, 255);
+                        label  = "VOICE CHANNEL (following)";
+                    } else if (conn) {
+                        bg     = IM_COL32(20, 90, 110, 255);
+                        fg     = IM_COL32(180, 230, 255, 255);
+                        accent = IM_COL32(80, 170, 220, 255);
+                        label  = "VOICE CHANNEL (idle, waiting for grant)";
+                    } else {
+                        bg     = IM_COL32(110, 50, 20, 255);
+                        fg     = IM_COL32(255, 200, 180, 255);
+                        accent = IM_COL32(220, 110, 60, 255);
+                        label  = "VOICE CHANNEL (disconnected, retrying)";
                     }
-                    snprintf(detailTxt, sizeof(detailTxt),
-                             "TG %s   SRC %s   %02d:%02d",
-                             tg.empty()  ? "—" : tg.c_str(),
-                             src.empty() ? "—" : src.c_str(),
-                             dur / 60, dur % 60);
+                    if (hasGrant) {
+                        snprintf(freqTxt, sizeof(freqTxt), "%.6f MHz", _this->currentVCFreq / 1e6);
+                        std::time_t now = std::time(nullptr);
+                        int dur = (int)(now - _this->vcStartTime);
+                        snprintf(detailTxt, sizeof(detailTxt),
+                                 "Following CC server at %s:%d   %02d:%02d",
+                                 _this->vcServerHost.c_str(), _this->vcServerPort,
+                                 dur / 60, dur % 60);
+                    } else {
+                        snprintf(detailTxt, sizeof(detailTxt),
+                                 "Connecting to %s:%d   (no grant yet)",
+                                 _this->vcServerHost.c_str(), _this->vcServerPort);
+                    }
                     break;
                 }
                 default: {
                     bg     = IM_COL32(60, 60, 60, 255);
                     fg     = IM_COL32(200, 200, 200, 255);
                     accent = IM_COL32(120, 120, 120, 255);
-                    label  = "TRUNKING INACTIVE";
+                    label  = "TRUNKING DISABLED";
                     snprintf(detailTxt, sizeof(detailTxt),
-                             "Enable trunking above to start tracking grants.");
+                             "Pick a Channel type above to enable CC or VC mode.");
                     break;
                 }
             }
 
             dl->AddRectFilled(cur, ImVec2(cur.x + region.x, cur.y + bannerH), bg, 6.0f);
             dl->AddRectFilled(cur, ImVec2(cur.x + 6, cur.y + bannerH), accent, 6.0f);
-            // Title
             dl->AddText(ImVec2(cur.x + 14, cur.y + 6),  fg, label);
-            // Frequency (big)
-            ImGui::GetFont(); // ensure font is current
             dl->AddText(ImVec2(cur.x + 14, cur.y + 22), IM_COL32_WHITE, freqTxt);
-            // Detail
             dl->AddText(ImVec2(cur.x + 14, cur.y + 38), fg, detailTxt);
             ImGui::Dummy(ImVec2(0, bannerH + 4));
 
-            // --- Server / CC controls -----------------------------------
-            ImGui::LeftLabel("RIGCTL port");
-            ImGui::FillWidth();
-            int port = _this->rigctlPort;
-            if (ImGui::InputInt(CONCAT("##dsd_rport_", _this->name), &port, 1, 100)) {
-                if (port >= 1 && port <= 65535) { _this->rigctlPort = port; }
-            }
-            if (ImGui::IsItemDeactivatedAfterEdit()) {
-                _this->saveSettings();
-                // Restart the server on the new port if active.
-                if (_this->trunking || _this->scanMode) {
+            // ============== Sub-view: CONTROL CHANNEL ======================
+            if (_this->channelType == ChannelType::CC) {
+                ImGui::LeftLabel("Server port");
+                ImGui::FillWidth();
+                int port = _this->rigctlPort;
+                if (ImGui::InputInt(CONCAT("##dsd_rport_", _this->name), &port, 1, 100)) {
+                    if (port >= 1 && port <= 65535) { _this->rigctlPort = port; }
+                }
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    _this->saveSettings();
                     _this->stopRigServer();
                     _this->startRigServer();
                     _this->restartDecoder();
                 }
-            }
 
-            if (_this->rigServer.isRunning()) {
-                ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f),
-                                   "Server: listening on 127.0.0.1:%d — %d client(s)",
-                                   _this->rigServer.getPort(),
-                                   _this->rigServer.clientCount());
-            } else if (!gateOff) {
-                ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.45f, 1.0f),
-                                   "Server: failed to listen (port in use?)");
-            } else {
-                ImGui::TextDisabled("Server: stopped");
-            }
-
-            // CC frequency display + manual capture / override.
-            ImGui::LeftLabel("CC freq (MHz)");
-            ImGui::FillWidth();
-            double ccMHz = _this->ccFreq / 1e6;
-            if (ImGui::InputDouble(CONCAT("##dsd_ccfreq_", _this->name), &ccMHz, 0.0, 0.0, "%.6f")) {
-                _this->ccFreq = ccMHz * 1e6;
-            }
-            if (ImGui::IsItemDeactivatedAfterEdit()) { _this->saveSettings(); }
-
-            if (ImGui::Button(CONCAT("Capture current freq as CC##dsd_cap_", _this->name))) {
-                _this->ccFreq = _this->getCurrentVfoFreq();
-                _this->saveSettings();
-            }
-            ImGui::SameLine();
-            if (ImGui::Button(CONCAT("Park on CC##dsd_park_", _this->name))) {
-                if (_this->ccFreq > 0.0 && _this->vfo) {
-                    tuner::tune(tuner::TUNER_MODE_NORMAL, _this->name, _this->ccFreq);
-                    std::lock_guard<std::mutex> lck(_this->grantMtx);
-                    if (!_this->grantHistory.empty() && _this->grantHistory.back().endTs == 0) {
-                        _this->grantHistory.back().endTs = std::time(nullptr);
-                    }
-                    _this->rigState      = RigState::CC;
-                    _this->currentVCFreq = 0.0;
+                if (_this->rigServer.isRunning()) {
+                    ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f),
+                                       "Server: listening on 127.0.0.1:%d — %d client(s)",
+                                       _this->rigServer.getPort(),
+                                       _this->rigServer.clientCount());
+                } else {
+                    ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.45f, 1.0f),
+                                       "Server: failed to listen (port in use?)");
                 }
+
+                ImGui::LeftLabel("CC freq (MHz)");
+                ImGui::FillWidth();
+                double ccMHz = _this->ccFreq / 1e6;
+                if (ImGui::InputDouble(CONCAT("##dsd_ccfreq_", _this->name), &ccMHz, 0.0, 0.0, "%.6f")) {
+                    _this->ccFreq = ccMHz * 1e6;
+                }
+                if (ImGui::IsItemDeactivatedAfterEdit()) { _this->saveSettings(); }
+
+                if (ImGui::Button(CONCAT("Capture current VFO as CC##dsd_cap_", _this->name))) {
+                    _this->ccFreq = _this->getCurrentVfoFreq();
+                    _this->saveSettings();
+                }
+
+                char buf2[1024];
+                ImGui::LeftLabel("Channel map (-C)");
+                ImGui::FillWidth();
+                strncpy(buf2, _this->trunkChanMap.c_str(), sizeof(buf2) - 1); buf2[sizeof(buf2)-1] = 0;
+                if (ImGui::InputTextWithHint(CONCAT("##dsd_cmap_", _this->name),
+                                             "path/to/channel_map.csv", buf2, sizeof(buf2))) {
+                    _this->trunkChanMap = buf2; _this->saveSettings();
+                }
+                if (ImGui::IsItemDeactivatedAfterEdit()) { _this->restartDecoder(); }
+
+                ImGui::LeftLabel("Groups (-G)");
+                ImGui::FillWidth();
+                strncpy(buf2, _this->trunkGroups.c_str(), sizeof(buf2) - 1); buf2[sizeof(buf2)-1] = 0;
+                if (ImGui::InputTextWithHint(CONCAT("##dsd_grp_", _this->name),
+                                             "path/to/groups.csv", buf2, sizeof(buf2))) {
+                    _this->trunkGroups = buf2; _this->saveSettings();
+                }
+                if (ImGui::IsItemDeactivatedAfterEdit()) { _this->restartDecoder(); }
             }
 
-            // Auto-return controls.
-            if (ImGui::Checkbox(CONCAT("Auto-return to CC after##dsd_arret_", _this->name),
-                                &_this->autoReturnEnabled)) {
-                _this->saveSettings();
-            }
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(80.0f);
-            if (ImGui::SliderFloat(CONCAT("s##dsd_arsec_", _this->name), &_this->autoReturnSec,
-                                   0.5f, 15.0f, "%.1f")) {}
-            if (ImGui::IsItemDeactivatedAfterEdit()) { _this->saveSettings(); }
+            // ============== Sub-view: VOICE CHANNEL ========================
+            if (_this->channelType == ChannelType::VC) {
+                char hbuf[256];
+                ImGui::LeftLabel("CC host");
+                ImGui::FillWidth();
+                strncpy(hbuf, _this->vcServerHost.c_str(), sizeof(hbuf) - 1); hbuf[sizeof(hbuf)-1] = 0;
+                if (ImGui::InputText(CONCAT("##dsd_vchost_", _this->name), hbuf, sizeof(hbuf))) {
+                    _this->vcServerHost = hbuf;
+                }
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    _this->saveSettings();
+                    _this->rigClient.configure(_this->vcServerHost, _this->vcServerPort);
+                }
 
-            // --- Channel map / groups ----------------------------------
-            char buf2[1024];
-            ImGui::LeftLabel("Channel map (-C)");
-            ImGui::FillWidth();
-            strncpy(buf2, _this->trunkChanMap.c_str(), sizeof(buf2) - 1); buf2[sizeof(buf2)-1] = 0;
-            if (ImGui::InputTextWithHint(CONCAT("##dsd_cmap_", _this->name),
-                                         "path/to/channel_map.csv", buf2, sizeof(buf2))) {
-                _this->trunkChanMap = buf2; _this->saveSettings();
-            }
-            if (ImGui::IsItemDeactivatedAfterEdit()) { _this->restartDecoder(); }
+                ImGui::LeftLabel("CC port");
+                ImGui::FillWidth();
+                int vp = _this->vcServerPort;
+                if (ImGui::InputInt(CONCAT("##dsd_vcport_", _this->name), &vp, 1, 100)) {
+                    if (vp >= 1 && vp <= 65535) { _this->vcServerPort = vp; }
+                }
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    _this->saveSettings();
+                    _this->rigClient.configure(_this->vcServerHost, _this->vcServerPort);
+                }
 
-            ImGui::LeftLabel("Groups (-G)");
-            ImGui::FillWidth();
-            strncpy(buf2, _this->trunkGroups.c_str(), sizeof(buf2) - 1); buf2[sizeof(buf2)-1] = 0;
-            if (ImGui::InputTextWithHint(CONCAT("##dsd_grp_", _this->name),
-                                         "path/to/groups.csv", buf2, sizeof(buf2))) {
-                _this->trunkGroups = buf2; _this->saveSettings();
-            }
-            if (ImGui::IsItemDeactivatedAfterEdit()) { _this->restartDecoder(); }
+                if (_this->rigClient.isConnected()) {
+                    ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f),
+                                       "Client: connected to %s:%d",
+                                       _this->vcServerHost.c_str(), _this->vcServerPort);
+                } else {
+                    ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f),
+                                       "Client: not connected (retrying every 3s)");
+                }
 
-            // --- Recent grants table -----------------------------------
-            if (ImGui::TreeNode(CONCAT("Recent grants##dsd_recent_", _this->name))) {
-                const ImGuiTableFlags tf = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
-                                           ImGuiTableFlags_SizingStretchProp;
-                if (ImGui::BeginTable(CONCAT("##dsd_grants_tbl_", _this->name), 5, tf)) {
-                    ImGui::TableSetupColumn("Time",     ImGuiTableColumnFlags_WidthFixed, 70.0f);
-                    ImGui::TableSetupColumn("Freq",     ImGuiTableColumnFlags_WidthFixed, 100.0f);
-                    ImGui::TableSetupColumn("Dur (s)",  ImGuiTableColumnFlags_WidthFixed, 60.0f);
-                    ImGui::TableSetupColumn("TG",       ImGuiTableColumnFlags_WidthStretch);
-                    ImGui::TableSetupColumn("SRC",      ImGuiTableColumnFlags_WidthStretch);
-                    ImGui::TableHeadersRow();
-                    std::time_t now = std::time(nullptr);
-                    std::lock_guard<std::mutex> lck(_this->grantMtx);
-                    for (auto it = _this->grantHistory.rbegin(); it != _this->grantHistory.rend(); ++it) {
-                        const auto& g = *it;
-                        char tbuf[16]; std::tm tmv;
+                ImGui::TextWrapped(
+                    "This instance follows voice grants relayed by the CC "
+                    "instance. The CC freq is owned by the CC instance — "
+                    "this VC will stay tuned to whatever the last received "
+                    "grant pointed to, until the next one arrives.");
+            }
+
+            // ============== Recent grants table (CC and VC) ================
+            if (_this->channelType != ChannelType::None) {
+                if (ImGui::TreeNode(CONCAT("Recent grants##dsd_recent_", _this->name))) {
+                    const ImGuiTableFlags tf = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
+                                               ImGuiTableFlags_SizingStretchProp;
+                    if (ImGui::BeginTable(CONCAT("##dsd_grants_tbl_", _this->name), 5, tf)) {
+                        ImGui::TableSetupColumn("Time",     ImGuiTableColumnFlags_WidthFixed, 70.0f);
+                        ImGui::TableSetupColumn("Freq",     ImGuiTableColumnFlags_WidthFixed, 100.0f);
+                        ImGui::TableSetupColumn("Dur (s)",  ImGuiTableColumnFlags_WidthFixed, 60.0f);
+                        ImGui::TableSetupColumn("TG",       ImGuiTableColumnFlags_WidthStretch);
+                        ImGui::TableSetupColumn("SRC",      ImGuiTableColumnFlags_WidthStretch);
+                        ImGui::TableHeadersRow();
+                        std::time_t now = std::time(nullptr);
+                        std::lock_guard<std::mutex> lck(_this->grantMtx);
+                        for (auto it = _this->grantHistory.rbegin(); it != _this->grantHistory.rend(); ++it) {
+                            const auto& g = *it;
+                            char tbuf[16]; std::tm tmv;
 #ifdef _WIN32
-                        localtime_s(&tmv, &g.ts);
+                            localtime_s(&tmv, &g.ts);
 #else
-                        localtime_r(&g.ts, &tmv);
+                            localtime_r(&g.ts, &tmv);
 #endif
-                        std::strftime(tbuf, sizeof(tbuf), "%H:%M:%S", &tmv);
-                        std::time_t et = g.endTs ? g.endTs : now;
-                        int dur = (int)(et - g.ts);
-                        ImGui::TableNextRow();
-                        if (!g.endTs) {
-                            ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0,
-                                ImGui::GetColorU32(ImVec4(0.40f, 0.25f, 0.05f, 0.45f)));
+                            std::strftime(tbuf, sizeof(tbuf), "%H:%M:%S", &tmv);
+                            std::time_t et = g.endTs ? g.endTs : now;
+                            int dur = (int)(et - g.ts);
+                            ImGui::TableNextRow();
+                            if (!g.endTs) {
+                                ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0,
+                                    ImGui::GetColorU32(ImVec4(0.40f, 0.25f, 0.05f, 0.45f)));
+                            }
+                            ImGui::TableSetColumnIndex(0); ImGui::TextUnformatted(tbuf);
+                            ImGui::TableSetColumnIndex(1); ImGui::Text("%.4f MHz", g.freq / 1e6);
+                            ImGui::TableSetColumnIndex(2); ImGui::Text("%d", dur);
+                            ImGui::TableSetColumnIndex(3); ImGui::TextUnformatted(g.tg.c_str());
+                            ImGui::TableSetColumnIndex(4); ImGui::TextUnformatted(g.src.c_str());
                         }
-                        ImGui::TableSetColumnIndex(0); ImGui::TextUnformatted(tbuf);
-                        ImGui::TableSetColumnIndex(1); ImGui::Text("%.4f MHz", g.freq / 1e6);
-                        ImGui::TableSetColumnIndex(2); ImGui::Text("%d", dur);
-                        ImGui::TableSetColumnIndex(3); ImGui::TextUnformatted(g.tg.c_str());
-                        ImGui::TableSetColumnIndex(4); ImGui::TextUnformatted(g.src.c_str());
+                        ImGui::EndTable();
                     }
-                    ImGui::EndTable();
+                    ImGui::TreePop();
                 }
-                ImGui::TreePop();
             }
-
-            if (gateOff) { style::endDisabled(); }
-
-            ImGui::TextWrapped(
-                "An embedded RIGCTL server is started on 127.0.0.1:%d when "
-                "trunking is enabled — dsd-fme connects back to it and we "
-                "track each voice grant (CC -> VC) and return (VC -> CC) "
-                "ourselves, so no external rigctl_server module is needed. "
-                "P25 systems can run without a channel map (Identifier "
-                "Update TSBKs are used). DMR / NXDN / EDACS need a CSV "
-                "mapping LCN -> frequency (see dsd-fme/examples).",
-                _this->rigctlPort);
         }
 
         // ---- TCP map output (LRRP positions, type:"lrrp") ------------------
@@ -1773,15 +1844,25 @@ private:
     std::string exePath = "dsd-fme";
     std::unique_ptr<FolderSelect> lrrpFolderSelect;
 
-    // Trunking (DSD-FME drives our internal RIGCTL server to follow grants).
-    bool        trunking = false;
-    bool        scanMode = false;
-    int         rigctlPort = 4532;
+    // Trunking. The module operates in one of three roles:
+    //   None : no trunking at all.
+    //   CC   : control-channel decoder. dsd-fme is invoked with -T -U so
+    //          grants come through our embedded rigctl server. We DON'T
+    //          retune our VFO on grants; instead we BROADCAST the F command
+    //          to every connected VC instance.
+    //   VC   : voice-channel follower. dsd-fme is invoked WITHOUT -T -U
+    //          (it just decodes audio). A rigctl client thread connects to
+    //          the CC instance and retunes our VFO on every F received.
+    ChannelType channelType = ChannelType::None;
+    int         rigctlPort  = 4532;   // CC mode: listen port
+    std::string vcServerHost = "127.0.0.1"; // VC mode: CC peer
+    int         vcServerPort = 4532;
     std::string trunkChanMap;
     std::string trunkGroups;
 
-    // Internal RIGCTL server + CC/VC state.
-    RigctlInternalServer  rigServer;
+    // Internal RIGCTL server + client + shared CC/VC state.
+    RigctlInternalServer  rigServer;   // used in CC mode
+    RigctlClient          rigClient;   // used in VC mode
     std::atomic<RigState> rigState{RigState::Inactive};
     double                ccFreq         = 0.0;
     double                currentVCFreq  = 0.0;

@@ -90,6 +90,24 @@ public:
         return (int)clients.size();
     }
 
+    // Push "F <hz>\n" to every connected client. Used by the CC instance to
+    // forward grants to all the VC instances listening to us. Best-effort:
+    // dead/slow clients are silently dropped instead of stalling the caller.
+    void broadcastSetFreq(double f) {
+        char line[64];
+        snprintf(line, sizeof(line), "F %.0f\n", f);
+        std::vector<std::shared_ptr<net::Socket>> snapshot;
+        {
+            std::lock_guard<std::mutex> lck(mtx);
+            snapshot = clients;
+        }
+        for (auto& s : snapshot) {
+            if (!s || !s->isOpen()) { continue; }
+            try { s->sendstr(line); }
+            catch (...) { /* drop and move on; clientLoop will clean up */ }
+        }
+    }
+
 private:
     void acceptLoop() {
         while (running) {
