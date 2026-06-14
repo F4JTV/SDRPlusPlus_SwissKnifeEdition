@@ -8,12 +8,8 @@
  * Decoded traffic is shown in a *detached, non-modal* window (a plain
  * ImGui::Begin()/End() pair, never a modal popup) so dragging it neither
  * darkens the SDR++ GUI nor moves the VFO. The VFO snap interval is set
- * explicitly so the default coarse grid does not pull the tuning.
- *
- * Each decode can also be streamed as one JSON line to a TCP endpoint
- * (default 127.0.0.1:10100) for the "SDR Map" backend. The TCP worker is
- * never started in the constructor and the enabled state is never persisted,
- * so TCP is always off at startup; only the host and port are remembered.
+ * explicitly so the default coarse grid does not pull the tuning. Decodes can
+ * be saved to a TSV file from the results window.
  *
  * Only the "Normal" submode (15 s, 6.25 Hz tone spacing, ORIGINAL Costas) is
  * wired end-to-end. The JS8 protocol was created by Jordan Sherer (KN4CRD);
@@ -36,7 +32,6 @@
 
 #include "js8_core.h"
 #include "js8_varicode.h"
-#include "tcp_sender.h"
 
 #include <thread>
 #include <mutex>
@@ -139,8 +134,6 @@ public:
         running = false;
         cv.notify_all();
         if (worker.joinable()) { worker.join(); }
-
-        tcp.stop();
 
         if (vfo) {
             sigpath::vfoManager.deleteVFO(vfo);
@@ -271,9 +264,8 @@ private:
 #else
         gmtime_r(&t, &tmv);
 #endif
-        char hhmmss[16], date[16];
+        char hhmmss[16];
         std::strftime(hhmmss, sizeof(hhmmss), "%H:%M:%S", &tmv);
-        std::strftime(date, sizeof(date), "%Y-%m-%d", &tmv);
 
         auto decodes = js8::decodeNormal(slot.audio.data(),
                                          slot.audio.size(),
@@ -290,30 +282,7 @@ private:
             row.type = frameTypeName(d.i3);
             row.msg = msg;
             addRow(row);
-
-            if (tcpEnabled) { sendTcp(date, hhmmss, d, msg); }
         }
-    }
-
-    void sendTcp(const char* date, const char* time, const js8::Decode& d,
-                 const std::string& msg) {
-        // One JSON object per line: SDR Map schema.
-        char info[256];
-        snprintf(info, sizeof(info),
-                 "freq=%.0f;dt=%.1f;snr=%.0f;i3=%d;type=%s;token=%s",
-                 d.f0, d.dt, d.snr, d.i3, frameTypeName(d.i3),
-                 d.token.c_str());
-
-        json j;
-        j["name"]  = msg;
-        j["date"]  = date;
-        j["time"]  = time;
-        j["lat"]   = nullptr;
-        j["lon"]   = nullptr;
-        j["type"]  = "JS8";
-        j["speed"] = nullptr;
-        j["info"]  = std::string(info);
-        tcp.send(j.dump());
     }
 
     void addRow(const DecodeRow& row) {
@@ -324,8 +293,7 @@ private:
     }
 
     // ---------------------------------------------------------------------
-    // Settings. The TCP enabled flag is intentionally NOT persisted (TCP is
-    // always off at startup); the host and port ARE persisted.
+    // Settings.
     // ---------------------------------------------------------------------
     void loadSettings() {
         config.acquire();
@@ -333,22 +301,17 @@ private:
         json& c = config.conf[name];
         if (c.contains("snapId"))     { snapId = c["snapId"].get<int>(); }
         if (c.contains("showWindow")) { showWindow = c["showWindow"].get<bool>(); }
-        if (c.contains("tcpHost"))    { tcpHost = c["tcpHost"].get<std::string>(); }
-        if (c.contains("tcpPort"))    { tcpPort = c["tcpPort"].get<int>(); }
         config.release();
 
         if (snapId < 0 || snapId >= (int)(sizeof(snapIntervals)/sizeof(snapIntervals[0]))) {
             snapId = 0;
         }
-        std::strncpy(tcpHostBuf, tcpHost.c_str(), sizeof(tcpHostBuf) - 1);
     }
 
     void saveSettings() {
         config.acquire();
         config.conf[name]["snapId"]     = snapId;
         config.conf[name]["showWindow"] = showWindow;
-        config.conf[name]["tcpHost"]    = tcpHost;
-        config.conf[name]["tcpPort"]    = tcpPort;
         config.release(true);
     }
 
@@ -372,42 +335,6 @@ private:
         const char* snapTxt = "1 Hz\0" "10 Hz\0" "100 Hz\0" "1 kHz\0" "2.5 kHz\0";
         if (ImGui::Combo(CONCAT("##js8dec_snap_", _this->name), &_this->snapId, snapTxt)) {
             if (_this->vfo) { _this->vfo->setSnapInterval(_this->snapIntervals[_this->snapId]); }
-            _this->saveSettings();
-        }
-
-        ImGui::Separator();
-
-        // ---- TCP output -------------------------------------------------
-        if (ImGui::Checkbox(CONCAT("Enable TCP##js8dec_tcp_", _this->name),
-                            &_this->tcpEnabled)) {
-            if (_this->tcpEnabled) {
-                _this->tcp.start(_this->tcpHost, _this->tcpPort);
-            } else {
-                _this->tcp.stop();
-            }
-        }
-        ImGui::SameLine();
-        if (!_this->tcpEnabled) {
-            ImGui::TextDisabled("disabled");
-        } else if (_this->tcp.isConnected()) {
-            ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.2f, 1.0f), "connected");
-        } else {
-            ImGui::TextColored(ImVec4(0.9f, 0.6f, 0.2f, 1.0f), "enabled");
-        }
-
-        ImGui::LeftLabel("Host");
-        ImGui::FillWidth();
-        if (ImGui::InputText(CONCAT("##js8dec_host_", _this->name),
-                             _this->tcpHostBuf, sizeof(_this->tcpHostBuf))) {
-            _this->tcpHost = _this->tcpHostBuf;
-            _this->saveSettings();
-        }
-        ImGui::LeftLabel("Port");
-        ImGui::FillWidth();
-        if (ImGui::InputInt(CONCAT("##js8dec_port_", _this->name),
-                            &_this->tcpPort, 0, 0)) {
-            if (_this->tcpPort < 1) { _this->tcpPort = 1; }
-            if (_this->tcpPort > 65535) { _this->tcpPort = 65535; }
             _this->saveSettings();
         }
 
@@ -513,13 +440,6 @@ private:
     int snapId = 0;
     const double snapIntervals[5] = { 1.0, 10.0, 100.0, 1000.0, 2500.0 };
     bool showWindow = false;
-
-    // TCP output (enabled flag NOT persisted; host/port persisted).
-    TcpLineSender tcp;
-    bool tcpEnabled = false;
-    std::string tcpHost = "127.0.0.1";
-    int tcpPort = 10100;
-    char tcpHostBuf[256] = { 0 };
 
     // DSP.
     VFOManager::VFO* vfo = NULL;
