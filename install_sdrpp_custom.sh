@@ -53,7 +53,7 @@ sudo apt install -y build-essential cmake git pkg-config libfftw3-dev \
 # 2) SDRPlusPlus + dependances in-tree
 # =========================================================
 cd ~
-clone_or_update https://github.com/F4JTV/SDRPlusPlus.git "$HOME/SDRPlusPlus"
+clone_or_update https://github.com/F4JTV/SDRPlusPlus_SwissKnifeEdition.git "$HOME/SDRPlusPlus"
 
 # welle.io (DAB)
 clone_or_update https://github.com/F4JTV/welle.io.git \
