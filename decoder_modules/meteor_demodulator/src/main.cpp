@@ -6,6 +6,7 @@
 #include <signal_path/signal_path.h>
 #include <module.h>
 #include <filesystem>
+#include <algorithm>
 #include "meteor_demod.h"
 #include <dsp/routing/splitter.h>
 #include <dsp/buffer/reshaper.h>
@@ -29,7 +30,7 @@ SDRPP_MOD_INFO{
     /* Name:            */ "meteor_demodulator",
     /* Description:     */ "Meteor demodulator + LRPT image decoder for SDR++",
     /* Author:          */ "Ryzerth;F4JTV (LRPT decode, ported from SatDump)",
-    /* Version:         */ 0, 3, 1,
+    /* Version:         */ 0, 3, 6,
     /* Max instances    */ -1
 };
 
@@ -85,7 +86,7 @@ private:
 
 class MeteorDemodulatorModule : public ModuleManager::Instance {
 public:
-    MeteorDemodulatorModule(std::string name) : folderSelect("%ROOT%/recordings") {
+    MeteorDemodulatorModule(std::string name) : folderSelect("%ROOT%/recordings"), pngFolderSelect("%ROOT%/recordings") {
         this->name = name;
 
         writeBuffer = new int8_t[STREAM_BUFFER_SIZE];
@@ -97,6 +98,9 @@ public:
         }
         if (config.conf[name].contains("recPath")) {
             folderSelect.setPath(config.conf[name]["recPath"]);
+        }
+        if (config.conf[name].contains("pngPath")) {
+            pngFolderSelect.setPath(config.conf[name]["pngPath"]);
         }
         if (config.conf[name].contains("brokenModulation")) {
             brokenModulation = config.conf[name]["brokenModulation"];
@@ -196,11 +200,19 @@ private:
     static bool oqpskForIndex(int idx) {
         return (idx == 0 || idx == 1); // M2-3 / M2-4 are OQPSK; legacy is QPSK
     }
+    static bool diffForIndex(int idx) {
+        return (idx == 0 || idx == 1); // M2-3 / M2-4 use NRZ-M differential; legacy does not
+    }
 
-    // Apply a satellite-mode change: decoder pipeline + demod symbol rate + OQPSK.
+    // Apply a satellite-mode change: decoder pipeline + demod symbol rate + OQPSK + differential.
     void applyLrptMode(int idx) {
         lrptMode = idx;
-        if (decoder) decoder->setMode(decoderModeForIndex(idx));
+        // Differential decoding follows the satellite (M2-3/M2-4 need it, legacy doesn't).
+        lrptDiff = diffForIndex(idx);
+        if (decoder) {
+            decoder->setMode(decoderModeForIndex(idx));
+            decoder->setDiffDecode(lrptDiff);
+        }
         demod.setSymbolrate(symbolrateForIndex(idx));
         bool wantOqpsk = oqpskForIndex(idx);
         if (wantOqpsk != oqpsk) {
@@ -210,6 +222,7 @@ private:
         config.acquire();
         config.conf[name]["lrptMode"] = lrptMode;
         config.conf[name]["oqpsk"] = oqpsk;
+        config.conf[name]["lrptDiff"] = lrptDiff;
         config.release(true);
     }
 
@@ -278,16 +291,16 @@ private:
         ImGui::TextUnformatted("Satellite:");
         ImGui::SetNextItemWidth(menuWidth);
         const char* modeItems =
-            "Meteor-M2-3 (72k OQPSK)\0"
-            "Meteor-M2-4 (80k entrelace)\0"
+            "Meteor-M2-3 / M2-4 (72k OQPSK)\0"
+            "Meteor M2-x (80k entrelace - secours)\0"
             "Meteor-M2 (ancien, 72k QPSK)\0";
         if (ImGui::Combo(CONCAT("##lrpt_mode", _this->name), &_this->lrptMode, modeItems)) {
             _this->applyLrptMode(_this->lrptMode);
         }
         if (_this->lrptMode == 0)
-            ImGui::TextDisabled("M2-3 = 137.9 MHz (OQPSK, non entrelace)");
+            ImGui::TextDisabled("137.9 MHz (M2-4 secours 137.1). Essayer ce mode en 1er.");
         else if (_this->lrptMode == 1)
-            ImGui::TextDisabled("M2-4 = 137.1/137.9 MHz (OQPSK 80k entrelace)");
+            ImGui::TextDisabled("Mode 80k entrelace - seulement si le 72k ne synchronise pas");
 
         if (ImGui::Checkbox(CONCAT("Differential decode##lrpt_diff", _this->name), &_this->lrptDiff)) {
             if (_this->decoder) _this->decoder->setDiffDecode(_this->lrptDiff);
@@ -296,21 +309,47 @@ private:
             config.release(true);
         }
 
-        // Status line
+        if (ImGui::Checkbox(CONCAT("Ignore RS errors (rs_usecheck off)##lrpt_rsbypass", _this->name), &_this->lrptRsBypass)) {
+            if (_this->decoder) _this->decoder->setRsBypass(_this->lrptRsBypass);
+        }
+
+        // Status / diagnostics
         {
             bool locked = _this->decoder ? _this->decoder->isLocked() : false;
             float ber = _this->decoder ? _this->decoder->getBER() : 0.0f;
+            uint64_t frames = _this->decoder ? _this->decoder->getFrames() : 0;
             uint64_t cadus = _this->decoder ? _this->decoder->getCADUs() : 0;
             uint64_t pkts = _this->decoder ? _this->decoder->getPackets() : 0;
 
-            ImGui::TextUnformatted("Sync:");
+            // Track CADU flow over ~1.5 s: if CADUs keep arriving we ARE decoding,
+            // regardless of the Viterbi's instantaneous lock state (which flickers).
+            double now = ImGui::GetTime();
+            if (now - _this->caduSnapTime > 1.5) {
+                _this->caduFlowing = (cadus > _this->caduSnapCount);
+                _this->caduSnapCount = cadus;
+                _this->caduSnapTime = now;
+            }
+
+            ImGui::TextUnformatted("State:");
             ImGui::SameLine();
-            if (locked) ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.2f, 1.0f), "LOCKED");
-            else ImGui::TextColored(ImVec4(0.8f, 0.3f, 0.3f, 1.0f), "no sync");
+            if (_this->caduFlowing)
+                ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.2f, 1.0f), "DECODING");
+            else if (locked)
+                ImGui::TextColored(ImVec4(0.9f, 0.8f, 0.2f, 1.0f), "sync (no CADU)");
+            else
+                ImGui::TextColored(ImVec4(0.8f, 0.3f, 0.3f, 1.0f), "searching");
             ImGui::SameLine();
             ImGui::Text("| BER %.3f", ber);
-            ImGui::Text("CADUs: %llu   MSU-MR packets: %llu",
-                        (unsigned long long)cadus, (unsigned long long)pkts);
+            ImGui::Text("Frames: %llu  CADUs: %llu  pkts: %llu",
+                        (unsigned long long)frames, (unsigned long long)cadus, (unsigned long long)pkts);
+
+            // Per-channel packet counts (tells us which channels carry image data)
+            if (_this->decoder) {
+                uint64_t ap[7]; _this->decoder->getApidPackets(ap);
+                ImGui::Text("ch pkts: 1:%llu 2:%llu 3:%llu 4:%llu 5:%llu 6:%llu",
+                            (unsigned long long)ap[0], (unsigned long long)ap[1], (unsigned long long)ap[2],
+                            (unsigned long long)ap[3], (unsigned long long)ap[4], (unsigned long long)ap[5]);
+            }
         }
 
         if (_this->fileDecoding) {
@@ -322,19 +361,27 @@ private:
         const char* viewItems = "Composite RGB\0Channel 1 (APID 64)\0Channel 2 (APID 65)\0Channel 3 (APID 66)\0Channel 4 (APID 67)\0Channel 5 (APID 68)\0Channel 6 (APID 69)\0";
         ImGui::Combo(CONCAT("##lrpt_view", _this->name), &_this->viewMode, viewItems);
 
+        ImGui::Checkbox(CONCAT("Normalize contrast##lrpt_norm", _this->name), &_this->normalizeImg);
+
         if (_this->viewMode == 0) {
-            ImGui::Text("R/G/B channels:");
-            ImGui::SetNextItemWidth(menuWidth / 3.0f - 4);
-            ImGui::InputInt(CONCAT("##lrpt_r", _this->name), &_this->compR, 0, 0);
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(menuWidth / 3.0f - 4);
-            ImGui::InputInt(CONCAT("##lrpt_g", _this->name), &_this->compG, 0, 0);
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(menuWidth / 3.0f - 4);
-            ImGui::InputInt(CONCAT("##lrpt_b", _this->name), &_this->compB, 0, 0);
-            _this->compR = std::clamp(_this->compR, 0, 5);
-            _this->compG = std::clamp(_this->compG, 0, 5);
-            _this->compB = std::clamp(_this->compB, 0, 5);
+            ImGui::Checkbox(CONCAT("Auto channels##lrpt_autoch", _this->name), &_this->autoChannels);
+            if (_this->autoChannels) {
+                int r = 0, g = 0, b = 0; _this->topChannelsByPackets(r, g, b);
+                ImGui::TextDisabled("R/G/B = ch %d / %d / %d (auto)", r + 1, g + 1, b + 1);
+            } else {
+                ImGui::Text("R/G/B channels (0-5):");
+                ImGui::SetNextItemWidth(menuWidth / 3.0f - 4);
+                ImGui::InputInt(CONCAT("##lrpt_r", _this->name), &_this->compR, 0, 0);
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(menuWidth / 3.0f - 4);
+                ImGui::InputInt(CONCAT("##lrpt_g", _this->name), &_this->compG, 0, 0);
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(menuWidth / 3.0f - 4);
+                ImGui::InputInt(CONCAT("##lrpt_b", _this->name), &_this->compB, 0, 0);
+                _this->compR = std::clamp(_this->compR, 0, 5);
+                _this->compG = std::clamp(_this->compG, 0, 5);
+                _this->compB = std::clamp(_this->compB, 0, 5);
+            }
         }
 
         if (ImGui::Button(CONCAT("Refresh image##lrpt_refresh", _this->name), ImVec2(menuWidth, 0))) {
@@ -368,8 +415,22 @@ private:
             ImGui::TextDisabled("No image yet");
         }
 
+        // PNG output folder (with the "..." file-explorer button) + save.
+        ImGui::TextUnformatted("Save folder:");
+        if (_this->pngFolderSelect.render("##meteor_png" + _this->name)) {
+            if (_this->pngFolderSelect.pathIsValid()) {
+                config.acquire();
+                config.conf[_this->name]["pngPath"] = _this->pngFolderSelect.path;
+                config.release(true);
+            }
+        }
+
         if (ImGui::Button(CONCAT("Save PNG##lrpt_save", _this->name), ImVec2(menuWidth, 0))) {
             _this->savePNG();
+        }
+
+        if (!_this->lastSavedPng.empty()) {
+            ImGui::TextWrapped("Saved: %s", _this->lastSavedPng.c_str());
         }
 
         if (ImGui::Button(CONCAT("Reset decoder##lrpt_reset", _this->name), ImVec2(menuWidth, 0))) {
@@ -420,58 +481,86 @@ private:
         }
     }
 
+    // Pick the 3 channels carrying the most packets (robust to whichever
+    // channels the satellite actually transmits, e.g. M2-3 uses APID 64/65/67).
+    void topChannelsByPackets(int& r, int& g, int& b) {
+        uint64_t ap[7] = {0};
+        if (decoder) decoder->getApidPackets(ap);
+        int order[6] = {0, 1, 2, 3, 4, 5};
+        std::sort(order, order + 6, [&](int a, int c) { return ap[a] > ap[c]; });
+        r = order[0]; g = order[1]; b = order[2];
+        // if fewer than 3 active, repeat the strongest
+        if (ap[g] == 0) g = r;
+        if (ap[b] == 0) b = g;
+    }
+
+    // Stretch a grayscale plane's nonzero range to 0..255 (reveals dark IR/visible bands).
+    static void normalizePlane(const meteorimg::SimpleImage& img, std::vector<uint8_t>& out, bool normalize) {
+        size_t n = img.size();
+        out.assign(n, 0);
+        if (n == 0) return;
+        if (!normalize) { for (size_t i = 0; i < n; i++) out[i] = img.get(i); return; }
+        int lo = 255, hi = 0;
+        for (size_t i = 0; i < n; i++) { int v = img.get(i); if (v == 0) continue; if (v < lo) lo = v; if (v > hi) hi = v; }
+        if (hi <= lo) { for (size_t i = 0; i < n; i++) out[i] = img.get(i); return; }
+        float scale = 255.0f / (float)(hi - lo);
+        for (size_t i = 0; i < n; i++) {
+            int v = img.get(i);
+            if (v == 0) { out[i] = 0; continue; } // keep missing-segment gaps black
+            int s = (int)((v - lo) * scale + 0.5f);
+            out[i] = (uint8_t)std::clamp(s, 0, 255);
+        }
+    }
+
     void rebuildImage() {
         if (!decoder) return;
         if (viewMode == 0) {
-            std::vector<uint8_t> rgb;
-            int w = 0, h = 0;
-            if (decoder->getComposite(compR, compG, compB, rgb, w, h)) {
-                rgbaFromRGB(rgb, w, h);
+            int r = compR, g = compG, b = compB;
+            if (autoChannels) topChannelsByPackets(r, g, b);
+            meteorimg::SimpleImage ir = decoder->getChannelImage(r);
+            meteorimg::SimpleImage ig = decoder->getChannelImage(g);
+            meteorimg::SimpleImage ib = decoder->getChannelImage(b);
+            size_t w = 0, h = 0;
+            for (auto* im : {&ir, &ig, &ib}) { if (im->width() > w) w = im->width(); if (im->height() > h) h = im->height(); }
+            if (w == 0 || h == 0) return;
+            std::vector<uint8_t> pr, pg, pb;
+            normalizePlane(ir, pr, normalizeImg);
+            normalizePlane(ig, pg, normalizeImg);
+            normalizePlane(ib, pb, normalizeImg);
+            displayRGBA.assign(w * h * 4, 255);
+            for (size_t i = 0; i < w * h; i++) {
+                displayRGBA[i * 4 + 0] = i < pr.size() ? pr[i] : 0;
+                displayRGBA[i * 4 + 1] = i < pg.size() ? pg[i] : 0;
+                displayRGBA[i * 4 + 2] = i < pb.size() ? pb[i] : 0;
+                displayRGBA[i * 4 + 3] = 255;
             }
+            dispW = (int)w; dispH = (int)h; texDirty = true;
         }
         else {
             int ch = viewMode - 1;
             meteorimg::SimpleImage img = decoder->getChannelImage(ch);
-            if (img.size() > 0) {
-                rgbaFromGray(img);
+            if (img.size() == 0) return;
+            std::vector<uint8_t> p;
+            normalizePlane(img, p, normalizeImg);
+            int w = (int)img.width(), h = (int)img.height();
+            displayRGBA.assign((size_t)w * h * 4, 255);
+            for (size_t i = 0; i < (size_t)w * h; i++) {
+                uint8_t v = i < p.size() ? p[i] : 0;
+                displayRGBA[i * 4 + 0] = v; displayRGBA[i * 4 + 1] = v;
+                displayRGBA[i * 4 + 2] = v; displayRGBA[i * 4 + 3] = 255;
             }
+            dispW = w; dispH = h; texDirty = true;
         }
-    }
-
-    void rgbaFromGray(meteorimg::SimpleImage& img) {
-        int w = (int)img.width(), h = (int)img.height();
-        if (w <= 0 || h <= 0) return;
-        displayRGBA.assign((size_t)w * h * 4, 255);
-        const uint8_t* src = img.data();
-        for (size_t i = 0; i < (size_t)w * h; i++) {
-            uint8_t v = src[i];
-            displayRGBA[i * 4 + 0] = v;
-            displayRGBA[i * 4 + 1] = v;
-            displayRGBA[i * 4 + 2] = v;
-            displayRGBA[i * 4 + 3] = 255;
-        }
-        dispW = w; dispH = h; texDirty = true;
-    }
-
-    void rgbaFromRGB(std::vector<uint8_t>& rgb, int w, int h) {
-        if (w <= 0 || h <= 0) return;
-        displayRGBA.assign((size_t)w * h * 4, 255);
-        for (size_t i = 0; i < (size_t)w * h; i++) {
-            displayRGBA[i * 4 + 0] = rgb[i * 3 + 0];
-            displayRGBA[i * 4 + 1] = rgb[i * 3 + 1];
-            displayRGBA[i * 4 + 2] = rgb[i * 3 + 2];
-            displayRGBA[i * 4 + 3] = 255;
-        }
-        dispW = w; dispH = h; texDirty = true;
     }
 
     void savePNG() {
         rebuildImage();
         if (displayRGBA.empty() || dispW <= 0 || dispH <= 0) {
             flog::warn("LRPT: nothing to save yet");
+            lastSavedPng = "(no image to save yet)";
             return;
         }
-        std::string base = folderSelect.pathIsValid() ? folderSelect.expandString(folderSelect.path) : ((std::string)core::args["root"] + "/recordings");
+        std::string base = pngFolderSelect.pathIsValid() ? pngFolderSelect.expandString(pngFolderSelect.path) : ((std::string)core::args["root"] + "/recordings");
         std::string suffix = (viewMode == 0) ? "_LRPT_RGB" : ("_LRPT_ch" + std::to_string(viewMode));
         std::string filename = genFileName(base + "/meteor", suffix + ".png");
         // Write RGB (drop alpha) for a compact image
@@ -483,9 +572,11 @@ private:
         }
         if (stbi_write_png(filename.c_str(), dispW, dispH, 3, rgb.data(), dispW * 3)) {
             flog::info("LRPT: saved '{0}'", filename);
+            lastSavedPng = filename;
         }
         else {
             flog::error("LRPT: failed to save PNG");
+            lastSavedPng = "(save failed - check the folder is writable)";
         }
     }
 
@@ -579,6 +670,8 @@ private:
     ImGui::ConstellationDiagram constDiagram;
 
     FolderSelect folderSelect;
+    FolderSelect pngFolderSelect;
+    std::string lastSavedPng;
 
     std::mutex recMtx;
     bool recording = false;
@@ -592,10 +685,16 @@ private:
     std::unique_ptr<LRPTDecoder> decoder;
     bool liveDecode = false;
     bool lrptDiff = true;
+    uint64_t caduSnapCount = 0;
+    double caduSnapTime = 0.0;
+    bool caduFlowing = false;
+    bool lrptRsBypass = false;
     int  lrptMode = 0; // 0 = M2-3 (72k OQPSK), 1 = M2-4 (80k interleaved), 2 = legacy M2 (72k QPSK)
 
     int viewMode = 0; // 0 = composite, 1..6 = channels
-    int compR = 0, compG = 1, compB = 2;
+    int compR = 0, compG = 1, compB = 3; // M2-3 currently transmits APID 64/65/67 = ch 0/1/3
+    bool autoChannels = true;
+    bool normalizeImg = true;
 
     std::vector<uint8_t> displayRGBA;
     int dispW = 0, dispH = 0;

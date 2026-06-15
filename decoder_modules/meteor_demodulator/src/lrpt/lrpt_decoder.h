@@ -78,11 +78,20 @@ public:
     int      getRSAvg()   { return rsAvg.load(); }
     uint64_t getCADUs()   { return caduCount.load(); }
     uint64_t getPackets() { return packetCount.load(); }
+    uint64_t getFrames()  { return frameCount.load(); }   // deframer/Viterbi frames, pre-RS
+
+    void setRsBypass(bool v) { rsBypass.store(v); }
+    bool getRsBypass()       { return rsBypass.load(); }
+
+    // Per-APID packet counts (index 0..6 = APID 64..70). For diagnostics.
+    void getApidPackets(uint64_t out[7]) {
+        for (int i = 0; i < 7; i++) out[i] = apidPackets[i].load();
+    }
 
     void reset() {
         stop();
         { std::lock_guard<std::mutex> l(fifoMtx); fifo.clear(); fifoHead = 0; }
-        caduCount = 0; packetCount = 0; rsAvg = -1; locked = false; ber = 10.0f;
+        caduCount = 0; packetCount = 0; frameCount = 0; rsAvg = -1; locked = false; ber = 10.0f;
         start();
     }
 
@@ -147,7 +156,9 @@ private:
         {
             std::lock_guard<std::mutex> l(readerMtx);
             demuxer = std::make_unique<ccsds::ccsds_aos::Demuxer>(882, true);
-            reader  = std::make_unique<meteor::msumr::lrpt::MSUMRReader>(false);
+            // M2-x reader for M2-3 / M2-4 (affects timestamp parsing); legacy for old M2.
+            reader  = std::make_unique<meteor::msumr::lrpt::MSUMRReader>(d_mode != MODE_LEGACY);
+            for (int i = 0; i < 7; i++) apidPackets[i] = 0;
         }
         worker = std::thread(&LRPTDecoder::workerLoop, this);
     }
@@ -216,8 +227,10 @@ private:
 
             rs.decode_interlaved(&frameBuffer[4], false, 4, errors);
             rsAvg = (errors[0] + errors[1] + errors[2] + errors[3]) / 4;
+            frameCount++; // a frame reached the RS stage
 
-            if (errors[0] >= 0 && errors[1] >= 0 && errors[2] >= 0 && errors[3] >= 0) {
+            bool rsOk = (errors[0] >= 0 && errors[1] >= 0 && errors[2] >= 0 && errors[3] >= 0);
+            if (rsOk || rsBypass.load()) {
                 uint8_t cadu[1024];
                 cadu[0] = 0x1d; cadu[1] = 0xcf; cadu[2] = 0xfc; cadu[3] = 0x1d;
                 memcpy(&cadu[4], &frameBuffer[4], FRAME_SIZE - 4);
@@ -320,13 +333,15 @@ private:
             if (d_diff_decode) diffd.decode_bits(vout, vitout);
 
             int frames = deframer.work(vout, vitout, frame_buffer.data());
+            frameCount += frames; // frames the deframer emitted (pre-RS)
 
             for (int i = 0; i < frames; i++) {
                 uint8_t* cadu = &frame_buffer[i * 1024];
                 derand_ccsds(&cadu[4], 1020);
                 rs.decode_interlaved(&cadu[4], false, 4, errors);
                 rsAvg = (errors[0] + errors[1] + errors[2] + errors[3]) / 4;
-                if (errors[0] >= 0 && errors[1] >= 0 && errors[2] >= 0 && errors[3] >= 0) {
+                bool rsOk = (errors[0] >= 0 && errors[1] >= 0 && errors[2] >= 0 && errors[3] >= 0);
+                if (rsOk || rsBypass.load()) {
                     caduCount++;
                     handleCADU(cadu);
                 }
@@ -342,6 +357,8 @@ private:
         std::vector<ccsds::CCSDSPacket> pkts = demuxer->work(c);
         for (ccsds::CCSDSPacket& pkt : pkts) {
             packetCount++;
+            int a = (int)pkt.header.apid - 64;
+            if (a >= 0 && a < 7) apidPackets[a]++;
             reader->work(pkt);
         }
     }
@@ -368,4 +385,7 @@ private:
     std::atomic<int>      rsAvg{-1};
     std::atomic<uint64_t> caduCount{0};
     std::atomic<uint64_t> packetCount{0};
+    std::atomic<uint64_t> frameCount{0};
+    std::atomic<bool>     rsBypass{false};
+    std::atomic<uint64_t> apidPackets[7];
 };
