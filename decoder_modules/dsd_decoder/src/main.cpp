@@ -54,7 +54,7 @@ SDRPP_MOD_INFO{
     /* Name:            */ "dsd_decoder",
     /* Description:     */ "Digital voice / data decoder (DMR, P25, NXDN, dPMR, YSF, ProVoice, EDACS, X2-TDMA, M17) via DSD-FME",
     /* Author:          */ "SDR++ Community",
-    /* Version:         */ 0, 7, 4,
+    /* Version:         */ 0, 7, 5,
     /* Max instances    */ -1
 };
 
@@ -697,7 +697,6 @@ private:
         std::lock_guard<std::mutex> lck(consoleMtx);
         consoleLines.push_back({ std::time(nullptr), line });
         while (consoleLines.size() > CONSOLE_MAX_LINES) { consoleLines.pop_front(); }
-        consoleDirty = true;
     }
 
     // ================= call history parser ==========================
@@ -1582,11 +1581,17 @@ private:
                         ImGui::TextColored(col, "%s", cl.text.c_str());
                     }
                 }
-                if (autoScroll && !paused && consoleDirty &&
-                    ImGui::GetScrollY() >= ImGui::GetScrollMaxY() - 4.0f) {
-                    ImGui::SetScrollHereY(1.0f);
+                if (autoScroll && !paused) {
+                    // Use one line of slack as the "near bottom" threshold —
+                    // when a fresh line is appended, content size grows by
+                    // ~lineH on this frame while GetScrollY() still reports
+                    // the previous frame's position. A 4-pixel epsilon (the
+                    // old code) is too tight and misses one-line increments.
+                    float lineH = ImGui::GetTextLineHeightWithSpacing();
+                    if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY() - lineH) {
+                        ImGui::SetScrollHereY(1.0f);
+                    }
                 }
-                consoleDirty = false;
                 ImGui::EndChild();
                 ImGui::EndTabItem();
             }
@@ -1699,7 +1704,12 @@ private:
                             ImGui::TableSetColumnIndex(6); ImGui::TextUnformatted(e.raw.c_str());
                         }
                     }
-                    if (autoScroll && !paused) { ImGui::SetScrollHereY(1.0f); }
+                    if (autoScroll && !paused) {
+                        float lineH = ImGui::GetTextLineHeightWithSpacing();
+                        if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY() - lineH) {
+                            ImGui::SetScrollHereY(1.0f);
+                        }
+                    }
                     ImGui::EndTable();
                 }
                 ImGui::EndTabItem();
@@ -1762,7 +1772,6 @@ private:
     // Console buffer.
     std::deque<ConsoleLine> consoleLines;
     std::mutex consoleMtx;
-    bool consoleDirty = false;
 
     // LRRP buffer.
     std::deque<LrrpEntry> lrrp;
