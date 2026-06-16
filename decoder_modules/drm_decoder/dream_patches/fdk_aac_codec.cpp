@@ -70,22 +70,22 @@ FdkAacCodec::DecGetVersion()
 bool
 FdkAacCodec::CanDecode(CAudioParam::EAudCod eAudioCoding)
 {
-    LIB_INFO linfo;
-    aacinfo(linfo);
-    /* PATCHED for the SDR++ DRM module: do NOT claim classic AAC/HE-AAC here.
-       The system libfdk-aac advertises the DRM capability flags but its DRM
-       profile is incomplete and returns "zero output channels" on real DRM
-       AAC streams. libfaad2 decodes classic AAC/HE-AAC reliably, so we leave
-       AC_AAC to it and use FDK ONLY for xHE-AAC (USAC), which faad cannot do. */
-    if(eAudioCoding == CAudioParam::AC_AAC) {
-        return false;
-    }
-#ifdef HAVE_USAC
-    if(eAudioCoding == CAudioParam::AC_xHE_AAC) {
-        if((linfo.flags & CAPF_AAC_USAC) != 0)
-            return true;
-    }
-#endif
+    /* PATCHED for the SDR++ DRM module: do NOT claim any codec here.
+       The system libfdk-aac as shipped on Linux distributions has two
+       problems with this Dream backend:
+         - on classic DRM AAC streams it returns "zero output channels"
+           and produces silence (libfaad2 handles those reliably).
+         - on xHE-AAC (USAC) streams it can crash inside
+           aacDecoder_ConfigRaw() when the AudioSpecificConfig (type 9)
+           has not yet been received: Dream's DecOpen() calls
+               aacDecoder_ConfigRaw(hDecoder, &t9, &type9Size)
+           with t9 = &type9[0], and if type9 is empty that is UB and
+           segfaults inside libfdk-aac.
+       Until upstream Dream reconstructs type 9 reliably, we keep FDK
+       out of the dispatch list entirely. libfaad2 takes the AAC paths;
+       xHE-AAC stations stay undecoded but the receiver no longer
+       crashes on acquisition. */
+    (void)eAudioCoding;
     return false;
 }
 

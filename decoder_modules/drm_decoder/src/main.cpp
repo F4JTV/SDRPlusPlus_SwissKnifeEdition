@@ -319,11 +319,22 @@ private:
                     lastFlip = wantFlip;
                 }
 
-                /* Refresh the constellation as often as the receiver runs.
-                   This is fast (a memcpy under a small lock) and gives a
-                   fluid display. The textual snapshot is heavier and stays
-                   at a few times per second. */
-                updateConstellation(&rx);
+                /* Refresh the constellation only when Dream has a stable
+                   lock. During acquisition Dream may reinitialise the MLC
+                   internals (e.g. switching from a tentative mode to the
+                   detected one), which can free and reallocate the cell
+                   vectors mid-process; reading GetVectorSpace() at that
+                   instant risks touching freed memory.
+                   We re-read AcquiState here (briefly under the param lock)
+                   so we never race the transition. */
+                bool locked;
+                params->Lock();
+                locked = (params->GetAcquiState() == AS_WITH_SIGNAL);
+                params->Unlock();
+                if (locked) {
+                    try { updateConstellation(&rx); }
+                    catch (...) { /* swallow: receiver may be re-initialising */ }
+                }
 
                 /* Refresh the GUI snapshot a few times per second */
                 if ((++tick % 8) == 0) {
