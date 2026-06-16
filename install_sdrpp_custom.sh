@@ -47,7 +47,8 @@ sudo apt install -y build-essential cmake git pkg-config libfftw3-dev \
     libglib2.0-dev zlib1g-dev libxml2-dev \
     libpulse-dev liblapack-dev libconfig++-dev \
     socat rtl-sdr wget libncurses-dev libncurses6 \
-    libjansson-dev libsqlite3-dev libzmq3-dev libprotobuf-c-dev
+    libjansson-dev libsqlite3-dev libzmq3-dev libprotobuf-c-dev \
+    libcurlpp-dev libliquid-dev
 
 # =========================================================
 # 2) SDRPlusPlus + dependances in-tree
