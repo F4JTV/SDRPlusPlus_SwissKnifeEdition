@@ -30,7 +30,7 @@ SDRPP_MOD_INFO{
     /* Name:            */ "meteor_demodulator",
     /* Description:     */ "Meteor demodulator + LRPT image decoder for SDR++",
     /* Author:          */ "Ryzerth;F4JTV (LRPT decode, ported from SatDump)",
-    /* Version:         */ 0, 3, 8,
+    /* Version:         */ 0, 3, 9,
     /* Max instances    */ -1
 };
 
@@ -298,15 +298,15 @@ private:
         ImGui::SetNextItemWidth(menuWidth);
         const char* modeItems =
             "Meteor-M2-3 / M2-4 (72k OQPSK)\0"
-            "Meteor M2-x (80k entrelace - secours)\0"
-            "Meteor-M2 (ancien, 72k QPSK)\0";
+            "Meteor M2-x (80k interleaved - fallback)\0"
+            "Meteor-M2 (legacy, 72k QPSK)\0";
         if (ImGui::Combo(CONCAT("##lrpt_mode", _this->name), &_this->lrptMode, modeItems)) {
             _this->applyLrptMode(_this->lrptMode);
         }
         if (_this->lrptMode == 0)
-            ImGui::TextDisabled("137.9 MHz (M2-4 secours 137.1). Essayer ce mode en 1er.");
+            ImGui::TextDisabled("137.9 MHz (M2-4 backup 137.1). Try this mode first.");
         else if (_this->lrptMode == 1)
-            ImGui::TextDisabled("Mode 80k entrelace - seulement si le 72k ne synchronise pas");
+            ImGui::TextDisabled("80k interleaved - only if 72k does not sync");
 
         if (ImGui::Checkbox(CONCAT("Differential decode##lrpt_diff", _this->name), &_this->lrptDiff)) {
             if (_this->decoder) _this->decoder->setDiffDecode(_this->lrptDiff);
@@ -370,7 +370,7 @@ private:
         if (ImGui::Checkbox(CONCAT("Normalize contrast##lrpt_norm", _this->name), &_this->normalizeImg))
             _this->imgRequestRebuild = true;
         ImGui::SameLine();
-        if (ImGui::Checkbox(CONCAT("Flip 180 (passe descendante)##lrpt_flip", _this->name), &_this->flip180))
+        if (ImGui::Checkbox(CONCAT("Flip 180 (descending pass)##lrpt_flip", _this->name), &_this->flip180))
             _this->imgRequestRebuild = true;
 
         if (_this->viewMode == 0) {
@@ -433,7 +433,7 @@ private:
             _this->savePNG();
         }
 
-        ImGui::Checkbox(CONCAT("Auto-save PNG + reset entre passages##lrpt_autosave", _this->name), &_this->autoSaveReset);
+        ImGui::Checkbox(CONCAT("Auto-save PNG + reset between passes##lrpt_autosave", _this->name), &_this->autoSaveReset);
 
         {
             std::string saved;
