@@ -6,103 +6,103 @@
     "author_url": "https://github.com/AlexandreRouma/SDRPlusPlus",
     "bands": [
         {
-            "name": "Auxiliaires de la météorologie",
+            "name": "Auxiliaires de la météorologie — Météo-France",
             "type": "space",
             "start": 8300,
             "end": 9000
         },
         {
-            "name": "Radionavigation / Auxiliaires de la météorologie",
+            "name": "Radionavigation / Auxiliaires de la météorologie — Défense, Météo-France, Aff. maritimes",
             "type": "radionavigation",
             "start": 9000,
             "end": 11300
         },
         {
-            "name": "Radionavigation",
+            "name": "Radionavigation — Défense, Aff. maritimes",
             "type": "radionavigation",
             "start": 11300,
             "end": 14000
         },
         {
-            "name": "Mobile maritime / Fixe",
+            "name": "Mobile maritime / Fixe — Défense, ARCEP",
             "type": "marine",
             "start": 14000,
             "end": 19950
         },
         {
-            "name": "Fréquences étalon et signaux horaires",
+            "name": "Fréquences étalon et signaux horaires — ARCEP",
             "type": "space",
             "start": 19950,
             "end": 20050
         },
         {
-            "name": "Mobile maritime / Fréquences étalon et signaux horaires",
+            "name": "Mobile maritime / Fréquences étalon et signaux horaires — Défense, ARCEP",
             "type": "marine",
             "start": 20050,
             "end": 70000
         },
         {
-            "name": "Radionavigation maritime",
+            "name": "Radionavigation maritime — Défense, ARCEP, Aff. maritimes",
             "type": "marine",
             "start": 70000,
             "end": 72000
         },
         {
-            "name": "Mobile maritime / Radionavigation maritime",
+            "name": "Mobile maritime / Radionavigation maritime — Défense, ARCEP, Aff. maritimes",
             "type": "marine",
             "start": 72000,
             "end": 84000
         },
         {
-            "name": "Radionavigation maritime",
+            "name": "Radionavigation maritime — Défense, ARCEP, Aff. maritimes",
             "type": "marine",
             "start": 84000,
             "end": 86000
         },
         {
-            "name": "Mobile maritime / Radionavigation maritime",
+            "name": "Mobile maritime / Radionavigation maritime — Défense, ARCEP, Aff. maritimes",
             "type": "marine",
             "start": 86000,
             "end": 90000
         },
         {
-            "name": "Radionavigation maritime",
+            "name": "Radionavigation maritime — Défense, ARCEP, Aff. maritimes",
             "type": "marine",
             "start": 90000,
             "end": 110000
         },
         {
-            "name": "Mobile maritime / Radionavigation maritime",
+            "name": "Mobile maritime / Radionavigation maritime — Défense, ARCEP, Aff. maritimes",
             "type": "marine",
             "start": 110000,
             "end": 112000
         },
         {
-            "name": "Radionavigation maritime",
+            "name": "Radionavigation maritime — Défense, ARCEP, Aff. maritimes",
             "type": "marine",
             "start": 112000,
             "end": 117600
         },
         {
-            "name": "Mobile maritime / Radionavigation maritime",
+            "name": "Mobile maritime / Radionavigation maritime — Défense, ARCEP, Aff. maritimes",
             "type": "marine",
             "start": 117600,
             "end": 126000
         },
         {
-            "name": "Radionavigation maritime",
+            "name": "Radionavigation maritime — Défense, ARCEP, Aff. maritimes",
             "type": "marine",
             "start": 126000,
             "end": 129000
         },
         {
-            "name": "Mobile maritime / Radionavigation maritime",
+            "name": "Mobile maritime / Radionavigation maritime — Défense, ARCEP, Aff. maritimes",
             "type": "marine",
             "start": 129000,
             "end": 130000
         },
         {
-            "name": "Mobile maritime / Fixe",
+            "name": "Mobile maritime / Fixe — Défense, ARCEP",
             "type": "marine",
             "start": 130000,
             "end": 135700
@@ -114,7 +114,7 @@
             "end": 137800
         },
         {
-            "name": "Mobile maritime / Fixe",
+            "name": "Mobile maritime / Fixe — Défense, ARCEP",
             "type": "marine",
             "start": 137800,
             "end": 148500
@@ -126,37 +126,43 @@
             "end": 255000
         },
         {
-            "name": "Radiodiffusion / Radionavigation aéronautique",
+            "name": "Radiodiffusion / Radionavigation aéronautique — Défense, Aviation civile",
             "type": "broadcast",
             "start": 255000,
             "end": 283500
         },
         {
-            "name": "Radionavigation maritime / Radionavigation aéronautique",
+            "name": "Radionavigation maritime / Radionavigation aéronautique — Défense, Aviation civile, Aff. maritimes",
             "type": "marine",
             "start": 283500,
             "end": 315000
         },
         {
-            "name": "Radionavigation aéronautique",
+            "name": "Radionavigation aéronautique — Défense, Aviation civile, Aff. maritimes",
             "type": "aviation",
             "start": 315000,
+            "end": 325000
+        },
+        {
+            "name": "Radionavigation aéronautique — Défense, Aviation civile",
+            "type": "aviation",
+            "start": 325000,
             "end": 405000
         },
         {
-            "name": "Radionavigation",
+            "name": "Radionavigation — Défense, ARCEP, Aviation civile, Aff. maritimes",
             "type": "radionavigation",
             "start": 405000,
             "end": 415000
         },
         {
-            "name": "Radionavigation aéronautique",
+            "name": "Radionavigation aéronautique — Défense, ARCEP, Aviation civile, Aff. maritimes",
             "type": "aviation",
             "start": 415000,
             "end": 435000
         },
         {
-            "name": "Mobile maritime",
+            "name": "Mobile maritime — Défense, ARCEP, Aviation civile, Aff. maritimes",
             "type": "marine",
             "start": 435000,
             "end": 472000
@@ -168,13 +174,19 @@
             "end": 479000
         },
         {
-            "name": "Mobile maritime",
+            "name": "Mobile maritime — Défense, ARCEP, Aviation civile, Aff. maritimes",
             "type": "marine",
             "start": 479000,
+            "end": 495000
+        },
+        {
+            "name": "Mobile maritime — Aff. maritimes",
+            "type": "marine",
+            "start": 495000,
             "end": 505000
         },
         {
-            "name": "Mobile maritime / Radionavigation aéronautique",
+            "name": "Mobile maritime / Radionavigation aéronautique — Défense, ARCEP, Aviation civile, Aff. maritimes",
             "type": "marine",
             "start": 505000,
             "end": 526500
@@ -186,25 +198,25 @@
             "end": 1606500
         },
         {
-            "name": "Mobile maritime / Radiorepérage",
+            "name": "Mobile maritime / Radiorepérage — Défense, ARCEP, Aff. maritimes",
             "type": "marine",
             "start": 1606500,
             "end": 1625000
         },
         {
-            "name": "Radiolocalisation",
+            "name": "Radiolocalisation — Défense, ARCEP, Aff. maritimes",
             "type": "radiolocation",
             "start": 1625000,
             "end": 1635000
         },
         {
-            "name": "Mobile maritime / Radiorepérage",
+            "name": "Mobile maritime / Radiorepérage — Défense, ARCEP, Aff. maritimes",
             "type": "marine",
             "start": 1635000,
             "end": 1800000
         },
         {
-            "name": "Radiolocalisation",
+            "name": "Radiolocalisation — Défense, ARCEP, Aff. maritimes",
             "type": "radiolocation",
             "start": 1800000,
             "end": 1810000
@@ -216,31 +228,37 @@
             "end": 1850000
         },
         {
-            "name": "Radiorepérage / Mobile (sauf aéronautique)",
+            "name": "Radiorepérage / Mobile (sauf aéronautique) — Défense, ARCEP, Aff. maritimes",
             "type": "radiolocation",
             "start": 1850000,
             "end": 2000000
         },
         {
-            "name": "Radiorepérage / Mobile (sauf aéro. R)",
+            "name": "Radiorepérage / Mobile (sauf aéro. R) — Défense, ARCEP, Aff. maritimes",
             "type": "radiolocation",
             "start": 2000000,
+            "end": 2025000
+        },
+        {
+            "name": "Radiorepérage / Mobile (sauf aéro. R) — Défense, ARCEP, Météo-France, Aff. maritimes",
+            "type": "radiolocation",
+            "start": 2025000,
             "end": 2045000
         },
         {
-            "name": "Mobile maritime / Radiorepérage",
+            "name": "Mobile maritime / Radiorepérage — Défense, ARCEP, Aff. maritimes",
             "type": "marine",
             "start": 2045000,
             "end": 2160000
         },
         {
-            "name": "Radiolocalisation",
+            "name": "Radiolocalisation — Défense, ARCEP, Aff. maritimes",
             "type": "radiolocation",
             "start": 2160000,
             "end": 2170000
         },
         {
-            "name": "Mobile maritime",
+            "name": "Mobile maritime — Défense, ARCEP",
             "type": "marine",
             "start": 2170000,
             "end": 2173500
@@ -252,79 +270,79 @@
             "end": 2190500
         },
         {
-            "name": "Mobile maritime",
+            "name": "Mobile maritime — Défense, ARCEP",
             "type": "marine",
             "start": 2190500,
             "end": 2194000
         },
         {
-            "name": "Mobile maritime / Radiorepérage",
+            "name": "Mobile maritime / Radiorepérage — Défense, ARCEP, Intérieur, Aff. maritimes",
             "type": "marine",
             "start": 2194000,
             "end": 2300000
         },
         {
-            "name": "Radiodiffusion / Mobile (sauf aéro. R)",
+            "name": "Radiodiffusion / Mobile (sauf aéro. R) — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "broadcast",
             "start": 2300000,
             "end": 2498000
         },
         {
-            "name": "Fréquences étalon et signaux horaires",
+            "name": "Fréquences étalon et signaux horaires — ARCEP",
             "type": "space",
             "start": 2498000,
             "end": 2502000
         },
         {
-            "name": "Mobile maritime / Radiorepérage",
+            "name": "Mobile maritime / Radiorepérage — Défense, ARCEP, Aviation civile, Intérieur, Aff. maritimes",
             "type": "marine",
             "start": 2502000,
             "end": 2625000
         },
         {
-            "name": "Mobile maritime / Radionavigation maritime",
+            "name": "Mobile maritime / Radionavigation maritime — Défense, ARCEP, Aff. maritimes",
             "type": "marine",
             "start": 2625000,
             "end": 2650000
         },
         {
-            "name": "Radiorepérage / Mobile (sauf aéro. R)",
+            "name": "Radiorepérage / Mobile (sauf aéro. R) — Défense, ARCEP, Aviation civile, Intérieur, Aff. maritimes",
             "type": "radiolocation",
             "start": 2650000,
             "end": 2850000
         },
         {
-            "name": "Mobile aéronautique (R)",
+            "name": "Mobile aéronautique (R) — Aviation civile",
             "type": "aviation",
             "start": 2850000,
             "end": 3025000
         },
         {
-            "name": "Mobile aéronautique (OR)",
+            "name": "Mobile aéronautique (OR) — Défense",
             "type": "aviation",
             "start": 3025000,
             "end": 3155000
         },
         {
-            "name": "Mobile maritime / Mobile terrestre",
+            "name": "Mobile maritime / Mobile terrestre — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "marine",
             "start": 3155000,
             "end": 3200000
         },
         {
-            "name": "Radiodiffusion / Mobile (sauf aéro. R)",
+            "name": "Radiodiffusion / Mobile (sauf aéro. R) — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "broadcast",
             "start": 3200000,
             "end": 3230000
         },
         {
-            "name": "Radiodiffusion / Mobile (sauf aéronautique)",
+            "name": "Radiodiffusion / Mobile (sauf aéronautique) — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "broadcast",
             "start": 3230000,
             "end": 3400000
         },
         {
-            "name": "Mobile aéronautique (R)",
+            "name": "Mobile aéronautique (R) — Aviation civile",
             "type": "aviation",
             "start": 3400000,
             "end": 3500000
@@ -336,109 +354,133 @@
             "end": 3800000
         },
         {
-            "name": "Mobile aéronautique (OR) / Mobile terrestre",
+            "name": "Mobile aéronautique (OR) / Mobile terrestre — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "aviation",
             "start": 3800000,
             "end": 3900000
         },
         {
-            "name": "Mobile aéronautique (OR)",
+            "name": "Mobile aéronautique (OR) — Défense",
             "type": "aviation",
             "start": 3900000,
             "end": 3950000
         },
         {
-            "name": "Radiodiffusion / Fixe",
+            "name": "Radiodiffusion / Fixe — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "broadcast",
             "start": 3950000,
             "end": 4000000
         },
         {
-            "name": "Mobile maritime / Fixe",
+            "name": "Mobile maritime / Fixe — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "marine",
             "start": 4000000,
             "end": 4063000
         },
         {
-            "name": "Mobile maritime",
+            "name": "Mobile maritime — Défense, ARCEP, Intérieur, Aff. maritimes",
             "type": "marine",
             "start": 4063000,
+            "end": 4221000
+        },
+        {
+            "name": "Mobile maritime — Défense, Intérieur, Aff. maritimes",
+            "type": "marine",
+            "start": 4221000,
+            "end": 4231000
+        },
+        {
+            "name": "Mobile maritime — Défense, ARCEP, Intérieur, Aff. maritimes",
+            "type": "marine",
+            "start": 4231000,
             "end": 4438000
         },
         {
-            "name": "Mobile (sauf aéro. R) / Fixe",
+            "name": "Mobile (sauf aéro. R) / Fixe — Défense, ARCEP, Aviation civile, Intérieur, Aff. maritimes",
             "type": "mobile",
             "start": 4438000,
+            "end": 4488000
+        },
+        {
+            "name": "Mobile (sauf aéro. R) / Fixe — Défense, ARCEP, Aviation civile, Intérieur",
+            "type": "mobile",
+            "start": 4488000,
             "end": 4650000
         },
         {
-            "name": "Mobile aéronautique (R)",
+            "name": "Mobile aéronautique (R) — Aviation civile",
             "type": "aviation",
             "start": 4650000,
             "end": 4700000
         },
         {
-            "name": "Mobile aéronautique (OR)",
+            "name": "Mobile aéronautique (OR) — Défense",
             "type": "aviation",
             "start": 4700000,
             "end": 4750000
         },
         {
-            "name": "Radiodiffusion / Mobile aéronautique (OR)",
+            "name": "Radiodiffusion / Mobile aéronautique (OR) — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "broadcast",
             "start": 4750000,
             "end": 4850000
         },
         {
-            "name": "Radiodiffusion / Mobile terrestre",
+            "name": "Radiodiffusion / Mobile terrestre — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "broadcast",
             "start": 4850000,
             "end": 4995000
         },
         {
-            "name": "Fréquences étalon et signaux horaires",
+            "name": "Fréquences étalon et signaux horaires — ARCEP",
             "type": "space",
             "start": 4995000,
             "end": 5005000
         },
         {
-            "name": "Radiodiffusion / Fixe",
+            "name": "Radiodiffusion / Fixe — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "broadcast",
             "start": 5005000,
             "end": 5060000
         },
         {
-            "name": "Fixe",
+            "name": "Fixe — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "fixed",
             "start": 5060000,
             "end": 5250000
         },
         {
-            "name": "Mobile (sauf aéronautique) / Fixe",
+            "name": "Mobile (sauf aéronautique) / Fixe — Défense, ARCEP, Aviation civile, Intérieur, Aff. maritimes",
             "type": "mobile",
             "start": 5250000,
+            "end": 5275000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe — Défense, ARCEP, Aviation civile, Intérieur",
+            "type": "mobile",
+            "start": 5275000,
             "end": 5450000
         },
         {
-            "name": "Mobile aéronautique (OR) / Mobile terrestre",
+            "name": "Mobile aéronautique (OR) / Mobile terrestre — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "aviation",
             "start": 5450000,
             "end": 5480000
         },
         {
-            "name": "Mobile aéronautique (R)",
+            "name": "Mobile aéronautique (R) — Aviation civile",
             "type": "aviation",
             "start": 5480000,
             "end": 5680000
         },
         {
-            "name": "Mobile aéronautique (OR)",
+            "name": "Mobile aéronautique (OR) — Défense",
             "type": "aviation",
             "start": 5680000,
             "end": 5730000
         },
         {
-            "name": "Mobile terrestre / Fixe",
+            "name": "Mobile terrestre / Fixe — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "mobile",
             "start": 5730000,
             "end": 5950000
@@ -450,25 +492,25 @@
             "end": 6200000
         },
         {
-            "name": "Mobile maritime",
+            "name": "Mobile maritime — Défense, ARCEP, Intérieur, Aff. maritimes",
             "type": "marine",
             "start": 6200000,
             "end": 6525000
         },
         {
-            "name": "Mobile aéronautique (R)",
+            "name": "Mobile aéronautique (R) — Aviation civile",
             "type": "aviation",
             "start": 6525000,
             "end": 6685000
         },
         {
-            "name": "Mobile aéronautique (OR)",
+            "name": "Mobile aéronautique (OR) — Défense",
             "type": "aviation",
             "start": 6685000,
             "end": 6765000
         },
         {
-            "name": "Fixe",
+            "name": "Fixe — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "fixed",
             "start": 6765000,
             "end": 7000000
@@ -483,64 +525,94 @@
             "name": "Radiodiffusion",
             "type": "broadcast",
             "start": 7200000,
+            "end": 7300000
+        },
+        {
+            "name": "Radiodiffusion — Défense, ARCEP, Aviation civile, Intérieur",
+            "type": "broadcast",
+            "start": 7300000,
             "end": 7450000
         },
         {
-            "name": "Fixe",
+            "name": "Fixe — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "fixed",
             "start": 7450000,
             "end": 8100000
         },
         {
-            "name": "Mobile maritime / Fixe",
+            "name": "Mobile maritime / Fixe — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "marine",
             "start": 8100000,
             "end": 8195000
         },
         {
-            "name": "Mobile maritime",
+            "name": "Mobile maritime — Défense, ARCEP, Aff. maritimes",
             "type": "marine",
             "start": 8195000,
             "end": 8815000
         },
         {
-            "name": "Mobile aéronautique (R)",
+            "name": "Mobile aéronautique (R) — Aviation civile",
             "type": "aviation",
             "start": 8815000,
             "end": 8965000
         },
         {
-            "name": "Mobile aéronautique (OR)",
+            "name": "Mobile aéronautique (OR) — Défense",
             "type": "aviation",
             "start": 8965000,
             "end": 9040000
         },
         {
-            "name": "Fixe",
+            "name": "Fixe — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "fixed",
             "start": 9040000,
+            "end": 9305000
+        },
+        {
+            "name": "Fixe — Défense, ARCEP, Aviation civile, Intérieur, Aff. maritimes",
+            "type": "fixed",
+            "start": 9305000,
+            "end": 9355000
+        },
+        {
+            "name": "Fixe — Défense, ARCEP, Aviation civile, Intérieur",
+            "type": "fixed",
+            "start": 9355000,
             "end": 9500000
         },
         {
             "name": "Radiodiffusion",
             "type": "broadcast",
             "start": 9500000,
+            "end": 9775000
+        },
+        {
+            "name": "Radiodiffusion — Défense, Intérieur",
+            "type": "broadcast",
+            "start": 9775000,
             "end": 9900000
         },
         {
-            "name": "Fixe",
+            "name": "Fixe — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "fixed",
             "start": 9900000,
             "end": 9995000
         },
         {
-            "name": "Fréquences étalon et signaux horaires",
+            "name": "Fréquences étalon et signaux horaires — ARCEP",
             "type": "space",
             "start": 9995000,
+            "end": 10003000
+        },
+        {
+            "name": "Fréquences étalon et signaux horaires — ARCEP, CNES",
+            "type": "space",
+            "start": 10003000,
             "end": 10005000
         },
         {
-            "name": "Mobile aéronautique (R)",
+            "name": "Mobile aéronautique (R) — Aviation civile",
             "type": "aviation",
             "start": 10005000,
             "end": 10100000
@@ -552,69 +624,93 @@
             "end": 10150000
         },
         {
-            "name": "Fixe",
+            "name": "Fixe — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "fixed",
             "start": 10150000,
             "end": 11175000
         },
         {
-            "name": "Mobile aéronautique (OR)",
+            "name": "Mobile aéronautique (OR) — Défense",
             "type": "aviation",
             "start": 11175000,
             "end": 11275000
         },
         {
-            "name": "Mobile aéronautique (R)",
+            "name": "Mobile aéronautique (R) — Aviation civile",
             "type": "aviation",
             "start": 11275000,
             "end": 11400000
         },
         {
-            "name": "Fixe",
+            "name": "Fixe — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "fixed",
             "start": 11400000,
             "end": 11650000
         },
         {
-            "name": "Radiodiffusion",
+            "name": "Radiodiffusion — Défense, Intérieur",
             "type": "broadcast",
             "start": 11650000,
+            "end": 11700000
+        },
+        {
+            "name": "Radiodiffusion",
+            "type": "broadcast",
+            "start": 11700000,
+            "end": 11975000
+        },
+        {
+            "name": "Radiodiffusion — Défense, Intérieur",
+            "type": "broadcast",
+            "start": 11975000,
             "end": 12050000
         },
         {
-            "name": "Fixe",
+            "name": "Fixe — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "fixed",
             "start": 12050000,
             "end": 12230000
         },
         {
-            "name": "Mobile maritime",
+            "name": "Mobile maritime — Défense, ARCEP, Aff. maritimes",
             "type": "marine",
             "start": 12230000,
             "end": 13200000
         },
         {
-            "name": "Mobile aéronautique (OR)",
+            "name": "Mobile aéronautique (OR) — Défense",
             "type": "aviation",
             "start": 13200000,
             "end": 13260000
         },
         {
-            "name": "Mobile aéronautique (R)",
+            "name": "Mobile aéronautique (R) — Aviation civile",
             "type": "aviation",
             "start": 13260000,
             "end": 13360000
         },
         {
-            "name": "Radioastronomie",
+            "name": "Radioastronomie — Recherche",
             "type": "space",
             "start": 13360000,
             "end": 13410000
         },
         {
-            "name": "Fixe",
+            "name": "Fixe — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "fixed",
             "start": 13410000,
+            "end": 13450000
+        },
+        {
+            "name": "Fixe — Défense, ARCEP, Aviation civile, Intérieur, Aff. maritimes",
+            "type": "fixed",
+            "start": 13450000,
+            "end": 13550000
+        },
+        {
+            "name": "Fixe — Défense, ARCEP, Aviation civile, Intérieur",
+            "type": "fixed",
+            "start": 13550000,
             "end": 13600000
         },
         {
@@ -624,7 +720,7 @@
             "end": 13800000
         },
         {
-            "name": "Fixe",
+            "name": "Fixe — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "fixed",
             "start": 13800000,
             "end": 14000000
@@ -636,19 +732,25 @@
             "end": 14350000
         },
         {
-            "name": "Fixe",
+            "name": "Fixe — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "fixed",
             "start": 14350000,
             "end": 14990000
         },
         {
-            "name": "Fréquences étalon et signaux horaires",
+            "name": "Fréquences étalon et signaux horaires — ARCEP",
             "type": "space",
             "start": 14990000,
+            "end": 15005000
+        },
+        {
+            "name": "Fréquences étalon et signaux horaires — ARCEP, CNES",
+            "type": "space",
+            "start": 15005000,
             "end": 15010000
         },
         {
-            "name": "Mobile aéronautique (OR)",
+            "name": "Mobile aéronautique (OR) — Défense",
             "type": "aviation",
             "start": 15010000,
             "end": 15100000
@@ -660,19 +762,31 @@
             "end": 15600000
         },
         {
-            "name": "Fixe",
+            "name": "Fixe — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "fixed",
             "start": 15600000,
+            "end": 16100000
+        },
+        {
+            "name": "Fixe — Défense, ARCEP, Aviation civile, Intérieur, Aff. maritimes",
+            "type": "fixed",
+            "start": 16100000,
+            "end": 16200000
+        },
+        {
+            "name": "Fixe — Défense, ARCEP, Aviation civile, Intérieur",
+            "type": "fixed",
+            "start": 16200000,
             "end": 16360000
         },
         {
-            "name": "Mobile maritime",
+            "name": "Mobile maritime — Défense, ARCEP, Aff. maritimes",
             "type": "marine",
             "start": 16360000,
             "end": 17410000
         },
         {
-            "name": "Fixe",
+            "name": "Fixe — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "fixed",
             "start": 17410000,
             "end": 17550000
@@ -684,19 +798,19 @@
             "end": 17900000
         },
         {
-            "name": "Mobile aéronautique (R)",
+            "name": "Mobile aéronautique (R) — Aviation civile",
             "type": "aviation",
             "start": 17900000,
             "end": 17970000
         },
         {
-            "name": "Mobile aéronautique (OR)",
+            "name": "Mobile aéronautique (OR) — Défense",
             "type": "aviation",
             "start": 17970000,
             "end": 18030000
         },
         {
-            "name": "Fixe",
+            "name": "Fixe — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "fixed",
             "start": 18030000,
             "end": 18068000
@@ -708,43 +822,49 @@
             "end": 18168000
         },
         {
-            "name": "Fixe",
+            "name": "Fixe — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "fixed",
             "start": 18168000,
             "end": 18780000
         },
         {
-            "name": "Mobile maritime",
+            "name": "Mobile maritime — Défense, ARCEP",
             "type": "marine",
             "start": 18780000,
             "end": 18900000
         },
         {
-            "name": "Fixe",
+            "name": "Fixe — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "fixed",
             "start": 18900000,
             "end": 19680000
         },
         {
-            "name": "Mobile maritime",
+            "name": "Mobile maritime — Défense, ARCEP",
             "type": "marine",
             "start": 19680000,
             "end": 19800000
         },
         {
-            "name": "Fixe",
+            "name": "Fixe — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "fixed",
             "start": 19800000,
             "end": 19990000
         },
         {
-            "name": "Fréquences étalon et signaux horaires",
+            "name": "Fréquences étalon et signaux horaires — ARCEP, CNES",
             "type": "space",
             "start": 19990000,
+            "end": 19995000
+        },
+        {
+            "name": "Fréquences étalon et signaux horaires — ARCEP",
+            "type": "space",
+            "start": 19995000,
             "end": 20010000
         },
         {
-            "name": "Fixe",
+            "name": "Fixe — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "fixed",
             "start": 20010000,
             "end": 21000000
@@ -762,45 +882,63 @@
             "end": 21850000
         },
         {
-            "name": "Fixe",
+            "name": "Fixe — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "fixed",
             "start": 21850000,
+            "end": 21870000
+        },
+        {
+            "name": "Fixe — Aviation civile",
+            "type": "fixed",
+            "start": 21870000,
             "end": 21924000
         },
         {
-            "name": "Mobile aéronautique (R)",
+            "name": "Mobile aéronautique (R) — Aviation civile",
             "type": "aviation",
             "start": 21924000,
             "end": 22000000
         },
         {
-            "name": "Mobile maritime",
+            "name": "Mobile maritime — Défense, ARCEP, Aff. maritimes",
             "type": "marine",
             "start": 22000000,
             "end": 22855000
         },
         {
-            "name": "Fixe",
+            "name": "Fixe — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "fixed",
             "start": 22855000,
             "end": 23200000
         },
         {
-            "name": "Mobile aéronautique (OR) / Fixe",
+            "name": "Mobile aéronautique (OR) / Fixe — Défense",
             "type": "aviation",
             "start": 23200000,
             "end": 23350000
         },
         {
-            "name": "Mobile (sauf aéronautique) / Fixe",
+            "name": "Mobile (sauf aéronautique) / Fixe — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "mobile",
             "start": 23350000,
             "end": 24000000
         },
         {
-            "name": "Mobile terrestre / Fixe",
+            "name": "Mobile terrestre / Fixe — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "mobile",
             "start": 24000000,
+            "end": 24450000
+        },
+        {
+            "name": "Mobile terrestre / Fixe — Défense, ARCEP, Aviation civile, Intérieur, Aff. maritimes",
+            "type": "mobile",
+            "start": 24450000,
+            "end": 24600000
+        },
+        {
+            "name": "Mobile terrestre / Fixe — Défense, ARCEP, Aviation civile, Intérieur",
+            "type": "mobile",
+            "start": 24600000,
             "end": 24890000
         },
         {
@@ -810,31 +948,37 @@
             "end": 24990000
         },
         {
-            "name": "Fréquences étalon et signaux horaires",
+            "name": "Fréquences étalon et signaux horaires — ARCEP",
             "type": "space",
             "start": 24990000,
+            "end": 25005000
+        },
+        {
+            "name": "Fréquences étalon et signaux horaires — ARCEP, CNES",
+            "type": "space",
+            "start": 25005000,
             "end": 25010000
         },
         {
-            "name": "Mobile (sauf aéronautique) / Fixe",
+            "name": "Mobile (sauf aéronautique) / Fixe — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "mobile",
             "start": 25010000,
             "end": 25070000
         },
         {
-            "name": "Mobile maritime",
+            "name": "Mobile maritime — Défense, ARCEP",
             "type": "marine",
             "start": 25070000,
             "end": 25210000
         },
         {
-            "name": "Mobile (sauf aéronautique) / Fixe",
+            "name": "Mobile (sauf aéronautique) / Fixe — Défense, ARCEP, Aviation civile, Intérieur",
             "type": "mobile",
             "start": 25210000,
             "end": 25550000
         },
         {
-            "name": "Radioastronomie",
+            "name": "Radioastronomie — Recherche",
             "type": "space",
             "start": 25550000,
             "end": 25670000
@@ -846,19 +990,31 @@
             "end": 26100000
         },
         {
-            "name": "Mobile maritime",
+            "name": "Mobile maritime — Défense, ARCEP",
             "type": "marine",
             "start": 26100000,
             "end": 26175000
         },
         {
-            "name": "Mobile (sauf aéronautique) / Fixe",
+            "name": "Mobile (sauf aéronautique) / Fixe — Défense, ARCEP",
             "type": "mobile",
             "start": 26175000,
+            "end": 26200000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe — Défense, ARCEP, Aff. maritimes",
+            "type": "mobile",
+            "start": 26200000,
+            "end": 26350000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe — ARCEP",
+            "type": "mobile",
+            "start": 26350000,
             "end": 27500000
         },
         {
-            "name": "Auxiliaires de la météorologie / Mobile",
+            "name": "Auxiliaires de la météorologie / Mobile — Défense, ARCEP, Météo-France",
             "type": "space",
             "start": 27500000,
             "end": 28000000
@@ -870,153 +1026,207 @@
             "end": 29700000
         },
         {
-            "name": "Mobile / Fixe (Défense)",
+            "name": "Mobile / Fixe — Défense",
             "type": "military",
             "start": 29700000,
             "end": 30005000
         },
         {
-            "name": "Exploitation spatiale / Recherche spatiale",
+            "name": "Exploitation spatiale / Recherche spatiale — Défense, CNES",
             "type": "space",
             "start": 30005000,
             "end": 30010000
         },
         {
-            "name": "Mobile / Fixe (Défense)",
+            "name": "Mobile / Fixe — Défense",
             "type": "military",
             "start": 30010000,
             "end": 30825000
         },
         {
-            "name": "Mobile / Fixe",
+            "name": "Mobile / Fixe — Défense, ARCEP",
             "type": "mobile",
             "start": 30825000,
             "end": 32125000
         },
         {
-            "name": "Mobile / Fixe (Défense)",
+            "name": "Mobile / Fixe — Défense",
             "type": "military",
             "start": 32125000,
             "end": 32600000
         },
         {
-            "name": "Mobile / Fixe",
+            "name": "Mobile / Fixe — Défense, ARCEP",
             "type": "mobile",
             "start": 32600000,
             "end": 33000000
         },
         {
-            "name": "Mobile / Fixe (Défense)",
+            "name": "Mobile / Fixe — Défense",
             "type": "military",
             "start": 33000000,
             "end": 34850000
         },
         {
-            "name": "Mobile / Fixe",
+            "name": "Mobile / Fixe — Défense, ARCEP",
             "type": "mobile",
             "start": 34850000,
             "end": 36600000
         },
         {
-            "name": "Mobile / Fixe (Défense)",
+            "name": "Mobile / Fixe — Défense",
             "type": "military",
             "start": 36600000,
             "end": 37500000
         },
         {
-            "name": "Mobile / Fixe",
+            "name": "Mobile / Fixe — Défense, Recherche",
             "type": "mobile",
             "start": 37500000,
             "end": 38250000
         },
         {
-            "name": "Mobile / Fixe (Défense)",
+            "name": "Mobile / Fixe — Défense",
             "type": "military",
             "start": 38250000,
             "end": 39000000
         },
         {
-            "name": "Mobile / Fixe",
+            "name": "Mobile / Fixe — Défense, ARCEP",
             "type": "mobile",
             "start": 39000000,
+            "end": 39986000
+        },
+        {
+            "name": "Mobile / Fixe — Défense, ARCEP, CNES",
+            "type": "mobile",
+            "start": 39986000,
+            "end": 40650000
+        },
+        {
+            "name": "Mobile / Fixe — ARCEP, CNES",
+            "type": "mobile",
+            "start": 40650000,
+            "end": 40700000
+        },
+        {
+            "name": "Mobile / Fixe — Défense, CNES",
+            "type": "mobile",
+            "start": 40700000,
+            "end": 41050000
+        },
+        {
+            "name": "Mobile / Fixe — ARCEP, CNES",
+            "type": "mobile",
+            "start": 41050000,
+            "end": 41500000
+        },
+        {
+            "name": "Mobile / Fixe — Défense, CNES",
+            "type": "mobile",
+            "start": 41500000,
             "end": 47000000
         },
         {
-            "name": "Radiodiffusion",
+            "name": "Radiodiffusion — Défense, ARCEP, CNES",
             "type": "broadcast",
             "start": 47000000,
+            "end": 50000000
+        },
+        {
+            "name": "Radiodiffusion — Défense, ARCEP",
+            "type": "broadcast",
+            "start": 50000000,
             "end": 68000000
         },
         {
-            "name": "Mobile (sauf aéronautique) / Fixe",
+            "name": "Mobile (sauf aéronautique) / Fixe — Défense, ARCEP",
             "type": "mobile",
             "start": 68000000,
             "end": 69250000
         },
         {
-            "name": "Mobile (sauf aéronautique) / Fixe (Défense)",
+            "name": "Mobile (sauf aéronautique) / Fixe — Défense",
             "type": "military",
             "start": 69250000,
             "end": 70250000
         },
         {
-            "name": "Mobile (sauf aéronautique) / Fixe",
+            "name": "Mobile (sauf aéronautique) / Fixe — ARCEP",
             "type": "mobile",
             "start": 70250000,
             "end": 70525000
         },
         {
-            "name": "Mobile (sauf aéronautique) / Fixe (Défense)",
+            "name": "Mobile (sauf aéronautique) / Fixe — Défense",
             "type": "military",
             "start": 70525000,
             "end": 70975000
         },
         {
-            "name": "Mobile (sauf aéronautique) / Fixe",
+            "name": "Mobile (sauf aéronautique) / Fixe — ARCEP",
             "type": "mobile",
             "start": 70975000,
+            "end": 71950000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe — Intérieur",
+            "type": "mobile",
+            "start": 71950000,
+            "end": 72175000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe — Défense, ARCEP",
+            "type": "mobile",
+            "start": 72175000,
             "end": 73300000
         },
         {
-            "name": "Mobile (sauf aéronautique) / Fixe (Défense)",
+            "name": "Mobile (sauf aéronautique) / Fixe — Défense",
             "type": "military",
             "start": 73300000,
             "end": 74800000
         },
         {
-            "name": "Radionavigation aéronautique",
+            "name": "Radionavigation aéronautique — Défense, Aviation civile",
             "type": "aviation",
             "start": 74800000,
             "end": 75200000
         },
         {
-            "name": "Mobile (sauf aéronautique) / Fixe",
+            "name": "Mobile (sauf aéronautique) / Fixe — ARCEP",
             "type": "mobile",
             "start": 75200000,
             "end": 77475000
         },
         {
-            "name": "Mobile (sauf aéronautique) / Fixe (Défense)",
+            "name": "Mobile (sauf aéronautique) / Fixe — Défense",
             "type": "military",
             "start": 77475000,
             "end": 80000000
         },
         {
-            "name": "Mobile (sauf aéronautique) / Fixe",
+            "name": "Mobile (sauf aéronautique) / Fixe — ARCEP",
             "type": "mobile",
             "start": 80000000,
             "end": 82475000
         },
         {
-            "name": "Mobile (sauf aéronautique) / Fixe (Défense)",
+            "name": "Mobile (sauf aéronautique) / Fixe — Défense",
             "type": "military",
             "start": 82475000,
             "end": 83000000
         },
         {
-            "name": "Mobile (sauf aéronautique) / Fixe",
+            "name": "Mobile (sauf aéronautique) / Fixe — Intérieur",
             "type": "mobile",
             "start": 83000000,
+            "end": 87300000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe — ARCEP",
+            "type": "mobile",
+            "start": 87300000,
             "end": 87500000
         },
         {
@@ -1026,25 +1236,25 @@
             "end": 108000000
         },
         {
-            "name": "Mobile aéronautique (R) / Radionavigation aéronautique",
+            "name": "Mobile aéronautique (R) / Radionavigation aéronautique — Défense, Aviation civile",
             "type": "aviation",
             "start": 108000000,
             "end": 117975000
         },
         {
-            "name": "Mobile aéronautique (R) / Mobile aéronautique (R) par satellite",
+            "name": "Mobile aéronautique (R) / Mobile aéronautique (R) par satellite — Aviation civile",
             "type": "aviation",
             "start": 117975000,
             "end": 137000000
         },
         {
-            "name": "Mobile aéronautique (OR) / Exploitation spatiale",
+            "name": "Mobile aéronautique (OR) / Exploitation spatiale — Défense, ARCEP, Météo-France, CNES",
             "type": "aviation",
             "start": 137000000,
             "end": 138000000
         },
         {
-            "name": "Mobile aéronautique (OR)",
+            "name": "Mobile aéronautique (OR) — Défense",
             "type": "aviation",
             "start": 138000000,
             "end": 144000000
@@ -1056,193 +1266,247 @@
             "end": 146000000
         },
         {
-            "name": "Mobile (sauf aéro. R) / Fixe (Défense)",
+            "name": "Mobile (sauf aéro. R) / Fixe — Défense",
             "type": "military",
             "start": 146000000,
             "end": 148000000
         },
         {
-            "name": "Exploitation spatiale / Mobile par satellite",
+            "name": "Exploitation spatiale / Mobile par satellite — Défense, ARCEP, CNES",
             "type": "space",
             "start": 148000000,
             "end": 149900000
         },
         {
-            "name": "Recherche spatiale / Mobile par satellite",
+            "name": "Recherche spatiale / Mobile par satellite — Défense, ARCEP, CNES",
             "type": "space",
             "start": 149900000,
             "end": 150050000
         },
         {
-            "name": "Radioastronomie / Mobile (sauf aéronautique)",
+            "name": "Radioastronomie / Mobile (sauf aéronautique) — ARCEP, Recherche",
             "type": "space",
             "start": 150050000,
+            "end": 151400000
+        },
+        {
+            "name": "Radioastronomie / Mobile (sauf aéronautique) — Défense, Recherche",
+            "type": "space",
+            "start": 151400000,
             "end": 153000000
         },
         {
-            "name": "Mobile (sauf aéro. R) / Fixe",
+            "name": "Mobile (sauf aéro. R) / Fixe — Défense, Météo-France",
             "type": "mobile",
             "start": 153000000,
+            "end": 153425000
+        },
+        {
+            "name": "Mobile (sauf aéro. R) / Fixe — ARCEP, Météo-France",
+            "type": "mobile",
+            "start": 153425000,
+            "end": 154000000
+        },
+        {
+            "name": "Mobile (sauf aéro. R) / Fixe — Défense, ARCEP, Aff. maritimes",
+            "type": "mobile",
+            "start": 154000000,
             "end": 156000000
         },
         {
-            "name": "Mobile maritime / Mobile (sauf aéro. R)",
+            "name": "Mobile maritime / Mobile (sauf aéro. R) — Défense, ARCEP, Aff. maritimes",
             "type": "marine",
             "start": 156000000,
             "end": 157450000
         },
         {
-            "name": "Mobile (sauf aéronautique) / Fixe",
+            "name": "Mobile (sauf aéronautique) / Fixe — Défense, ARCEP, Aff. maritimes",
             "type": "mobile",
             "start": 157450000,
+            "end": 163000000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe — ARCEP",
+            "type": "mobile",
+            "start": 163000000,
+            "end": 168900000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe — Intérieur",
+            "type": "mobile",
+            "start": 168900000,
+            "end": 169400000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe — ARCEP",
+            "type": "mobile",
+            "start": 169400000,
+            "end": 173500000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) / Fixe — Intérieur",
+            "type": "mobile",
+            "start": 173500000,
             "end": 174000000
         },
         {
-            "name": "Radiodiffusion",
+            "name": "Radiodiffusion — ARCEP",
             "type": "broadcast",
             "start": 174000000,
             "end": 223000000
         },
         {
-            "name": "Radiodiffusion / Mobile terrestre",
+            "name": "Radiodiffusion / Mobile terrestre — Défense, ARCEP",
             "type": "broadcast",
             "start": 223000000,
             "end": 225000000
         },
         {
-            "name": "Mobile / Fixe (Défense)",
+            "name": "Mobile / Fixe — Défense",
             "type": "military",
             "start": 225000000,
             "end": 235000000
         },
         {
-            "name": "Mobile par satellite / Mobile",
+            "name": "Mobile par satellite / Mobile — Défense",
             "type": "satellite",
             "start": 235000000,
             "end": 272000000
         },
         {
-            "name": "Exploitation spatiale / Mobile par satellite",
+            "name": "Exploitation spatiale / Mobile par satellite — Défense",
             "type": "space",
             "start": 272000000,
             "end": 273000000
         },
         {
-            "name": "Mobile par satellite / Mobile",
+            "name": "Mobile par satellite / Mobile — Défense",
             "type": "satellite",
             "start": 273000000,
             "end": 322000000
         },
         {
-            "name": "Mobile / Fixe (Défense)",
+            "name": "Mobile / Fixe — Défense",
             "type": "military",
             "start": 322000000,
             "end": 326000000
         },
         {
-            "name": "Radioastronomie / Mobile",
+            "name": "Radioastronomie / Mobile — Défense, Recherche",
             "type": "space",
             "start": 326000000,
             "end": 328000000
         },
         {
-            "name": "Mobile / Fixe (Défense)",
+            "name": "Mobile / Fixe — Défense",
             "type": "military",
             "start": 328000000,
             "end": 328600000
         },
         {
-            "name": "Radionavigation aéronautique",
+            "name": "Radionavigation aéronautique — Défense, Aviation civile",
             "type": "aviation",
             "start": 328600000,
             "end": 335400000
         },
         {
-            "name": "Mobile par satellite / Mobile",
+            "name": "Mobile par satellite / Mobile — Défense",
             "type": "satellite",
             "start": 335400000,
             "end": 380000000
         },
         {
-            "name": "Mobile",
+            "name": "Mobile — Intérieur",
             "type": "mobile",
             "start": 380000000,
             "end": 383500000
         },
         {
-            "name": "Mobile par satellite / Mobile",
+            "name": "Mobile par satellite / Mobile — Défense",
             "type": "satellite",
             "start": 383500000,
             "end": 390000000
         },
         {
-            "name": "Mobile",
+            "name": "Mobile — Intérieur",
             "type": "mobile",
             "start": 390000000,
             "end": 393500000
         },
         {
-            "name": "Mobile par satellite / Mobile",
+            "name": "Mobile par satellite / Mobile — Défense",
             "type": "satellite",
             "start": 393500000,
             "end": 399900000
         },
         {
-            "name": "Mobile par satellite",
+            "name": "Mobile par satellite — Défense, ARCEP, CNES",
             "type": "satellite",
             "start": 399900000,
             "end": 400050000
         },
         {
-            "name": "Fréq. étalon/horaires par satellite",
+            "name": "Fréq. étalon/horaires par satellite — ARCEP",
             "type": "space",
             "start": 400050000,
             "end": 400150000
         },
         {
-            "name": "Météorologie par satellite / Auxiliaires de la météorologie",
+            "name": "Météorologie par satellite / Auxiliaires de la météorologie — Défense, ARCEP, Météo-France, CNES",
             "type": "space",
             "start": 400150000,
             "end": 401000000
         },
         {
-            "name": "Auxiliaires de la météorologie / Météorologie par satellite",
+            "name": "Auxiliaires de la météorologie / Météorologie par satellite — Défense, Météo-France, CNES",
             "type": "space",
             "start": 401000000,
             "end": 403000000
         },
         {
-            "name": "Auxiliaires de la météorologie",
+            "name": "Auxiliaires de la météorologie — Défense, Météo-France",
             "type": "space",
             "start": 403000000,
             "end": 406000000
         },
         {
-            "name": "Mobile par satellite",
+            "name": "Mobile par satellite — CNES",
             "type": "satellite",
             "start": 406000000,
             "end": 406100000
         },
         {
-            "name": "Radioastronomie / Mobile (sauf aéronautique)",
+            "name": "Radioastronomie / Mobile (sauf aéronautique) — ARCEP, Recherche",
             "type": "space",
             "start": 406100000,
+            "end": 408000000
+        },
+        {
+            "name": "Radioastronomie / Mobile (sauf aéronautique) — Défense, Recherche",
+            "type": "space",
+            "start": 408000000,
             "end": 410000000
         },
         {
-            "name": "Recherche spatiale / Mobile (sauf aéronautique)",
+            "name": "Recherche spatiale / Mobile (sauf aéronautique) — Défense, CNES",
             "type": "space",
             "start": 410000000,
+            "end": 414500000
+        },
+        {
+            "name": "Recherche spatiale / Mobile (sauf aéronautique) — Défense, ARCEP, CNES",
+            "type": "space",
+            "start": 414500000,
             "end": 420000000
         },
         {
-            "name": "Mobile (sauf aéronautique) / Fixe (Défense)",
+            "name": "Mobile (sauf aéronautique) / Fixe — Défense",
             "type": "military",
             "start": 420000000,
             "end": 424500000
         },
         {
-            "name": "Mobile (sauf aéronautique) / Fixe",
+            "name": "Mobile (sauf aéronautique) / Fixe — Défense, ARCEP",
             "type": "mobile",
             "start": 424500000,
             "end": 430000000
@@ -1254,103 +1518,175 @@
             "end": 440000000
         },
         {
-            "name": "Mobile (sauf aéronautique) / Fixe (Défense)",
+            "name": "Mobile (sauf aéronautique) / Fixe — Défense",
             "type": "military",
             "start": 440000000,
             "end": 441500000
         },
         {
-            "name": "Mobile (sauf aéronautique)",
+            "name": "Mobile (sauf aéronautique) — Défense, ARCEP",
             "type": "mobile",
             "start": 441500000,
             "end": 443550000
         },
         {
-            "name": "Mobile (sauf aéronautique) / Fixe (Défense)",
+            "name": "Mobile (sauf aéronautique) / Fixe — Défense",
             "type": "military",
             "start": 443550000,
             "end": 444500000
         },
         {
-            "name": "Mobile (sauf aéronautique) / Fixe",
+            "name": "Mobile (sauf aéronautique) / Fixe — ARCEP",
             "type": "mobile",
             "start": 444500000,
             "end": 447000000
         },
         {
-            "name": "Exploitation spatiale / Recherche spatiale",
+            "name": "Exploitation spatiale / Recherche spatiale — Défense",
             "type": "space",
             "start": 447000000,
+            "end": 449775000
+        },
+        {
+            "name": "Exploitation spatiale / Recherche spatiale — Défense, ARCEP, Aviation civile, CNES, Aff. maritimes",
+            "type": "space",
+            "start": 449775000,
+            "end": 450025000
+        },
+        {
+            "name": "Exploitation spatiale / Recherche spatiale — Défense",
+            "type": "space",
+            "start": 450025000,
             "end": 453000000
         },
         {
-            "name": "Mobile / Fixe",
+            "name": "Mobile / Fixe — ARCEP",
             "type": "mobile",
             "start": 453000000,
+            "end": 460000000
+        },
+        {
+            "name": "Mobile / Fixe — Défense, Météo-France, CNES",
+            "type": "mobile",
+            "start": 460000000,
+            "end": 463000000
+        },
+        {
+            "name": "Mobile / Fixe — ARCEP, Météo-France, CNES",
+            "type": "mobile",
+            "start": 463000000,
             "end": 470000000
         },
         {
-            "name": "Radiodiffusion",
+            "name": "Radiodiffusion — ARCEP",
             "type": "broadcast",
             "start": 470000000,
             "end": 694000000
         },
         {
-            "name": "Mobile (sauf aéronautique)",
+            "name": "Mobile (sauf aéronautique) — ARCEP",
             "type": "mobile",
             "start": 694000000,
+            "end": 698000000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) — Intérieur",
+            "type": "mobile",
+            "start": 698000000,
+            "end": 703000000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) — ARCEP",
+            "type": "mobile",
+            "start": 703000000,
+            "end": 733000000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) — Intérieur",
+            "type": "mobile",
+            "start": 733000000,
+            "end": 736000000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) — ARCEP",
+            "type": "mobile",
+            "start": 736000000,
+            "end": 753000000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) — Intérieur",
+            "type": "mobile",
+            "start": 753000000,
+            "end": 758000000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) — ARCEP",
+            "type": "mobile",
+            "start": 758000000,
+            "end": 788000000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) — Intérieur",
+            "type": "mobile",
+            "start": 788000000,
             "end": 791000000
         },
         {
-            "name": "Mobile (sauf aéronautique) / Fixe",
+            "name": "Mobile (sauf aéronautique) / Fixe — ARCEP",
             "type": "mobile",
             "start": 791000000,
             "end": 862000000
         },
         {
-            "name": "Mobile (sauf aéronautique) (Défense)",
+            "name": "Mobile (sauf aéronautique) — Défense",
             "type": "military",
             "start": 862000000,
             "end": 869200000
         },
         {
-            "name": "Mobile (sauf aéronautique)",
+            "name": "Mobile (sauf aéronautique) — ARCEP",
             "type": "mobile",
             "start": 869200000,
             "end": 869700000
         },
         {
-            "name": "Mobile (sauf aéronautique) (Défense)",
+            "name": "Mobile (sauf aéronautique) — Défense",
             "type": "military",
             "start": 869700000,
             "end": 880000000
         },
         {
-            "name": "Mobile (sauf aéronautique)",
+            "name": "Mobile (sauf aéronautique) — ARCEP",
             "type": "mobile",
             "start": 880000000,
             "end": 915000000
         },
         {
-            "name": "Mobile (sauf aéronautique) (Défense)",
+            "name": "Mobile (sauf aéronautique) — Défense",
             "type": "military",
             "start": 915000000,
             "end": 925000000
         },
         {
-            "name": "Mobile (sauf aéronautique)",
+            "name": "Mobile (sauf aéronautique) — Défense, ARCEP",
             "type": "mobile",
             "start": 925000000,
+            "end": 935000000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) — ARCEP",
+            "type": "mobile",
+            "start": 935000000,
             "end": 960000000
         },
         {
-            "name": "Mobile aéronautique (R) / Radionavigation aéronautique",
+            "name": "Mobile aéronautique (R) / Radionavigation aéronautique — Défense, Aviation civile",
             "type": "aviation",
             "start": 960000000,
             "end": 1164000000
         },
         {
-            "name": "Radionavigation aéronautique / Radionavigation par satellite",
+            "name": "Radionavigation aéronautique / Radionavigation par satellite — Défense, Aviation civile, CNES",
             "type": "aviation",
             "start": 1164000000,
             "end": 1240000000
@@ -1362,175 +1698,265 @@
             "end": 1300000000
         },
         {
-            "name": "Radionavigation aéronautique / Radionavigation par satellite",
+            "name": "Radionavigation aéronautique / Radionavigation par satellite — Défense, Aviation civile, CNES",
             "type": "aviation",
             "start": 1300000000,
             "end": 1350000000
         },
         {
-            "name": "Radiolocalisation / Mobile",
+            "name": "Radiolocalisation / Mobile — Défense, ARCEP, CNES, Recherche",
             "type": "radiolocation",
             "start": 1350000000,
+            "end": 1375000000
+        },
+        {
+            "name": "Radiolocalisation / Mobile — Défense, CNES, Recherche",
+            "type": "radiolocation",
+            "start": 1375000000,
             "end": 1400000000
         },
         {
-            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "name": "Radioastronomie / Exploration de la Terre par satellite — CNES, Recherche",
             "type": "space",
             "start": 1400000000,
             "end": 1427000000
         },
         {
-            "name": "Exploitation spatiale / Mobile (sauf aéronautique)",
+            "name": "Exploitation spatiale / Mobile (sauf aéronautique) — Défense, ARCEP, CNES",
             "type": "space",
             "start": 1427000000,
             "end": 1429000000
         },
         {
-            "name": "Mobile (sauf aéronautique) / Fixe",
+            "name": "Mobile (sauf aéronautique) / Fixe — ARCEP",
             "type": "mobile",
             "start": 1429000000,
             "end": 1518000000
         },
         {
-            "name": "Mobile par satellite / Mobile (sauf aéronautique)",
+            "name": "Mobile par satellite / Mobile (sauf aéronautique) — ARCEP",
             "type": "satellite",
             "start": 1518000000,
             "end": 1525000000
         },
         {
-            "name": "Exploitation spatiale / Mobile par satellite",
+            "name": "Exploitation spatiale / Mobile par satellite — Défense, ARCEP, CNES",
             "type": "space",
             "start": 1525000000,
             "end": 1535000000
         },
         {
-            "name": "Mobile par satellite",
+            "name": "Mobile par satellite — ARCEP",
             "type": "satellite",
             "start": 1535000000,
+            "end": 1544000000
+        },
+        {
+            "name": "Mobile par satellite — CNES",
+            "type": "satellite",
+            "start": 1544000000,
+            "end": 1545000000
+        },
+        {
+            "name": "Mobile par satellite — ARCEP, Aviation civile",
+            "type": "satellite",
+            "start": 1545000000,
+            "end": 1555000000
+        },
+        {
+            "name": "Mobile par satellite — Défense, ARCEP",
+            "type": "satellite",
+            "start": 1555000000,
             "end": 1559000000
         },
         {
-            "name": "Radionavigation aéronautique / Radionavigation par satellite",
+            "name": "Radionavigation aéronautique / Radionavigation par satellite — Défense, Aviation civile, CNES",
             "type": "aviation",
             "start": 1559000000,
             "end": 1610000000
         },
         {
-            "name": "Mobile aéronautique (R) par satellite / Radionavigation aéronautique",
+            "name": "Mobile aéronautique (R) par satellite / Radionavigation aéronautique — Défense, ARCEP, Aviation civile, CNES",
             "type": "aviation",
             "start": 1610000000,
+            "end": 1610600000
+        },
+        {
+            "name": "Mobile aéronautique (R) par satellite / Radionavigation aéronautique — Défense, ARCEP, Aviation civile, CNES, Recherche",
+            "type": "aviation",
+            "start": 1610600000,
+            "end": 1613800000
+        },
+        {
+            "name": "Mobile aéronautique (R) par satellite / Radionavigation aéronautique — Défense, ARCEP, Aviation civile, CNES",
+            "type": "aviation",
+            "start": 1613800000,
             "end": 1621350000
         },
         {
-            "name": "Mobile maritime par satellite / Mobile aéronautique (R) par satellite",
+            "name": "Mobile maritime par satellite / Mobile aéronautique (R) par satellite — Défense, ARCEP, Aviation civile, CNES",
             "type": "marine",
             "start": 1621350000,
             "end": 1626500000
         },
         {
-            "name": "Mobile par satellite",
+            "name": "Mobile par satellite — Défense, ARCEP",
             "type": "satellite",
             "start": 1626500000,
+            "end": 1645500000
+        },
+        {
+            "name": "Mobile par satellite",
+            "type": "satellite",
+            "start": 1645500000,
+            "end": 1646500000
+        },
+        {
+            "name": "Mobile par satellite — Défense, ARCEP, Aviation civile",
+            "type": "satellite",
+            "start": 1646500000,
+            "end": 1656500000
+        },
+        {
+            "name": "Mobile par satellite — Défense, ARCEP",
+            "type": "satellite",
+            "start": 1656500000,
             "end": 1660000000
         },
         {
-            "name": "Radioastronomie / Mobile par satellite",
+            "name": "Radioastronomie / Mobile par satellite — ARCEP, Recherche",
             "type": "space",
             "start": 1660000000,
             "end": 1660500000
         },
         {
-            "name": "Radioastronomie / Recherche spatiale (passive)",
+            "name": "Radioastronomie / Recherche spatiale (passive) — CNES, Recherche",
             "type": "space",
             "start": 1660500000,
+            "end": 1668000000
+        },
+        {
+            "name": "Radioastronomie / Recherche spatiale (passive) — Défense, CNES, Recherche",
+            "type": "space",
+            "start": 1668000000,
             "end": 1668400000
         },
         {
-            "name": "Auxiliaires de la météorologie / Radioastronomie",
+            "name": "Auxiliaires de la météorologie / Radioastronomie — Défense, Météo-France, Recherche",
             "type": "space",
             "start": 1668400000,
             "end": 1670000000
         },
         {
-            "name": "Météorologie par satellite / Auxiliaires de la météorologie",
+            "name": "Météorologie par satellite / Auxiliaires de la météorologie — Défense, ARCEP, Météo-France",
             "type": "space",
             "start": 1670000000,
+            "end": 1675000000
+        },
+        {
+            "name": "Météorologie par satellite / Auxiliaires de la météorologie — Défense, Météo-France",
+            "type": "space",
+            "start": 1675000000,
+            "end": 1690000000
+        },
+        {
+            "name": "Météorologie par satellite / Auxiliaires de la météorologie — Défense, Météo-France, CNES",
+            "type": "space",
+            "start": 1690000000,
             "end": 1700000000
         },
         {
-            "name": "Météorologie par satellite / Mobile (sauf aéronautique)",
+            "name": "Météorologie par satellite / Mobile (sauf aéronautique) — Défense, Météo-France, CNES",
             "type": "space",
             "start": 1700000000,
             "end": 1710000000
         },
         {
-            "name": "Mobile",
+            "name": "Mobile — ARCEP, Recherche",
             "type": "mobile",
             "start": 1710000000,
             "end": 1785000000
         },
         {
-            "name": "Mobile (Défense)",
+            "name": "Mobile — Défense",
             "type": "military",
             "start": 1785000000,
             "end": 1800000000
         },
         {
-            "name": "Mobile",
+            "name": "Mobile — Défense, ARCEP",
             "type": "mobile",
             "start": 1800000000,
+            "end": 1805000000
+        },
+        {
+            "name": "Mobile — ARCEP",
+            "type": "mobile",
+            "start": 1805000000,
             "end": 1880000000
         },
         {
-            "name": "Mobile / Fixe",
+            "name": "Mobile / Fixe — Défense, ARCEP, Intérieur",
             "type": "mobile",
             "start": 1880000000,
             "end": 1900000000
         },
         {
-            "name": "Mobile",
+            "name": "Mobile — ARCEP",
             "type": "mobile",
             "start": 1900000000,
+            "end": 1910000000
+        },
+        {
+            "name": "Mobile — ARCEP, Intérieur",
+            "type": "mobile",
+            "start": 1910000000,
+            "end": 1920000000
+        },
+        {
+            "name": "Mobile — ARCEP",
+            "type": "mobile",
+            "start": 1920000000,
             "end": 1980000000
         },
         {
-            "name": "Mobile par satellite / Mobile",
+            "name": "Mobile par satellite / Mobile — ARCEP",
             "type": "satellite",
             "start": 1980000000,
             "end": 2010000000
         },
         {
-            "name": "Mobile",
+            "name": "Mobile — ARCEP",
             "type": "mobile",
             "start": 2010000000,
             "end": 2025000000
         },
         {
-            "name": "Exploration de la Terre par satellite / Exploitation spatiale",
+            "name": "Exploration de la Terre par satellite / Exploitation spatiale — Défense, CNES",
             "type": "space",
             "start": 2025000000,
             "end": 2110000000
         },
         {
-            "name": "Mobile",
+            "name": "Mobile — ARCEP",
             "type": "mobile",
             "start": 2110000000,
             "end": 2170000000
         },
         {
-            "name": "Mobile par satellite / Mobile",
+            "name": "Mobile par satellite / Mobile — ARCEP",
             "type": "satellite",
             "start": 2170000000,
             "end": 2200000000
         },
         {
-            "name": "Exploration de la Terre par satellite / Exploitation spatiale",
+            "name": "Exploration de la Terre par satellite / Exploitation spatiale — Défense, CNES",
             "type": "space",
             "start": 2200000000,
             "end": 2290000000
         },
         {
-            "name": "Mobile",
+            "name": "Mobile — ARCEP",
             "type": "mobile",
             "start": 2290000000,
             "end": 2300000000
@@ -1542,123 +1968,153 @@
             "end": 2450000000
         },
         {
-            "name": "Mobile",
+            "name": "Mobile — ARCEP",
             "type": "mobile",
             "start": 2450000000,
             "end": 2483500000
         },
         {
-            "name": "Radiorepérage par satellite / Mobile par satellite",
+            "name": "Radiorepérage par satellite / Mobile par satellite — Défense, ARCEP, CNES",
             "type": "radiolocation",
             "start": 2483500000,
             "end": 2500000000
         },
         {
-            "name": "Mobile (sauf aéronautique)",
+            "name": "Mobile (sauf aéronautique) — ARCEP",
             "type": "mobile",
             "start": 2500000000,
+            "end": 2550000000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) — Défense, ARCEP, CNES",
+            "type": "mobile",
+            "start": 2550000000,
+            "end": 2655000000
+        },
+        {
+            "name": "Mobile (sauf aéronautique) — Défense, ARCEP, CNES, Recherche",
+            "type": "mobile",
+            "start": 2655000000,
             "end": 2690000000
         },
         {
-            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "name": "Radioastronomie / Exploration de la Terre par satellite — CNES, Recherche",
             "type": "space",
             "start": 2690000000,
             "end": 2700000000
         },
         {
-            "name": "Radionavigation aéronautique / Radiolocalisation",
+            "name": "Radionavigation aéronautique / Radiolocalisation — Défense, Aviation civile, Météo-France",
             "type": "aviation",
             "start": 2700000000,
             "end": 2900000000
         },
         {
-            "name": "Radionavigation / Radiolocalisation",
+            "name": "Radionavigation / Radiolocalisation — Défense, ARCEP, Aviation civile, Aff. maritimes",
             "type": "radionavigation",
             "start": 2900000000,
             "end": 3100000000
         },
         {
-            "name": "Radiolocalisation",
+            "name": "Radiolocalisation — Défense, ARCEP, CNES, Recherche, Aff. maritimes",
             "type": "radiolocation",
             "start": 3100000000,
+            "end": 3300000000
+        },
+        {
+            "name": "Radiolocalisation — Défense, Recherche",
+            "type": "radiolocation",
+            "start": 3300000000,
             "end": 3400000000
         },
         {
-            "name": "Fixe par satellite / Mobile (sauf aéronautique)",
+            "name": "Fixe par satellite / Mobile (sauf aéronautique) — Défense, ARCEP",
             "type": "satellite",
             "start": 3400000000,
+            "end": 3600000000
+        },
+        {
+            "name": "Fixe par satellite / Mobile (sauf aéronautique) — ARCEP",
+            "type": "satellite",
+            "start": 3600000000,
             "end": 4200000000
         },
         {
-            "name": "Mobile aéronautique (R) / Radionavigation aéronautique",
+            "name": "Mobile aéronautique (R) / Radionavigation aéronautique — Défense, ARCEP, Aviation civile, CNES",
             "type": "aviation",
             "start": 4200000000,
             "end": 4400000000
         },
         {
-            "name": "Mobile / Fixe (Défense)",
+            "name": "Mobile / Fixe — Défense",
             "type": "military",
             "start": 4400000000,
             "end": 4800000000
         },
         {
-            "name": "Mobile / Fixe",
+            "name": "Mobile / Fixe — Défense, CNES, Recherche",
             "type": "mobile",
             "start": 4800000000,
             "end": 4990000000
         },
         {
-            "name": "Radioastronomie",
+            "name": "Radioastronomie — CNES, Recherche",
             "type": "space",
             "start": 4990000000,
             "end": 5000000000
         },
         {
-            "name": "Mobile aéronautique (R) par satellite / Radionavigation aéronautique",
+            "name": "Mobile aéronautique (R) par satellite / Radionavigation aéronautique — Défense, Aviation civile, CNES",
             "type": "aviation",
             "start": 5000000000,
             "end": 5030000000
         },
         {
-            "name": "Mobile aéronautique (R) / Radionavigation aéronautique",
+            "name": "Mobile aéronautique (R) / Radionavigation aéronautique — Défense, Aviation civile",
             "type": "aviation",
             "start": 5030000000,
             "end": 5091000000
         },
         {
-            "name": "Mobile aéronautique (R) / Mobile aéronautique",
+            "name": "Mobile aéronautique (R) / Mobile aéronautique — Défense, ARCEP, Aviation civile",
             "type": "aviation",
             "start": 5091000000,
             "end": 5150000000
         },
         {
-            "name": "Mobile aéronautique / Radiorepérage par satellite",
+            "name": "Mobile aéronautique / Radiorepérage par satellite — Défense, ARCEP, Aviation civile, CNES",
             "type": "aviation",
             "start": 5150000000,
             "end": 5250000000
         },
         {
-            "name": "Radiolocalisation / Exploration de la Terre par satellite",
+            "name": "Radiolocalisation / Exploration de la Terre par satellite — Défense, ARCEP, CNES",
             "type": "radiolocation",
             "start": 5250000000,
             "end": 5350000000
         },
         {
-            "name": "Radionavigation aéronautique / Radiolocalisation",
+            "name": "Radionavigation aéronautique / Radiolocalisation — Défense, Aviation civile, CNES",
             "type": "aviation",
             "start": 5350000000,
             "end": 5460000000
         },
         {
-            "name": "Radionavigation / Radiolocalisation",
+            "name": "Radionavigation / Radiolocalisation — Défense, ARCEP, Aviation civile, CNES",
             "type": "radionavigation",
             "start": 5460000000,
             "end": 5470000000
         },
         {
-            "name": "Radionavigation maritime / Radiolocalisation",
+            "name": "Radionavigation maritime / Radiolocalisation — Défense, ARCEP, CNES, Aff. maritimes",
             "type": "marine",
             "start": 5470000000,
+            "end": 5570000000
+        },
+        {
+            "name": "Radionavigation maritime / Radiolocalisation — Défense, ARCEP, Météo-France, Aff. maritimes",
+            "type": "marine",
+            "start": 5570000000,
             "end": 5650000000
         },
         {
@@ -1668,159 +2124,183 @@
             "end": 5850000000
         },
         {
-            "name": "Fixe par satellite / Mobile",
+            "name": "Fixe par satellite / Mobile — Défense, ARCEP",
             "type": "satellite",
             "start": 5850000000,
+            "end": 5925000000
+        },
+        {
+            "name": "Fixe par satellite / Mobile — ARCEP",
+            "type": "satellite",
+            "start": 5925000000,
             "end": 6425000000
         },
         {
-            "name": "Fréq. étalon/horaires par satellite / Fixe par satellite",
+            "name": "Fréq. étalon/horaires par satellite / Fixe par satellite — ARCEP",
             "type": "space",
             "start": 6425000000,
             "end": 6700000000
         },
         {
-            "name": "Fixe par satellite / Mobile",
+            "name": "Fixe par satellite / Mobile — Défense, ARCEP",
             "type": "satellite",
             "start": 6700000000,
             "end": 7075000000
         },
         {
-            "name": "Mobile / Fixe",
+            "name": "Mobile / Fixe — ARCEP, CNES",
             "type": "mobile",
             "start": 7075000000,
             "end": 7145000000
         },
         {
-            "name": "Recherche spatiale / Mobile",
+            "name": "Recherche spatiale / Mobile — ARCEP, CNES",
             "type": "space",
             "start": 7145000000,
             "end": 7190000000
         },
         {
-            "name": "Exploration de la Terre par satellite / Recherche spatiale",
+            "name": "Exploration de la Terre par satellite / Recherche spatiale — Défense, ARCEP, CNES",
             "type": "space",
             "start": 7190000000,
             "end": 7235000000
         },
         {
-            "name": "Exploration de la Terre par satellite / Mobile",
+            "name": "Exploration de la Terre par satellite / Mobile — Défense, ARCEP, CNES",
             "type": "space",
             "start": 7235000000,
             "end": 7250000000
         },
         {
-            "name": "Fixe par satellite / Mobile par satellite",
+            "name": "Fixe par satellite / Mobile par satellite — Défense",
             "type": "satellite",
             "start": 7250000000,
             "end": 7375000000
         },
         {
-            "name": "Mobile maritime par satellite / Fixe par satellite",
+            "name": "Mobile maritime par satellite / Fixe par satellite — Défense",
             "type": "marine",
             "start": 7375000000,
             "end": 7450000000
         },
         {
-            "name": "Mobile maritime par satellite / Météorologie par satellite",
+            "name": "Mobile maritime par satellite / Météorologie par satellite — Défense, Météo-France, CNES",
             "type": "marine",
             "start": 7450000000,
             "end": 7550000000
         },
         {
-            "name": "Mobile maritime par satellite / Fixe par satellite",
+            "name": "Mobile maritime par satellite / Fixe par satellite — Défense, ARCEP, Aviation civile",
             "type": "marine",
             "start": 7550000000,
             "end": 7750000000
         },
         {
-            "name": "Météorologie par satellite / Mobile (sauf aéronautique)",
+            "name": "Météorologie par satellite / Mobile (sauf aéronautique) — ARCEP, Météo-France",
             "type": "space",
             "start": 7750000000,
+            "end": 7890000000
+        },
+        {
+            "name": "Météorologie par satellite / Mobile (sauf aéronautique) — Défense, Météo-France",
+            "type": "space",
+            "start": 7890000000,
             "end": 7900000000
         },
         {
-            "name": "Fixe par satellite / Mobile par satellite",
+            "name": "Fixe par satellite / Mobile par satellite — Défense",
             "type": "satellite",
             "start": 7900000000,
             "end": 8025000000
         },
         {
-            "name": "Exploration de la Terre par satellite / Fixe par satellite",
+            "name": "Exploration de la Terre par satellite / Fixe par satellite — Défense, ARCEP, Aviation civile, Intérieur, CNES",
             "type": "space",
             "start": 8025000000,
             "end": 8175000000
         },
         {
-            "name": "Météorologie par satellite / Exploration de la Terre par satellite",
+            "name": "Météorologie par satellite / Exploration de la Terre par satellite — Défense, ARCEP, Aviation civile, Intérieur, Météo-France, CNES",
             "type": "space",
             "start": 8175000000,
             "end": 8215000000
         },
         {
-            "name": "Exploration de la Terre par satellite / Fixe par satellite",
+            "name": "Exploration de la Terre par satellite / Fixe par satellite — Défense, ARCEP, Aviation civile, Intérieur, CNES",
             "type": "space",
             "start": 8215000000,
             "end": 8400000000
         },
         {
-            "name": "Fixe",
+            "name": "Fixe — Défense, ARCEP, Intérieur",
             "type": "fixed",
             "start": 8400000000,
             "end": 8500000000
         },
         {
-            "name": "Radiolocalisation (Défense)",
+            "name": "Radiolocalisation — Défense",
             "type": "military",
             "start": 8500000000,
             "end": 8550000000
         },
         {
-            "name": "Radiolocalisation / Exploration de la Terre par satellite",
+            "name": "Radiolocalisation / Exploration de la Terre par satellite — Défense, CNES",
             "type": "radiolocation",
             "start": 8550000000,
             "end": 8650000000
         },
         {
-            "name": "Radiolocalisation (Défense)",
+            "name": "Radiolocalisation — Défense",
             "type": "military",
             "start": 8650000000,
             "end": 8750000000
         },
         {
-            "name": "Radionavigation aéronautique / Radiolocalisation",
+            "name": "Radionavigation aéronautique / Radiolocalisation — Défense, Aviation civile",
             "type": "aviation",
             "start": 8750000000,
             "end": 8850000000
         },
         {
-            "name": "Radionavigation maritime / Radiolocalisation",
+            "name": "Radionavigation maritime / Radiolocalisation — Défense, ARCEP, Aviation civile, Intérieur, Aff. maritimes",
             "type": "marine",
             "start": 8850000000,
             "end": 9000000000
         },
         {
-            "name": "Radionavigation maritime / Radionavigation aéronautique",
+            "name": "Radionavigation maritime / Radionavigation aéronautique — Défense, Aviation civile, Aff. maritimes",
             "type": "marine",
             "start": 9000000000,
             "end": 9200000000
         },
         {
-            "name": "Radionavigation maritime / Radiolocalisation",
+            "name": "Radionavigation maritime / Radiolocalisation — Défense, Aviation civile, CNES, Aff. maritimes",
             "type": "marine",
             "start": 9200000000,
             "end": 9300000000
         },
         {
-            "name": "Radionavigation / Radiolocalisation",
+            "name": "Radionavigation / Radiolocalisation — Défense, ARCEP, Aviation civile, Météo-France, CNES, Aff. maritimes",
             "type": "radionavigation",
             "start": 9300000000,
             "end": 9500000000
         },
         {
-            "name": "Radiolocalisation / Exploration de la Terre par satellite",
+            "name": "Radiolocalisation / Exploration de la Terre par satellite — Défense, Aviation civile, CNES",
             "type": "radiolocation",
             "start": 9500000000,
+            "end": 9800000000
+        },
+        {
+            "name": "Radiolocalisation / Exploration de la Terre par satellite — Défense, ARCEP, CNES",
+            "type": "radiolocation",
+            "start": 9800000000,
+            "end": 9900000000
+        },
+        {
+            "name": "Radiolocalisation / Exploration de la Terre par satellite — Défense, ARCEP, Météo-France, CNES",
+            "type": "radiolocation",
+            "start": 9900000000,
             "end": 10000000000
         },
         {
@@ -1830,19 +2310,25 @@
             "end": 10500000000
         },
         {
-            "name": "Mobile (sauf aéronautique) / Fixe",
+            "name": "Mobile (sauf aéronautique) / Fixe — ARCEP",
             "type": "mobile",
             "start": 10500000000,
             "end": 10600000000
         },
         {
-            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "name": "Radioastronomie / Exploration de la Terre par satellite — ARCEP, CNES, Recherche",
             "type": "space",
             "start": 10600000000,
+            "end": 10680000000
+        },
+        {
+            "name": "Radioastronomie / Exploration de la Terre par satellite — CNES, Recherche",
+            "type": "space",
+            "start": 10680000000,
             "end": 10700000000
         },
         {
-            "name": "Fixe par satellite / Fixe",
+            "name": "Fixe par satellite / Fixe — Défense, ARCEP",
             "type": "satellite",
             "start": 10700000000,
             "end": 11700000000
@@ -1854,175 +2340,205 @@
             "end": 12500000000
         },
         {
-            "name": "Fixe par satellite",
+            "name": "Fixe par satellite — ARCEP",
             "type": "satellite",
             "start": 12500000000,
             "end": 12750000000
         },
         {
-            "name": "Fixe par satellite / Fixe",
+            "name": "Fixe par satellite / Fixe — ARCEP, Aviation civile, Intérieur, CNES",
             "type": "satellite",
             "start": 12750000000,
             "end": 13250000000
         },
         {
-            "name": "Radionavigation aéronautique / Exploration de la Terre par satellite",
+            "name": "Radionavigation aéronautique / Exploration de la Terre par satellite — Défense, Aviation civile, CNES",
             "type": "aviation",
             "start": 13250000000,
             "end": 13400000000
         },
         {
-            "name": "Radiolocalisation / Exploration de la Terre par satellite",
+            "name": "Radiolocalisation / Exploration de la Terre par satellite — Défense, ARCEP, CNES",
             "type": "radiolocation",
             "start": 13400000000,
+            "end": 13650000000
+        },
+        {
+            "name": "Radiolocalisation / Exploration de la Terre par satellite — Défense, CNES",
+            "type": "radiolocation",
+            "start": 13650000000,
             "end": 13750000000
         },
         {
-            "name": "Radiolocalisation / Fixe par satellite",
+            "name": "Radiolocalisation / Fixe par satellite — Défense, ARCEP, CNES",
             "type": "radiolocation",
             "start": 13750000000,
             "end": 14000000000
         },
         {
-            "name": "Fixe par satellite",
+            "name": "Fixe par satellite — Défense, ARCEP, CNES",
             "type": "satellite",
             "start": 14000000000,
             "end": 14250000000
         },
         {
-            "name": "Fixe par satellite / Fixe",
+            "name": "Fixe par satellite / Fixe — Défense, ARCEP, CNES",
             "type": "satellite",
             "start": 14250000000,
             "end": 14300000000
         },
         {
-            "name": "Fixe par satellite / Mobile (sauf aéronautique)",
+            "name": "Fixe par satellite / Mobile (sauf aéronautique) — Défense, ARCEP",
             "type": "satellite",
             "start": 14300000000,
+            "end": 14400000000
+        },
+        {
+            "name": "Fixe par satellite / Mobile (sauf aéronautique) — Défense, ARCEP, CNES",
+            "type": "satellite",
+            "start": 14400000000,
+            "end": 14470000000
+        },
+        {
+            "name": "Fixe par satellite / Mobile (sauf aéronautique) — Défense, ARCEP, Recherche",
+            "type": "satellite",
+            "start": 14470000000,
             "end": 14500000000
         },
         {
-            "name": "Mobile / Fixe",
+            "name": "Mobile / Fixe — Défense, CNES",
             "type": "mobile",
             "start": 14500000000,
             "end": 15250000000
         },
         {
-            "name": "Fixe",
+            "name": "Fixe — Défense, ARCEP, CNES",
             "type": "fixed",
             "start": 15250000000,
             "end": 15350000000
         },
         {
-            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "name": "Radioastronomie / Exploration de la Terre par satellite — CNES, Recherche",
             "type": "space",
             "start": 15350000000,
             "end": 15400000000
         },
         {
-            "name": "Radionavigation aéronautique / Radiolocalisation",
+            "name": "Radionavigation aéronautique / Radiolocalisation — Défense, Aviation civile",
             "type": "aviation",
             "start": 15400000000,
+            "end": 15430000000
+        },
+        {
+            "name": "Radionavigation aéronautique / Radiolocalisation — Défense, ARCEP, Aviation civile",
+            "type": "aviation",
+            "start": 15430000000,
+            "end": 15630000000
+        },
+        {
+            "name": "Radionavigation aéronautique / Radiolocalisation — Défense, Aviation civile",
+            "type": "aviation",
+            "start": 15630000000,
             "end": 15700000000
         },
         {
-            "name": "Radiolocalisation (Défense)",
+            "name": "Radiolocalisation — Défense",
             "type": "military",
             "start": 15700000000,
             "end": 17200000000
         },
         {
-            "name": "Radiolocalisation / Exploration de la Terre par satellite",
+            "name": "Radiolocalisation / Exploration de la Terre par satellite — Défense, CNES",
             "type": "radiolocation",
             "start": 17200000000,
             "end": 17300000000
         },
         {
-            "name": "Fixe par satellite",
+            "name": "Fixe par satellite — Défense, ARCEP",
             "type": "satellite",
             "start": 17300000000,
             "end": 17700000000
         },
         {
-            "name": "Fixe par satellite / Fixe",
+            "name": "Fixe par satellite / Fixe — Défense, ARCEP",
             "type": "satellite",
             "start": 17700000000,
             "end": 18600000000
         },
         {
-            "name": "Exploration de la Terre par satellite / Fixe par satellite",
+            "name": "Exploration de la Terre par satellite / Fixe par satellite — Défense, ARCEP, CNES",
             "type": "space",
             "start": 18600000000,
             "end": 18800000000
         },
         {
-            "name": "Fixe par satellite / Fixe",
+            "name": "Fixe par satellite / Fixe — Défense, ARCEP",
             "type": "satellite",
             "start": 18800000000,
             "end": 19700000000
         },
         {
-            "name": "Fixe par satellite",
+            "name": "Fixe par satellite — ARCEP",
             "type": "satellite",
             "start": 19700000000,
             "end": 20200000000
         },
         {
-            "name": "Fixe par satellite / Mobile par satellite",
+            "name": "Fixe par satellite / Mobile par satellite — Défense",
             "type": "satellite",
             "start": 20200000000,
             "end": 21200000000
         },
         {
-            "name": "Exploration de la Terre par satellite / Recherche spatiale (passive)",
+            "name": "Exploration de la Terre par satellite / Recherche spatiale (passive) — ARCEP, CNES",
             "type": "space",
             "start": 21200000000,
             "end": 21400000000
         },
         {
-            "name": "Radiodiffusion par satellite / Mobile",
+            "name": "Radiodiffusion par satellite / Mobile — ARCEP",
             "type": "broadcast",
             "start": 21400000000,
             "end": 22000000000
         },
         {
-            "name": "Radioastronomie / Mobile",
+            "name": "Radioastronomie / Mobile — ARCEP, Intérieur, Recherche",
             "type": "space",
             "start": 22000000000,
             "end": 22210000000
         },
         {
-            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "name": "Radioastronomie / Exploration de la Terre par satellite — ARCEP, Intérieur, CNES, Recherche",
             "type": "space",
             "start": 22210000000,
             "end": 22500000000
         },
         {
-            "name": "Fixe",
+            "name": "Fixe — ARCEP, Intérieur",
             "type": "fixed",
             "start": 22500000000,
             "end": 22550000000
         },
         {
-            "name": "Inter-satellites / Recherche spatiale",
+            "name": "Inter-satellites / Recherche spatiale — Défense, ARCEP, Intérieur, CNES",
             "type": "space",
             "start": 22550000000,
             "end": 23150000000
         },
         {
-            "name": "Inter-satellites / Fixe",
+            "name": "Inter-satellites / Fixe — Défense, ARCEP, Intérieur, CNES",
             "type": "space",
             "start": 23150000000,
             "end": 23550000000
         },
         {
-            "name": "Fixe",
+            "name": "Fixe — ARCEP, Intérieur",
             "type": "fixed",
             "start": 23550000000,
             "end": 23600000000
         },
         {
-            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "name": "Radioastronomie / Exploration de la Terre par satellite — CNES, Recherche",
             "type": "space",
             "start": 23600000000,
             "end": 24000000000
@@ -2034,223 +2550,229 @@
             "end": 24250000000
         },
         {
-            "name": "Mobile (sauf aéronautique) / Fixe",
+            "name": "Mobile (sauf aéronautique) / Fixe — ARCEP",
             "type": "mobile",
             "start": 24250000000,
             "end": 24450000000
         },
         {
-            "name": "Inter-satellites / Mobile (sauf aéronautique)",
+            "name": "Inter-satellites / Mobile (sauf aéronautique) — Défense, ARCEP, CNES",
             "type": "space",
             "start": 24450000000,
             "end": 24650000000
         },
         {
-            "name": "Inter-satellites / Fixe par satellite",
+            "name": "Inter-satellites / Fixe par satellite — Défense, ARCEP, CNES",
             "type": "space",
             "start": 24650000000,
             "end": 24750000000
         },
         {
-            "name": "Fixe par satellite / Mobile (sauf aéronautique)",
+            "name": "Fixe par satellite / Mobile (sauf aéronautique) — Défense, ARCEP",
             "type": "satellite",
             "start": 24750000000,
             "end": 25250000000
         },
         {
-            "name": "Inter-satellites / Mobile",
+            "name": "Inter-satellites / Mobile — Défense, ARCEP, CNES",
             "type": "space",
             "start": 25250000000,
             "end": 25500000000
         },
         {
-            "name": "Inter-satellites / Exploration de la Terre par satellite",
+            "name": "Inter-satellites / Exploration de la Terre par satellite — Défense, ARCEP, Météo-France, CNES",
             "type": "space",
             "start": 25500000000,
             "end": 27000000000
         },
         {
-            "name": "Inter-satellites / Mobile",
+            "name": "Inter-satellites / Mobile — Défense, ARCEP, CNES",
             "type": "space",
             "start": 27000000000,
             "end": 27500000000
         },
         {
-            "name": "Inter-satellites / Fixe par satellite",
+            "name": "Inter-satellites / Fixe par satellite — Défense, ARCEP",
             "type": "space",
             "start": 27500000000,
             "end": 28450000000
         },
         {
-            "name": "Fixe par satellite",
+            "name": "Fixe par satellite — Défense, ARCEP, Météo-France, CNES",
             "type": "satellite",
             "start": 28450000000,
             "end": 28500000000
         },
         {
-            "name": "Mobile / Fixe",
+            "name": "Mobile / Fixe — Défense, ARCEP, Météo-France, CNES",
             "type": "mobile",
             "start": 28500000000,
             "end": 29100000000
         },
         {
-            "name": "Fixe par satellite / Mobile",
+            "name": "Fixe par satellite / Mobile — Défense, ARCEP, Météo-France, CNES",
             "type": "satellite",
             "start": 29100000000,
             "end": 29500000000
         },
         {
-            "name": "Fixe par satellite",
+            "name": "Fixe par satellite — Défense, ARCEP, Météo-France, CNES",
             "type": "satellite",
             "start": 29500000000,
             "end": 30000000000
         },
         {
-            "name": "Fixe par satellite / Mobile par satellite",
+            "name": "Fixe par satellite / Mobile par satellite — Défense",
             "type": "satellite",
             "start": 30000000000,
             "end": 31000000000
         },
         {
-            "name": "Mobile / Fixe",
+            "name": "Mobile / Fixe — ARCEP, CNES, Recherche",
             "type": "mobile",
             "start": 31000000000,
             "end": 31300000000
         },
         {
-            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "name": "Radioastronomie / Exploration de la Terre par satellite — CNES, Recherche",
             "type": "space",
             "start": 31300000000,
             "end": 31800000000
         },
         {
-            "name": "Radionavigation / Recherche spatiale",
+            "name": "Radionavigation / Recherche spatiale — Défense, ARCEP, Aviation civile, CNES",
             "type": "radionavigation",
             "start": 31800000000,
             "end": 32300000000
         },
         {
-            "name": "Radionavigation / Inter-satellites",
+            "name": "Radionavigation / Inter-satellites — Défense, ARCEP, Aviation civile, CNES",
             "type": "radionavigation",
             "start": 32300000000,
             "end": 33000000000
         },
         {
-            "name": "Radionavigation / Fixe",
+            "name": "Radionavigation / Fixe — Défense, ARCEP, Aviation civile",
             "type": "radionavigation",
             "start": 33000000000,
             "end": 33400000000
         },
         {
-            "name": "Radiolocalisation (Défense)",
+            "name": "Radiolocalisation — Défense",
             "type": "military",
             "start": 33400000000,
             "end": 34200000000
         },
         {
-            "name": "Radiolocalisation / Recherche spatiale",
+            "name": "Radiolocalisation / Recherche spatiale — Défense, Aviation civile, CNES",
             "type": "radiolocation",
             "start": 34200000000,
             "end": 34700000000
         },
         {
-            "name": "Radiolocalisation",
+            "name": "Radiolocalisation — Défense, Aviation civile, CNES",
             "type": "radiolocation",
             "start": 34700000000,
             "end": 35200000000
         },
         {
-            "name": "Radiolocalisation / Auxiliaires de la météorologie",
+            "name": "Radiolocalisation / Auxiliaires de la météorologie — Défense, Aviation civile, Météo-France",
             "type": "radiolocation",
             "start": 35200000000,
             "end": 35500000000
         },
         {
-            "name": "Radiolocalisation / Exploitation spatiale",
+            "name": "Radiolocalisation / Exploitation spatiale — Défense, Aviation civile, Météo-France, CNES",
             "type": "radiolocation",
             "start": 35500000000,
             "end": 36000000000
         },
         {
-            "name": "Exploration de la Terre par satellite / Recherche spatiale (passive)",
+            "name": "Exploration de la Terre par satellite / Recherche spatiale (passive) — Défense, CNES, Recherche",
             "type": "space",
             "start": 36000000000,
             "end": 37000000000
         },
         {
-            "name": "Recherche spatiale / Mobile (sauf aéronautique)",
+            "name": "Recherche spatiale / Mobile (sauf aéronautique) — Défense, CNES",
             "type": "space",
             "start": 37000000000,
             "end": 37268000000
         },
         {
-            "name": "Recherche spatiale / Fixe",
+            "name": "Recherche spatiale / Fixe — ARCEP, CNES",
             "type": "space",
             "start": 37268000000,
             "end": 37500000000
         },
         {
-            "name": "Recherche spatiale / Fixe par satellite",
+            "name": "Recherche spatiale / Fixe par satellite — Défense, ARCEP, Intérieur, CNES",
             "type": "space",
             "start": 37500000000,
             "end": 38000000000
         },
         {
-            "name": "Fixe par satellite / Fixe",
+            "name": "Fixe par satellite / Fixe — Défense, ARCEP, CNES",
             "type": "satellite",
             "start": 38000000000,
             "end": 38220000000
         },
         {
-            "name": "Fixe par satellite",
+            "name": "Fixe par satellite — Défense, ARCEP, CNES",
             "type": "satellite",
             "start": 38220000000,
             "end": 38276000000
         },
         {
-            "name": "Fixe par satellite / Mobile",
+            "name": "Fixe par satellite / Mobile — Défense, ARCEP, CNES",
             "type": "satellite",
             "start": 38276000000,
+            "end": 38528000000
+        },
+        {
+            "name": "Fixe par satellite / Mobile — Défense, ARCEP, Intérieur, CNES",
+            "type": "satellite",
+            "start": 38528000000,
             "end": 39480000000
         },
         {
-            "name": "Fixe par satellite",
+            "name": "Fixe par satellite — Défense, ARCEP, CNES",
             "type": "satellite",
             "start": 39480000000,
             "end": 39500000000
         },
         {
-            "name": "Fixe par satellite / Mobile par satellite",
+            "name": "Fixe par satellite / Mobile par satellite — Défense, ARCEP, CNES",
             "type": "satellite",
             "start": 39500000000,
             "end": 40000000000
         },
         {
-            "name": "Exploration de la Terre par satellite / Recherche spatiale",
+            "name": "Exploration de la Terre par satellite / Recherche spatiale — Défense, ARCEP, CNES",
             "type": "space",
             "start": 40000000000,
             "end": 40500000000
         },
         {
-            "name": "Radiodiffusion par satellite / Radiodiffusion",
+            "name": "Radiodiffusion par satellite / Radiodiffusion — ARCEP",
             "type": "broadcast",
             "start": 40500000000,
             "end": 42500000000
         },
         {
-            "name": "Radioastronomie / Fixe par satellite",
+            "name": "Radioastronomie / Fixe par satellite — ARCEP, Recherche",
             "type": "space",
             "start": 42500000000,
             "end": 43500000000
         },
         {
-            "name": "Mobile par satellite / Mobile",
+            "name": "Mobile par satellite / Mobile — Défense, Aviation civile",
             "type": "satellite",
             "start": 43500000000,
             "end": 45500000000
         },
         {
-            "name": "Radionavigation par satellite / Radionavigation",
+            "name": "Radionavigation par satellite / Radionavigation — Défense",
             "type": "radionavigation",
             "start": 45500000000,
             "end": 47000000000
@@ -2262,85 +2784,85 @@
             "end": 47200000000
         },
         {
-            "name": "Fixe par satellite / Mobile",
+            "name": "Fixe par satellite / Mobile — ARCEP",
             "type": "satellite",
             "start": 47200000000,
             "end": 48540000000
         },
         {
-            "name": "Radioastronomie / Fixe par satellite",
+            "name": "Radioastronomie / Fixe par satellite — ARCEP, Recherche",
             "type": "space",
             "start": 48540000000,
             "end": 49440000000
         },
         {
-            "name": "Fixe par satellite / Mobile",
+            "name": "Fixe par satellite / Mobile — ARCEP",
             "type": "satellite",
             "start": 49440000000,
             "end": 50200000000
         },
         {
-            "name": "Exploration de la Terre par satellite / Recherche spatiale (passive)",
+            "name": "Exploration de la Terre par satellite / Recherche spatiale (passive) — CNES",
             "type": "space",
             "start": 50200000000,
             "end": 50400000000
         },
         {
-            "name": "Fixe par satellite / Mobile",
+            "name": "Fixe par satellite / Mobile — Défense, ARCEP",
             "type": "satellite",
             "start": 50400000000,
             "end": 52400000000
         },
         {
-            "name": "Mobile / Fixe",
+            "name": "Mobile / Fixe — ARCEP",
             "type": "mobile",
             "start": 52400000000,
             "end": 52600000000
         },
         {
-            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "name": "Radioastronomie / Exploration de la Terre par satellite — CNES, Recherche",
             "type": "space",
             "start": 52600000000,
             "end": 54250000000
         },
         {
-            "name": "Exploration de la Terre par satellite / Recherche spatiale (passive)",
+            "name": "Exploration de la Terre par satellite / Recherche spatiale (passive) — Défense, ARCEP, CNES",
             "type": "space",
             "start": 54250000000,
             "end": 59000000000
         },
         {
-            "name": "Radiolocalisation / Exploration de la Terre par satellite",
+            "name": "Radiolocalisation / Exploration de la Terre par satellite — Défense, ARCEP, CNES",
             "type": "radiolocation",
             "start": 59000000000,
             "end": 64000000000
         },
         {
-            "name": "Inter-satellites / Mobile (sauf aéronautique)",
+            "name": "Inter-satellites / Mobile (sauf aéronautique) — Défense, ARCEP, CNES",
             "type": "space",
             "start": 64000000000,
             "end": 65000000000
         },
         {
-            "name": "Exploration de la Terre par satellite / Inter-satellites",
+            "name": "Exploration de la Terre par satellite / Inter-satellites — Défense, ARCEP, CNES",
             "type": "space",
             "start": 65000000000,
             "end": 66000000000
         },
         {
-            "name": "Radionavigation / Radionavigation par satellite",
+            "name": "Radionavigation / Radionavigation par satellite — Défense",
             "type": "radionavigation",
             "start": 66000000000,
             "end": 71000000000
         },
         {
-            "name": "Fixe par satellite / Mobile par satellite",
+            "name": "Fixe par satellite / Mobile par satellite — Défense, ARCEP",
             "type": "satellite",
             "start": 71000000000,
             "end": 74000000000
         },
         {
-            "name": "Radiodiffusion par satellite / Radiodiffusion",
+            "name": "Radiodiffusion par satellite / Radiodiffusion — ARCEP, CNES",
             "type": "broadcast",
             "start": 74000000000,
             "end": 76000000000
@@ -2352,85 +2874,91 @@
             "end": 81000000000
         },
         {
-            "name": "Radioastronomie / Fixe par satellite",
+            "name": "Radioastronomie / Fixe par satellite — Défense, ARCEP, CNES, Recherche",
             "type": "space",
             "start": 81000000000,
+            "end": 84000000000
+        },
+        {
+            "name": "Radioastronomie / Fixe par satellite — ARCEP, Recherche",
+            "type": "space",
+            "start": 84000000000,
             "end": 86000000000
         },
         {
-            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "name": "Radioastronomie / Exploration de la Terre par satellite — CNES, Recherche",
             "type": "space",
             "start": 86000000000,
             "end": 92000000000
         },
         {
-            "name": "Radiolocalisation / Radioastronomie",
+            "name": "Radiolocalisation / Radioastronomie — Défense, Recherche",
             "type": "radiolocation",
             "start": 92000000000,
             "end": 94000000000
         },
         {
-            "name": "Radiolocalisation / Exploration de la Terre par satellite",
+            "name": "Radiolocalisation / Exploration de la Terre par satellite — Défense, CNES, Recherche",
             "type": "radiolocation",
             "start": 94000000000,
             "end": 94100000000
         },
         {
-            "name": "Radiolocalisation / Radioastronomie",
+            "name": "Radiolocalisation / Radioastronomie — Défense, Recherche",
             "type": "radiolocation",
             "start": 94100000000,
             "end": 95000000000
         },
         {
-            "name": "Radionavigation par satellite / Radionavigation",
+            "name": "Radionavigation par satellite / Radionavigation — Défense, Météo-France, Recherche",
             "type": "radionavigation",
             "start": 95000000000,
             "end": 96000000000
         },
         {
-            "name": "Radionavigation / Radionavigation par satellite",
+            "name": "Radionavigation / Radionavigation par satellite — Défense, Recherche",
             "type": "radionavigation",
             "start": 96000000000,
             "end": 100000000000
         },
         {
-            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "name": "Radioastronomie / Exploration de la Terre par satellite — CNES, Recherche",
             "type": "space",
             "start": 100000000000,
             "end": 102000000000
         },
         {
-            "name": "Radioastronomie / Mobile",
+            "name": "Radioastronomie / Mobile — Recherche",
             "type": "space",
             "start": 102000000000,
             "end": 105000000000
         },
         {
-            "name": "Radioastronomie / Recherche spatiale (passive)",
+            "name": "Radioastronomie / Recherche spatiale (passive) — CNES, Recherche",
             "type": "space",
             "start": 105000000000,
             "end": 109500000000
         },
         {
-            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "name": "Radioastronomie / Exploration de la Terre par satellite — CNES, Recherche",
             "type": "space",
             "start": 109500000000,
             "end": 111800000000
         },
         {
-            "name": "Radioastronomie / Recherche spatiale (passive)",
+            "name": "Radioastronomie / Recherche spatiale (passive) — CNES, Recherche",
             "type": "space",
             "start": 111800000000,
             "end": 114250000000
         },
         {
-            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "name": "Radioastronomie / Exploration de la Terre par satellite — CNES, Recherche",
             "type": "space",
             "start": 114250000000,
             "end": 116000000000
         },
         {
-            "name": "Exploration de la Terre par satellite / Recherche spatiale (passive)",
+            "name": "Exploration de la Terre par satellite / Recherche spatiale (passive) — CNES",
             "type": "space",
             "start": 116000000000,
             "end": 122250000000
@@ -2442,13 +2970,13 @@
             "end": 123000000000
         },
         {
-            "name": "Radionavigation par satellite / Radionavigation",
+            "name": "Radionavigation par satellite / Radionavigation — Recherche",
             "type": "radionavigation",
             "start": 123000000000,
             "end": 130000000000
         },
         {
-            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "name": "Radioastronomie / Exploration de la Terre par satellite — CNES, Recherche",
             "type": "space",
             "start": 130000000000,
             "end": 134000000000
@@ -2460,25 +2988,25 @@
             "end": 141000000000
         },
         {
-            "name": "Radiolocalisation / Radioastronomie",
+            "name": "Radiolocalisation / Radioastronomie — Recherche",
             "type": "radiolocation",
             "start": 141000000000,
             "end": 148500000000
         },
         {
-            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "name": "Radioastronomie / Exploration de la Terre par satellite — CNES, Recherche",
             "type": "space",
             "start": 148500000000,
             "end": 151500000000
         },
         {
-            "name": "Radiolocalisation / Radioastronomie",
+            "name": "Radiolocalisation / Radioastronomie — Recherche",
             "type": "radiolocation",
             "start": 151500000000,
             "end": 155500000000
         },
         {
-            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "name": "Radioastronomie / Exploration de la Terre par satellite — CNES, Recherche",
             "type": "space",
             "start": 155500000000,
             "end": 158500000000
@@ -2490,7 +3018,7 @@
             "end": 164000000000
         },
         {
-            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "name": "Radioastronomie / Exploration de la Terre par satellite — CNES, Recherche",
             "type": "space",
             "start": 164000000000,
             "end": 167000000000
@@ -2508,19 +3036,19 @@
             "end": 174800000000
         },
         {
-            "name": "Exploration de la Terre par satellite / Recherche spatiale (passive)",
+            "name": "Exploration de la Terre par satellite / Recherche spatiale (passive) — CNES",
             "type": "space",
             "start": 174800000000,
             "end": 182000000000
         },
         {
-            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "name": "Radioastronomie / Exploration de la Terre par satellite — CNES, Recherche",
             "type": "space",
             "start": 182000000000,
             "end": 185000000000
         },
         {
-            "name": "Exploration de la Terre par satellite / Recherche spatiale (passive)",
+            "name": "Exploration de la Terre par satellite / Recherche spatiale (passive) — CNES",
             "type": "space",
             "start": 185000000000,
             "end": 191800000000
@@ -2532,25 +3060,25 @@
             "end": 200000000000
         },
         {
-            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "name": "Radioastronomie / Exploration de la Terre par satellite — CNES, Recherche",
             "type": "space",
             "start": 200000000000,
             "end": 209000000000
         },
         {
-            "name": "Radioastronomie / Fixe par satellite",
+            "name": "Radioastronomie / Fixe par satellite — Recherche",
             "type": "space",
             "start": 209000000000,
             "end": 217000000000
         },
         {
-            "name": "Radioastronomie / Recherche spatiale (passive)",
+            "name": "Radioastronomie / Recherche spatiale (passive) — CNES, Recherche",
             "type": "space",
             "start": 217000000000,
             "end": 226000000000
         },
         {
-            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "name": "Radioastronomie / Exploration de la Terre par satellite — CNES, Recherche",
             "type": "space",
             "start": 226000000000,
             "end": 231500000000
@@ -2568,7 +3096,7 @@
             "end": 235000000000
         },
         {
-            "name": "Exploration de la Terre par satellite / Recherche spatiale (passive)",
+            "name": "Exploration de la Terre par satellite / Recherche spatiale (passive) — CNES",
             "type": "space",
             "start": 235000000000,
             "end": 238000000000
@@ -2577,10 +3105,16 @@
             "name": "Radionavigation par satellite / Radionavigation",
             "type": "radionavigation",
             "start": 238000000000,
+            "end": 239200000000
+        },
+        {
+            "name": "Radionavigation par satellite / Radionavigation — CNES",
+            "type": "radionavigation",
+            "start": 239200000000,
             "end": 240000000000
         },
         {
-            "name": "Radiolocalisation / Exploration de la Terre par satellite",
+            "name": "Radiolocalisation / Exploration de la Terre par satellite — CNES",
             "type": "radiolocation",
             "start": 240000000000,
             "end": 241000000000
@@ -2592,19 +3126,19 @@
             "end": 250000000000
         },
         {
-            "name": "Radioastronomie / Exploration de la Terre par satellite",
+            "name": "Radioastronomie / Exploration de la Terre par satellite — CNES, Recherche",
             "type": "space",
             "start": 250000000000,
             "end": 252000000000
         },
         {
-            "name": "Radionavigation par satellite / Radionavigation",
+            "name": "Radionavigation par satellite / Radionavigation — Recherche",
             "type": "radionavigation",
             "start": 252000000000,
             "end": 265000000000
         },
         {
-            "name": "Radioastronomie / Fixe par satellite",
+            "name": "Radioastronomie / Fixe par satellite — Recherche",
             "type": "space",
             "start": 265000000000,
             "end": 3000000000000
