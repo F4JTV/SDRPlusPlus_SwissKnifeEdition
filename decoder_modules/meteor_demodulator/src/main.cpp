@@ -30,7 +30,7 @@ SDRPP_MOD_INFO{
     /* Name:            */ "meteor_demodulator",
     /* Description:     */ "Meteor demodulator + LRPT image decoder for SDR++",
     /* Author:          */ "Ryzerth;F4JTV (LRPT decode, ported from SatDump)",
-    /* Version:         */ 0, 3, 7,
+    /* Version:         */ 0, 3, 8,
     /* Max instances    */ -1
 };
 
@@ -127,6 +127,10 @@ public:
 
         decoder = std::make_unique<LRPTDecoder>(decoderModeForIndex(lrptMode), lrptDiff);
 
+        // Background image builder (keeps the heavy rebuild off the UI thread).
+        imgThreadRun = true;
+        imgThread = std::thread(&MeteorDemodulatorModule::imageThreadWorker, this);
+
         demod.start();
         split.start();
         reshape.start();
@@ -138,6 +142,8 @@ public:
     }
 
     ~MeteorDemodulatorModule() {
+        imgThreadRun = false;
+        if (imgThread.joinable()) imgThread.join();
         if (recording) {
             std::lock_guard<std::mutex> lck(recMtx);
             recording = false;
@@ -359,9 +365,13 @@ private:
         // View selector
         ImGui::SetNextItemWidth(menuWidth);
         const char* viewItems = "Composite RGB\0Channel 1 (APID 64)\0Channel 2 (APID 65)\0Channel 3 (APID 66)\0Channel 4 (APID 67)\0Channel 5 (APID 68)\0Channel 6 (APID 69)\0";
-        ImGui::Combo(CONCAT("##lrpt_view", _this->name), &_this->viewMode, viewItems);
+        if (ImGui::Combo(CONCAT("##lrpt_view", _this->name), &_this->viewMode, viewItems)) _this->imgRequestRebuild = true;
 
-        ImGui::Checkbox(CONCAT("Normalize contrast##lrpt_norm", _this->name), &_this->normalizeImg);
+        if (ImGui::Checkbox(CONCAT("Normalize contrast##lrpt_norm", _this->name), &_this->normalizeImg))
+            _this->imgRequestRebuild = true;
+        ImGui::SameLine();
+        if (ImGui::Checkbox(CONCAT("Flip 180 (passe descendante)##lrpt_flip", _this->name), &_this->flip180))
+            _this->imgRequestRebuild = true;
 
         if (_this->viewMode == 0) {
             ImGui::Checkbox(CONCAT("Auto channels##lrpt_autoch", _this->name), &_this->autoChannels);
@@ -385,31 +395,25 @@ private:
         }
 
         if (ImGui::Button(CONCAT("Refresh image##lrpt_refresh", _this->name), ImVec2(menuWidth, 0))) {
-            _this->rebuildImage();
+            _this->imgRequestRebuild = true; // handled by the background image thread
         }
 
-        // Auto-refresh roughly every 2 s while live decoding
-        if (_this->liveDecode) {
-            double now = ImGui::GetTime();
-            if (now - _this->lastRefresh > 2.0) {
-                _this->lastRefresh = now;
-                _this->rebuildImage();
+        // Image display (the background thread keeps displayRGBA up to date)
+        {
+            std::lock_guard<std::mutex> lk(_this->imgMtx);
+            if (!_this->displayRGBA.empty() && _this->dispW > 0 && _this->dispH > 0) {
+                if (_this->texDirty) {
+                    _this->texture.update(_this->displayRGBA.data(), _this->dispW, _this->dispH);
+                    _this->texDirty = false;
+                }
             }
         }
-
-        // Image display
-        if (!_this->displayRGBA.empty() && _this->dispW > 0 && _this->dispH > 0) {
-            if (_this->texDirty) {
-                _this->texture.update(_this->displayRGBA.data(), _this->dispW, _this->dispH);
-                _this->texDirty = false;
-            }
-            if (_this->texture.isValid()) {
-                float aspect = (float)_this->dispH / (float)_this->dispW;
-                float dw = menuWidth;
-                float dh = dw * aspect;
-                ImGui::Image((ImTextureID)(intptr_t)_this->texture.id(), ImVec2(dw, dh));
-                ImGui::Text("Image: %d x %d", _this->dispW, _this->dispH);
-            }
+        if (_this->texture.isValid()) {
+            float aspect = (float)_this->dispH / (float)_this->dispW;
+            float dw = menuWidth;
+            float dh = dw * aspect;
+            ImGui::Image((ImTextureID)(intptr_t)_this->texture.id(), ImVec2(dw, dh));
+            ImGui::Text("Image: %d x %d", _this->dispW, _this->dispH);
         }
         else {
             ImGui::TextDisabled("No image yet");
@@ -429,14 +433,20 @@ private:
             _this->savePNG();
         }
 
-        if (!_this->lastSavedPng.empty()) {
-            ImGui::TextWrapped("Saved: %s", _this->lastSavedPng.c_str());
+        ImGui::Checkbox(CONCAT("Auto-save PNG + reset entre passages##lrpt_autosave", _this->name), &_this->autoSaveReset);
+
+        {
+            std::string saved;
+            { std::lock_guard<std::mutex> lk(_this->imgMtx); saved = _this->lastSavedPng; }
+            if (!saved.empty()) ImGui::TextWrapped("Saved: %s", saved.c_str());
         }
 
         if (ImGui::Button(CONCAT("Reset decoder##lrpt_reset", _this->name), ImVec2(menuWidth, 0))) {
             if (_this->decoder) _this->decoder->reset();
+            std::lock_guard<std::mutex> lk(_this->imgMtx);
             _this->displayRGBA.clear();
             _this->dispW = _this->dispH = 0;
+            _this->texDirty = true;
         }
 
         ImGui::Spacing();
@@ -523,8 +533,54 @@ private:
         }
     }
 
+    // Builds the display image. Heavy work (channel rebuild + compose) is done
+    // into a local buffer; only the final swap touches shared state under imgMtx.
+    // Safe to call from the background image thread.
+    // Background thread: rebuilds the display image at most every few seconds,
+    // and only when new CADUs have arrived (or on explicit request). This keeps
+    // the expensive full-image rebuild off the SDR++ UI/render thread, which was
+    // causing the waterfall/UI to stutter on long sessions.
+    void imageThreadWorker() {
+        using namespace std::chrono;
+        auto lastBuild = steady_clock::now();
+        auto lastChange = steady_clock::now();
+        uint64_t lastCadu = 0;
+        bool passHadData = false;
+        while (imgThreadRun.load()) {
+            std::this_thread::sleep_for(milliseconds(200));
+            if (!imgThreadRun.load()) break;
+            bool req = imgRequestRebuild.exchange(false);
+            uint64_t cadu = decoder ? decoder->getCADUs() : 0;
+            bool newData = (cadu != lastCadu);
+            if (newData) { lastCadu = cadu; lastChange = steady_clock::now(); passHadData = true; }
+
+            // End-of-pass detection: CADUs stopped for a while after a pass had data.
+            bool gap = duration_cast<milliseconds>(steady_clock::now() - lastChange).count() > 30000;
+            bool haveImg;
+            { std::lock_guard<std::mutex> lk(imgMtx); haveImg = !displayRGBA.empty() && dispW > 0 && dispH > 0; }
+            if (autoSaveReset && passHadData && !newData && gap && haveImg) {
+                rebuildImage();      // make sure the final image is current
+                savePNG();           // auto-save this pass
+                decoder->reset();    // start fresh for the next pass
+                { std::lock_guard<std::mutex> lk(imgMtx); displayRGBA.clear(); dispW = dispH = 0; texDirty = true; }
+                passHadData = false; lastCadu = 0;
+                continue;
+            }
+
+            // Throttled rebuild (only when new data, or explicit request).
+            bool due = duration_cast<milliseconds>(steady_clock::now() - lastBuild).count() > 3000;
+            if (req || (liveDecode && newData && due)) {
+                lastBuild = steady_clock::now();
+                rebuildImage();
+            }
+        }
+    }
+
     void rebuildImage() {
         if (!decoder) return;
+        std::vector<uint8_t> out;
+        int ow = 0, oh = 0;
+
         if (viewMode == 0) {
             int r = compR, g = compG, b = compB;
             if (autoChannels) topChannelsByPackets(r, g, b);
@@ -540,7 +596,7 @@ private:
             normalizePlane(ib, pb, normalizeImg);
             int orx, ory, ogx, ogy, obx, oby;
             channelOffset(r, orx, ory); channelOffset(g, ogx, ogy); channelOffset(b, obx, oby);
-            displayRGBA.assign(w * h * 4, 255);
+            out.assign(w * h * 4, 255);
             auto sample = [](std::vector<uint8_t>& p, meteorimg::SimpleImage& im, int x, int y, int ox, int oy) -> uint8_t {
                 int sx = x + ox, sy = y + oy;
                 if (sx < 0 || sy < 0 || sx >= (int)im.width() || sy >= (int)im.height()) return 0;
@@ -549,14 +605,15 @@ private:
             };
             for (int y = 0; y < (int)h; y++) {
                 for (int x = 0; x < (int)w; x++) {
-                    size_t i = (size_t)y * w + x;
-                    displayRGBA[i * 4 + 0] = sample(pr, ir, x, y, orx, ory);
-                    displayRGBA[i * 4 + 1] = sample(pg, ig, x, y, ogx, ogy);
-                    displayRGBA[i * 4 + 2] = sample(pb, ib, x, y, obx, oby);
-                    displayRGBA[i * 4 + 3] = 255;
+                    // 180° flip: descending passes arrive upside-down
+                    size_t i = flip180 ? ((size_t)(h - 1 - y) * w + (w - 1 - x)) : ((size_t)y * w + x);
+                    out[i * 4 + 0] = sample(pr, ir, x, y, orx, ory);
+                    out[i * 4 + 1] = sample(pg, ig, x, y, ogx, ogy);
+                    out[i * 4 + 2] = sample(pb, ib, x, y, obx, oby);
+                    out[i * 4 + 3] = 255;
                 }
             }
-            dispW = (int)w; dispH = (int)h; texDirty = true;
+            ow = (int)w; oh = (int)h;
         }
         else {
             int ch = viewMode - 1;
@@ -565,40 +622,55 @@ private:
             std::vector<uint8_t> p;
             normalizePlane(img, p, normalizeImg);
             int w = (int)img.width(), h = (int)img.height();
-            displayRGBA.assign((size_t)w * h * 4, 255);
-            for (size_t i = 0; i < (size_t)w * h; i++) {
-                uint8_t v = i < p.size() ? p[i] : 0;
-                displayRGBA[i * 4 + 0] = v; displayRGBA[i * 4 + 1] = v;
-                displayRGBA[i * 4 + 2] = v; displayRGBA[i * 4 + 3] = 255;
+            out.assign((size_t)w * h * 4, 255);
+            for (int y = 0; y < h; y++) {
+                for (int x = 0; x < w; x++) {
+                    uint8_t v = p[(size_t)y * w + x];
+                    size_t i = flip180 ? ((size_t)(h - 1 - y) * w + (w - 1 - x)) : ((size_t)y * w + x);
+                    out[i * 4 + 0] = v; out[i * 4 + 1] = v; out[i * 4 + 2] = v; out[i * 4 + 3] = 255;
+                }
             }
-            dispW = w; dispH = h; texDirty = true;
+            ow = w; oh = h;
         }
+
+        // Publish (cheap) under the image mutex.
+        std::lock_guard<std::mutex> lk(imgMtx);
+        displayRGBA.swap(out);
+        dispW = ow; dispH = oh; texDirty = true;
     }
 
     void savePNG() {
-        rebuildImage();
-        if (displayRGBA.empty() || dispW <= 0 || dispH <= 0) {
+        // Snapshot the current display buffer (kept normalized/up-to-date by the
+        // image thread) so the saved PNG matches exactly what's shown.
+        std::vector<uint8_t> snap;
+        int w, h;
+        {
+            std::lock_guard<std::mutex> lk(imgMtx);
+            snap = displayRGBA;
+            w = dispW; h = dispH;
+        }
+        if (snap.empty() || w <= 0 || h <= 0) {
             flog::warn("LRPT: nothing to save yet");
-            lastSavedPng = "(no image to save yet)";
+            { std::lock_guard<std::mutex> lk(imgMtx); lastSavedPng = "(no image to save yet)"; }
             return;
         }
         std::string base = pngFolderSelect.pathIsValid() ? pngFolderSelect.expandString(pngFolderSelect.path) : ((std::string)core::args["root"] + "/recordings");
         std::string suffix = (viewMode == 0) ? "_LRPT_RGB" : ("_LRPT_ch" + std::to_string(viewMode));
         std::string filename = genFileName(base + "/meteor", suffix + ".png");
         // Write RGB (drop alpha) for a compact image
-        std::vector<uint8_t> rgb((size_t)dispW * dispH * 3);
-        for (size_t i = 0; i < (size_t)dispW * dispH; i++) {
-            rgb[i * 3 + 0] = displayRGBA[i * 4 + 0];
-            rgb[i * 3 + 1] = displayRGBA[i * 4 + 1];
-            rgb[i * 3 + 2] = displayRGBA[i * 4 + 2];
+        std::vector<uint8_t> rgb((size_t)w * h * 3);
+        for (size_t i = 0; i < (size_t)w * h; i++) {
+            rgb[i * 3 + 0] = snap[i * 4 + 0];
+            rgb[i * 3 + 1] = snap[i * 4 + 1];
+            rgb[i * 3 + 2] = snap[i * 4 + 2];
         }
-        if (stbi_write_png(filename.c_str(), dispW, dispH, 3, rgb.data(), dispW * 3)) {
+        if (stbi_write_png(filename.c_str(), w, h, 3, rgb.data(), w * 3)) {
             flog::info("LRPT: saved '{0}'", filename);
-            lastSavedPng = filename;
+            { std::lock_guard<std::mutex> lk(imgMtx); lastSavedPng = filename; }
         }
         else {
             flog::error("LRPT: failed to save PNG");
-            lastSavedPng = "(save failed - check the folder is writable)";
+            { std::lock_guard<std::mutex> lk(imgMtx); lastSavedPng = "(save failed - check the folder is writable)"; }
         }
     }
 
@@ -721,6 +793,12 @@ private:
     std::vector<uint8_t> displayRGBA;
     int dispW = 0, dispH = 0;
     bool texDirty = false;
+    std::thread imgThread;
+    std::atomic<bool> imgThreadRun{false};
+    std::atomic<bool> imgRequestRebuild{false};
+    std::mutex imgMtx;
+    bool flip180 = false;
+    bool autoSaveReset = false;
     GrowableTexture texture;
     double lastRefresh = 0.0;
 
