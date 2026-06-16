@@ -30,7 +30,7 @@ SDRPP_MOD_INFO{
     /* Name:            */ "meteor_demodulator",
     /* Description:     */ "Meteor demodulator + LRPT image decoder for SDR++",
     /* Author:          */ "Ryzerth;F4JTV (LRPT decode, ported from SatDump)",
-    /* Version:         */ 0, 3, 6,
+    /* Version:         */ 0, 3, 7,
     /* Max instances    */ -1
 };
 
@@ -512,6 +512,17 @@ private:
         }
     }
 
+    // Per-satellite, per-channel X/Y alignment offset, ported from SatDump's
+    // meteor::msumr::get_x_offset(). Channel 4 (index 3, APID 67) needs a small
+    // shift on M2-3 / M2-4 for correct composite registration.
+    void channelOffset(int ch, int& offX, int& offY) {
+        offX = 0; offY = 0;
+        if (ch == 3) {
+            if (lrptMode == 0) { offX = -2; offY = -2; }      // M2-3 : (-1.6,-1.6) rounded
+            else if (lrptMode == 1) { offX = -2; offY = 0; }  // M2-4 : (-2, 0)
+        }
+    }
+
     void rebuildImage() {
         if (!decoder) return;
         if (viewMode == 0) {
@@ -527,12 +538,23 @@ private:
             normalizePlane(ir, pr, normalizeImg);
             normalizePlane(ig, pg, normalizeImg);
             normalizePlane(ib, pb, normalizeImg);
+            int orx, ory, ogx, ogy, obx, oby;
+            channelOffset(r, orx, ory); channelOffset(g, ogx, ogy); channelOffset(b, obx, oby);
             displayRGBA.assign(w * h * 4, 255);
-            for (size_t i = 0; i < w * h; i++) {
-                displayRGBA[i * 4 + 0] = i < pr.size() ? pr[i] : 0;
-                displayRGBA[i * 4 + 1] = i < pg.size() ? pg[i] : 0;
-                displayRGBA[i * 4 + 2] = i < pb.size() ? pb[i] : 0;
-                displayRGBA[i * 4 + 3] = 255;
+            auto sample = [](std::vector<uint8_t>& p, meteorimg::SimpleImage& im, int x, int y, int ox, int oy) -> uint8_t {
+                int sx = x + ox, sy = y + oy;
+                if (sx < 0 || sy < 0 || sx >= (int)im.width() || sy >= (int)im.height()) return 0;
+                size_t idx = (size_t)sy * im.width() + sx;
+                return idx < p.size() ? p[idx] : 0;
+            };
+            for (int y = 0; y < (int)h; y++) {
+                for (int x = 0; x < (int)w; x++) {
+                    size_t i = (size_t)y * w + x;
+                    displayRGBA[i * 4 + 0] = sample(pr, ir, x, y, orx, ory);
+                    displayRGBA[i * 4 + 1] = sample(pg, ig, x, y, ogx, ogy);
+                    displayRGBA[i * 4 + 2] = sample(pb, ib, x, y, obx, oby);
+                    displayRGBA[i * 4 + 3] = 255;
+                }
             }
             dispW = (int)w; dispH = (int)h; texDirty = true;
         }
