@@ -47,9 +47,14 @@
     </button>
   </header>
 
+  <!-- Toggle button: kept OUTSIDE the .panel because the panel uses
+       overflow-y:auto for its scroll behaviour, which also clips horizontal
+       overflow — and the button sits at right:-34px (outside the panel
+       box). Making it a sibling instead of a child fixes the clipping. -->
+  <button class="panel-toggle" id="panel-toggle" title="Collapse / expand">⟨</button>
+
   <!-- Side panel : filters, retention, offline -->
   <aside class="panel" id="panel">
-    <button class="panel-toggle" id="panel-toggle" title="Collapse / expand">⟨</button>
 
     <section class="panel-block">
       <h2>Filters</h2>
