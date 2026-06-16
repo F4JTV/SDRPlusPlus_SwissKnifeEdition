@@ -83,8 +83,12 @@
   // Contrôles repositionnés en bas à droite pour ne pas être masqués par la
   // barre supérieure ni par le panneau de gauche.
   L.control.zoom({ position: "bottomright" }).addTo(map);
+  // Basemap selector: collapsed by default so it shows as a small map icon
+  // in the bottom-right corner and expands on hover/click. The previous
+  // `collapsed: false` permanently expanded list was eating a noticeable
+  // chunk of the map viewport with 6+ basemaps listed.
   L.control.layers(baseLayers, null, {
-    position: "bottomright", collapsed: false,
+    position: "bottomright", collapsed: true,
   }).addTo(map);
 
   // --- Couches par type (filtrage) ----------------------------------------
@@ -1134,6 +1138,10 @@
   setInterval(dropStalePerRetention, 30000);
 
   document.getElementById("panel-toggle").addEventListener("click", () => {
-    panel.classList.toggle("collapsed");
+    const isCollapsed = panel.classList.toggle("collapsed");
+    // Mirror the state on <body> so the CSS can position the toggle
+    // button — which is now a sibling of .panel, not a child — without
+    // resorting to JS-driven inline styles.
+    document.body.classList.toggle("panel-collapsed", isCollapsed);
   });
 })();

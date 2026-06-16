@@ -171,15 +171,29 @@ html, body {
 .panel::-webkit-scrollbar-thumb:hover {
   background: rgba(120, 160, 210, 0.50);
 }
-.panel.collapsed { transform: translateX(-300px); opacity: 0; }
+.panel.collapsed { transform: translateX(-300px); opacity: 0; pointer-events: none; }
+/* Toggle button is now a sibling of .panel (not a child) so it isn't
+   clipped by the panel's overflow-y:auto. Its left position is computed
+   to align with the panel's right edge (14px + 268px + 6px gap = 288px),
+   and a CSS transition keeps the move in sync with the panel sliding out. */
 .panel-toggle {
-  position: absolute; top: 10px; right: -34px;
+  position: absolute; top: 78px; left: 288px; z-index: 1201;
   width: 30px; height: 38px; cursor: pointer;
-  background: var(--panel); color: var(--ink-dim);
-  border: 1px solid var(--panel-bd); border-left: none;
+  background: var(--panel); color: var(--ink);
+  border: 1px solid var(--panel-bd);
   border-radius: 0 8px 8px 0; font-size: 15px;
+  display: grid; place-items: center;
+  transition: left 0.25s ease, transform 0.25s ease;
 }
-.panel.collapsed .panel-toggle { transform: rotate(180deg) translateY(-2px); }
+.panel-toggle:hover { background: var(--panel-bd); }
+/* When the panel is collapsed, slide the button to the screen's left edge
+   and flip the chevron so it points "⟩" (expand). The body carries the
+   `panel-collapsed` class set by JS — that's how the sibling selector
+   targets the button. */
+body.panel-collapsed .panel-toggle {
+  left: 0;
+  transform: rotate(180deg) translateY(-2px);
+}
 
 .panel-block { margin-bottom: 16px; }
 .panel-block h2 {
