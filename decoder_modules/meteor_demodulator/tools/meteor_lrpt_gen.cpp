@@ -40,6 +40,9 @@
 #include "lrpt/msumr/huffman.h"
 #include <array>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "lrpt/stb_image.h"
+
 using namespace meteor::msumr::lrpt;
 
 // ----------------------------------------------------------------------
@@ -284,26 +287,168 @@ static void convEncodeCADUs(const std::vector<std::vector<uint8_t>>& cadus,
 // ----------------------------------------------------------------------
 // Build a test image: gradient + grid + a diagonal so structure is obvious.
 // ----------------------------------------------------------------------
-static std::vector<uint8_t> makeTestImage(int w, int h, int chOffset) {
+// Distinct procedural scenes (used when no real images are given), so each
+// pass looks clearly different and you can verify Auto-save + reset.
+static std::vector<uint8_t> makeTestImage(int w, int h, int scene) {
     std::vector<uint8_t> img((size_t)w * h);
     for (int y = 0; y < h; y++)
         for (int x = 0; x < w; x++) {
-            int v = ((x * 255 / w) + (y * 128 / h) + chOffset * 40) & 0xFF;
-            if ((x % 128) < 3 || (y % 128) < 3) v = 230;   // grid
-            if (std::abs((x % 256) - (y % 256)) < 3) v = 20; // diagonal
+            int v;
+            switch (scene % 3) {
+                case 0: // diagonal gradient + grid
+                    v = ((x * 255 / w) + (y * 128 / h)) & 0xFF;
+                    if ((x % 128) < 3 || (y % 128) < 3) v = 230;
+                    if (std::abs((x % 256) - (y % 256)) < 3) v = 20;
+                    break;
+                case 1: // concentric rings
+                {
+                    int dx = x - w / 2, dy = (y - h / 2) * 3;
+                    int r = (int)(sqrt((double)(dx * dx + dy * dy)));
+                    v = (r % 96 < 48) ? 200 : 40;
+                    if ((x % 200) < 2) v = 255;
+                    break;
+                }
+                default: // checker + stripes
+                    v = (((x / 96) + (y / 48)) & 1) ? 180 : 60;
+                    if ((y % 64) < 4) v = 255;
+                    if ((x % 300) < 4) v = 10;
+                    break;
+            }
             img[(size_t)y * w + x] = (uint8_t)v;
         }
     return img;
 }
 
+// Load a real image file, convert to grayscale, nearest-resize to width W.
+// maxH caps the output height (0 = no cap) so a tall image doesn't blow up file size.
+// Returns false if it can't be loaded.
+static bool loadImageResized(const std::string& path, int W, int maxH, std::vector<uint8_t>& out, int& outH) {
+    int iw, ih, ic;
+    unsigned char* data = stbi_load(path.c_str(), &iw, &ih, &ic, 1); // force grayscale
+    if (!data) { fprintf(stderr, "  ! could not load image '%s' (%s)\n", path.c_str(), stbi_failure_reason()); return false; }
+    int H = (int)((double)ih * W / iw);
+    if (maxH > 0 && H > maxH) H = maxH;
+    H = (H / 8) * 8; if (H < 8) H = 8;
+    out.assign((size_t)W * H, 0);
+    for (int y = 0; y < H; y++)
+        for (int x = 0; x < W; x++) {
+            int sx = (int)((double)x * iw / W);
+            int sy = (int)((double)y * ih / H);
+            if (sx >= iw) sx = iw - 1;
+            if (sy >= ih) sy = ih - 1;
+            out[(size_t)y * W + x] = data[(size_t)sy * iw + sx];
+        }
+    stbi_image_free(data);
+    outH = H;
+    fprintf(stderr, "  loaded '%s' (%dx%d) -> %dx%d\n", path.c_str(), iw, ih, W, H);
+    return true;
+}
+
+// Build one pass: image (3 channels) -> CADUs -> convolutional-coded bits.
+static void buildPassBits(const std::vector<std::vector<uint8_t>>& chImg, int WIDTH, int height,
+                          int qf, const int apids[3], bool m2x, std::vector<uint8_t>& bits) {
+    CaduBuilder cb;
+    int lines8 = height / 8;
+    for (int L = 0; L < lines8; L++) {
+        for (int c = 0; c < 3; c++) {
+            for (int j = 0; j < 14; j++) {
+                uint8_t seg[8 * 112];
+                for (int y = 0; y < 8; y++)
+                    for (int x = 0; x < 112; x++) {
+                        int px = j * 112 + x, py = L * 8 + y;
+                        seg[y * 112 + x] = chImg[c][(size_t)py * WIDTH + px];
+                    }
+                ccsds::CCSDSPacket pkt;
+                pkt.header.version = 0; pkt.header.type = 0; pkt.header.secondary_header_flag = 0;
+                pkt.header.apid = apids[c]; pkt.header.sequence_flag = 3;
+                pkt.header.packet_sequence_count = (L * 43 + c * 14 + j) & 0x3FFF;
+                encodeSegmentPayload(seg, qf, j * 14, apids[c], pkt.payload);
+                pkt.encodeHDR();
+                cb.addPacket(pkt);
+            }
+        }
+        ccsds::CCSDSPacket tlm;
+        tlm.header.version = 0; tlm.header.type = 0; tlm.header.secondary_header_flag = 0;
+        tlm.header.apid = 70; tlm.header.sequence_flag = 3;
+        tlm.header.packet_sequence_count = (L * 43 + 42) & 0x3FFF;
+        tlm.payload.assign(64, 0); tlm.encodeHDR();
+        cb.addPacket(tlm);
+        cb.flush(false);
+    }
+    cb.flush(true);
+    convEncodeCADUs(cb.cadus, m2x, bits);
+}
+
+// RRC root-raised-cosine taps.
+static std::vector<double> makeRRC(int sps, int span, double beta) {
+    int taps = span * sps; if (taps % 2 == 0) taps++;
+    std::vector<double> rrc(taps);
+    double Ts = sps;
+    for (int i = 0; i < taps; i++) {
+        double t = i - (taps - 1) / 2.0, x = t / Ts, v;
+        if (fabs(t) < 1e-9) v = 1.0 - beta + 4.0 * beta / M_PI;
+        else if (beta > 0 && fabs(fabs(4.0 * beta * x) - 1.0) < 1e-6)
+            v = (beta / sqrt(2.0)) * ((1 + 2.0 / M_PI) * sin(M_PI / (4 * beta)) + (1 - 2.0 / M_PI) * cos(M_PI / (4 * beta)));
+        else {
+            double num = sin(M_PI * x * (1 - beta)) + 4 * beta * x * cos(M_PI * x * (1 + beta));
+            double den = M_PI * x * (1 - (4 * beta * x) * (4 * beta * x));
+            v = num / den;
+        }
+        rrc[i] = v;
+    }
+    double e = 0; for (double v : rrc) e += v * v;
+    double n = sqrt(e); for (double& v : rrc) v /= n;
+    return rrc;
+}
+
+// Modulate coded bits (QPSK / OQPSK) with RRC shaping and append CS8 to file.
+static void modulateToFile(const std::vector<uint8_t>& bits, int sps, bool m2x,
+                           const std::vector<double>& rrc, FILE* f) {
+    int taps = (int)rrc.size(), half = (taps - 1) / 2;
+    size_t nsym = bits.size() / 2;
+    std::vector<double> iUp((nsym + 1) * sps, 0.0), qUp((nsym + 1) * sps, 0.0);
+    int qoff = m2x ? (sps / 2) : 0; // OQPSK: delay Q by half a symbol
+    for (size_t k = 0; k < nsym; k++) {
+        iUp[k * sps] = bits[2 * k] ? 1.0 : -1.0;
+        double Q = bits[2 * k + 1] ? 1.0 : -1.0;
+        if (k * sps + qoff < qUp.size()) qUp[k * sps + qoff] = Q;
+    }
+    std::vector<int8_t> outbuf; outbuf.reserve(iUp.size() * 2);
+    for (size_t n = 0; n < iUp.size(); n++) {
+        double si = 0, sq = 0;
+        for (int t = 0; t < taps; t++) {
+            long idx = (long)n - half + t;
+            if (idx < 0 || idx >= (long)iUp.size()) continue;
+            si += iUp[idx] * rrc[t];
+            sq += qUp[idx] * rrc[t];
+        }
+        int I = (int)llround(si * 90.0), Q = (int)llround(sq * 90.0);
+        if (I > 127) I = 127; if (I < -127) I = -127;
+        if (Q > 127) Q = 127; if (Q < -127) Q = -127;
+        outbuf.push_back((int8_t)I); outbuf.push_back((int8_t)Q);
+    }
+    fwrite(outbuf.data(), 1, outbuf.size(), f);
+}
+
+static std::vector<std::string> splitComma(const std::string& s) {
+    std::vector<std::string> out; size_t p = 0;
+    while (p < s.size()) { size_t c = s.find(',', p); if (c == std::string::npos) c = s.size();
+        if (c > p) out.push_back(s.substr(p, c - p)); p = c + 1; }
+    return out;
+}
+
 int main(int argc, char** argv) {
-    int lines8 = 40;          // number of 8-px line-groups (image height = lines8*8)
+    int lines8 = 40;                  // procedural image height (8-px groups)
     int qf = 60;
     std::string outPath = "meteor_lrpt.cs8";
     bool selftest = false;
-    double samplerate = 1024000.0;
+    double samplerate = 2304000.0;    // HackRF: >=2 Msps, 2304000 = 32 x 72k (integer sps)
     double symrate = 72000.0;
-    std::string mode = "legacy"; // legacy | m2x
+    std::string mode = "m2x";         // m2x (72k OQPSK, M2-3) by default
+    std::string imagesArg;            // comma-separated real image files (one per pass)
+    int passes = 3;                   // number of passes when using procedural images
+    double gapSec = 12.0;             // dead air between passes (triggers Auto-save+reset)
+    int    maxLines = 0;              // cap loaded-image height in 8-px groups (0 = no cap)
 
     for (int i = 1; i < argc; i++) {
         std::string a = argv[i];
@@ -314,138 +459,85 @@ int main(int argc, char** argv) {
         else if (a == "--samplerate" && i + 1 < argc) samplerate = atof(argv[++i]);
         else if (a == "--symrate" && i + 1 < argc) symrate = atof(argv[++i]);
         else if (a == "--mode" && i + 1 < argc) mode = argv[++i];
+        else if (a == "--images" && i + 1 < argc) imagesArg = argv[++i];
+        else if (a == "--passes" && i + 1 < argc) passes = atoi(argv[++i]);
+        else if (a == "--gap" && i + 1 < argc) gapSec = atof(argv[++i]);
+        else if (a == "--maxlines" && i + 1 < argc) maxLines = atoi(argv[++i]);
     }
     bool m2x = (mode == "m2x");
 
     const int WIDTH = 1568;
-    int height = lines8 * 8;
-    // 3 channels -> APID 64,65,66 (reader channels 0,1,2; matches default composite)
-    int apids[3] = {64, 65, 66};
-    std::vector<std::vector<uint8_t>> chImg(3);
-    for (int c = 0; c < 3; c++) chImg[c] = makeTestImage(WIDTH, height, c);
+    // M2-3 transmits APID 64/65/67 (channels 0,1,3). Use the same for realism so
+    // the module's auto-channel selection picks the right ones.
+    int apids[3] = {64, 65, 67};
+    if (!m2x) { apids[2] = 66; } // legacy default
 
-    // Build CADUs.
-    CaduBuilder cb;
-    // Sequence layout: 43-packet transmission loop. Per line-group L:
-    //   ch0 seg0..13 (seq base+0..13), ch1 seg0..13 (+14..27),
-    //   ch2 seg0..13 (+28..41), telemetry (+42).
-    // -> reader reconstructs id = L*14 + segment, channel offsets 0/14/28.
-    int seqBase = 0;
-    for (int L = 0; L < lines8; L++) {
-        for (int c = 0; c < 3; c++) {
-            for (int j = 0; j < 14; j++) {
-                // Extract the 8x112 segment for channel c, line-group L, segment j.
-                uint8_t seg[8 * 112];
-                for (int y = 0; y < 8; y++)
-                    for (int x = 0; x < 112; x++) {
-                        int px = j * 112 + x;
-                        int py = L * 8 + y;
-                        seg[y * 112 + x] = chImg[c][(size_t)py * WIDTH + px];
-                    }
-                ccsds::CCSDSPacket pkt;
-                pkt.header.version = 0;
-                pkt.header.type = 0;
-                pkt.header.secondary_header_flag = 0;
-                pkt.header.apid = apids[c];
-                pkt.header.sequence_flag = 3; // unsegmented
-                pkt.header.packet_sequence_count = (seqBase + L * 43 + c * 14 + j) & 0x3FFF;
-                encodeSegmentPayload(seg, qf, j * 14, apids[c], pkt.payload);
-                pkt.encodeHDR();
-                cb.addPacket(pkt);
-            }
-        }
-        // telemetry packet (APID 70), small, keeps the 43-loop aligned
-        ccsds::CCSDSPacket tlm;
-        tlm.header.version = 0; tlm.header.type = 0; tlm.header.secondary_header_flag = 0;
-        tlm.header.apid = 70; tlm.header.sequence_flag = 3;
-        tlm.header.packet_sequence_count = (seqBase + L * 43 + 42) & 0x3FFF;
-        tlm.payload.assign(64, 0);
-        tlm.encodeHDR();
-        cb.addPacket(tlm);
-        cb.flush(false);
-    }
-    cb.flush(true);
-    fprintf(stderr, "Built %zu CADUs\n", cb.cadus.size());
+    // Assemble the list of passes (each is a 3-channel image).
+    std::vector<std::string> imageFiles = splitComma(imagesArg);
+    int nPasses = imageFiles.empty() ? passes : (int)imageFiles.size();
 
-    // Convolutional encode -> bits -> soft symbols.
-    std::vector<uint8_t> bits;
-    convEncodeCADUs(cb.cadus, m2x, bits);
-    fprintf(stderr, "Encoded %zu coded bits (%zu QPSK symbols)\n", bits.size(), bits.size() / 2);
+    int sps = (int)llround(samplerate / symrate);
+    if (sps < 4) sps = 4;
+    if (llround(samplerate) % (long)llround(symrate) != 0)
+        fprintf(stderr, "WARNING: samplerate is not an integer multiple of symrate (sps=%d). "
+                        "Clock recovery may not lock. Use e.g. 2304000 for 72k.\n", sps);
+    std::vector<double> rrc = makeRRC(sps, 31, 0.6);
 
+    // -------- selftest: write soft symbols of the FIRST pass only --------
     if (selftest) {
-        // Feed soft symbols straight into the decoder and check an image comes out.
-        // (compiled separately in the selftest harness)
+        std::vector<uint8_t> chImg[3];
+        int height = lines8 * 8;
+        if (!imageFiles.empty()) {
+            std::vector<uint8_t> img; int H;
+            if (!loadImageResized(imageFiles[0], WIDTH, maxLines * 8, img, H)) return 1;
+            height = H; for (int c = 0; c < 3; c++) chImg[c] = img;
+        } else for (int c = 0; c < 3; c++) chImg[c] = makeTestImage(WIDTH, height, 0);
+        std::vector<std::vector<uint8_t>> ch = {chImg[0], chImg[1], chImg[2]};
+        std::vector<uint8_t> bits;
+        buildPassBits(ch, WIDTH, height, qf, apids, m2x, bits);
         std::vector<int8_t> soft(bits.size());
         for (size_t i = 0; i < bits.size(); i++) soft[i] = bits[i] ? (int8_t)64 : (int8_t)-64;
         FILE* f = fopen(outPath.c_str(), "wb");
-        fwrite(soft.data(), 1, soft.size(), f);
-        fclose(f);
-        fprintf(stderr, "Wrote %zu soft symbols to %s (selftest input)\n", soft.size(), outPath.c_str());
+        fwrite(soft.data(), 1, soft.size(), f); fclose(f);
+        fprintf(stderr, "Wrote %zu soft symbols to %s (selftest)\n", soft.size(), outPath.c_str());
         return 0;
     }
 
-    // ---- DSP: QPSK map + RRC pulse shape + upsample -> CS8 ----
-    int sps = (int)llround(samplerate / symrate);
-    if (sps < 4) sps = 4;
-    // RRC taps
-    int taps = 31 * sps;
-    if (taps % 2 == 0) taps++;
-    double beta = 0.6;
-    std::vector<double> rrc(taps);
-    {
-        double Ts = sps;
-        for (int i = 0; i < taps; i++) {
-            double t = i - (taps - 1) / 2.0;
-            double x = t / Ts;
-            double v;
-            if (fabs(t) < 1e-9) v = 1.0 - beta + 4.0 * beta / M_PI;
-            else if (beta > 0 && fabs(fabs(4.0 * beta * x) - 1.0) < 1e-6)
-                v = (beta / sqrt(2.0)) * ((1 + 2.0 / M_PI) * sin(M_PI / (4 * beta)) + (1 - 2.0 / M_PI) * cos(M_PI / (4 * beta)));
-            else {
-                double num = sin(M_PI * x * (1 - beta)) + 4 * beta * x * cos(M_PI * x * (1 + beta));
-                double den = M_PI * x * (1 - (4 * beta * x) * (4 * beta * x));
-                v = num / den;
-            }
-            rrc[i] = v;
-        }
-        double e = 0; for (double v : rrc) e += v * v;
-        double n = sqrt(e); for (double& v : rrc) v /= n;
-    }
-
-    size_t nsym = bits.size() / 2;
-    // Upsampled impulse train (QPSK)
-    std::vector<double> iUp((nsym + 1) * sps, 0.0), qUp((nsym + 1) * sps, 0.0);
-    int qoff = m2x ? (sps / 2) : 0; // OQPSK: delay Q by half a symbol
-    for (size_t k = 0; k < nsym; k++) {
-        double I = bits[2 * k] ? 1.0 : -1.0;
-        double Q = bits[2 * k + 1] ? 1.0 : -1.0;
-        iUp[k * sps] = I;
-        if (k * sps + qoff < qUp.size()) qUp[k * sps + qoff] = Q;
-    }
-    // Filter
+    // -------- multi-pass CS8 --------
     FILE* f = fopen(outPath.c_str(), "wb");
     if (!f) { fprintf(stderr, "cannot open %s\n", outPath.c_str()); return 1; }
-    int half = (taps - 1) / 2;
-    std::vector<int8_t> outbuf;
-    outbuf.reserve(iUp.size() * 2);
-    for (size_t n = 0; n < iUp.size(); n++) {
-        double si = 0, sq = 0;
-        for (int t = 0; t < taps; t++) {
-            long idx = (long)n - half + t;
-            if (idx < 0 || idx >= (long)iUp.size()) continue;
-            si += iUp[idx] * rrc[t];
-            sq += qUp[idx] * rrc[t];
+
+    size_t gapSamples = (size_t)llround(gapSec * samplerate);
+    std::vector<int8_t> gapBuf(gapSamples * 2, 0); // dead air (I=Q=0)
+
+    fprintf(stderr, "Generating %d pass(es), %s, %.0f kSym/s, %.3f Msps (sps=%d), gap %.1fs\n",
+            nPasses, m2x ? "72k OQPSK (M2-3)" : "legacy QPSK", symrate / 1e3, samplerate / 1e6, sps, gapSec);
+
+    for (int p = 0; p < nPasses; p++) {
+        std::vector<uint8_t> chImg[3];
+        int height = lines8 * 8;
+        fprintf(stderr, "Pass %d/%d:\n", p + 1, nPasses);
+        if (!imageFiles.empty()) {
+            std::vector<uint8_t> img; int H;
+            if (!loadImageResized(imageFiles[p], WIDTH, maxLines * 8, img, H)) { fclose(f); return 1; }
+            height = H; for (int c = 0; c < 3; c++) chImg[c] = img;
+        } else {
+            for (int c = 0; c < 3; c++) chImg[c] = makeTestImage(WIDTH, height, p);
+            fprintf(stderr, "  procedural scene %d (%dx%d)\n", p, WIDTH, height);
         }
-        int I = (int)llround(si * 90.0);
-        int Q = (int)llround(sq * 90.0);
-        if (I > 127) I = 127; if (I < -127) I = -127;
-        if (Q > 127) Q = 127; if (Q < -127) Q = -127;
-        outbuf.push_back((int8_t)I);
-        outbuf.push_back((int8_t)Q);
+        std::vector<std::vector<uint8_t>> ch = {chImg[0], chImg[1], chImg[2]};
+        std::vector<uint8_t> bits;
+        buildPassBits(ch, WIDTH, height, qf, apids, m2x, bits);
+        modulateToFile(bits, sps, m2x, rrc, f);
+        fprintf(stderr, "  %zu symbols (~%.1fs of signal)\n", bits.size() / 2, (bits.size() / 2.0) / symrate);
+        if (p + 1 < nPasses) {
+            fwrite(gapBuf.data(), 1, gapBuf.size(), f); // dead air between passes
+            fprintf(stderr, "  + %.1fs gap (dead air)\n", gapSec);
+        }
     }
-    fwrite(outbuf.data(), 1, outbuf.size(), f);
+    long total = ftell(f);
     fclose(f);
-    fprintf(stderr, "Wrote %zu CS8 samples to %s (sps=%d, %.0f Msps, %.0f kSym/s, %s)\n",
-            outbuf.size() / 2, outPath.c_str(), sps, samplerate / 1e6, symrate / 1e3, m2x ? "OQPSK/M2-x" : "QPSK/legacy");
+    fprintf(stderr, "Wrote %s (%.1f MB, %.1fs total)\n", outPath.c_str(),
+            total / 1e6, (total / 2.0) / samplerate);
     return 0;
 }

@@ -50,3 +50,33 @@ Then in the meteor_demodulator module: pick the matching **Satellite** mode
 ## Validation
 Both paths were verified by software loopback (generator → decoder): the decoded
 image reproduces the test pattern, with `frames == CADUs` and zero RS errors.
+
+
+## Multi-pass test file (test Auto-save + reset)
+
+`make_test_cs8.sh` builds a single CS8 containing several **different** images,
+each as a separate "pass", separated by dead air. When played to the module this
+exercises the **Auto-save PNG + reset between passes** feature: each pass is
+decoded, then the gap (no signal) triggers an auto-save + decoder reset, and the
+next image decodes fresh.
+
+```
+# 3 distinct procedural scenes:
+./make_test_cs8.sh
+# or your own real images (one per pass):
+./make_test_cs8.sh image1.png image2.png image3.png
+```
+
+New generator options used:
+* `--mode m2x`      72k OQPSK (Meteor-M2-3 style; transmits APID 64/65/67)
+* `--images a,b,c`  real image files (PNG/JPG), one pass each (loaded via stb_image)
+* `--passes N`      number of procedural passes when no images are given
+* `--gap SECONDS`   dead air between passes (default 12)
+* `--samplerate Hz` 2304000 for HackRF (integer 32 sps at 72k)
+
+In the module, tick **Auto-save PNG + reset between passes** and set **LOS gap (s)**
+to a value a bit *below* the `--gap` you used (e.g. gap 12 → LOS gap 8). Each pass
+is then saved as its own PNG and the decoder resets between passes.
+
+Note on file size: CS8 at 2.304 Msps is ~4.6 MB/s, so a 3-pass file is a few
+hundred MB. Reduce `--lines` (smaller images) or `--gap` to shrink it.

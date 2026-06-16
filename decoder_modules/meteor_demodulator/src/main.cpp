@@ -30,7 +30,7 @@ SDRPP_MOD_INFO{
     /* Name:            */ "meteor_demodulator",
     /* Description:     */ "Meteor demodulator + LRPT image decoder for SDR++",
     /* Author:          */ "Ryzerth;F4JTV (LRPT decode, ported from SatDump)",
-    /* Version:         */ 0, 3, 9,
+    /* Version:         */ 0, 3, 11,
     /* Max instances    */ -1
 };
 
@@ -399,21 +399,26 @@ private:
         }
 
         // Image display (the background thread keeps displayRGBA up to date)
+        int dW = 0, dH = 0;
+        bool haveImg = false;
         {
             std::lock_guard<std::mutex> lk(_this->imgMtx);
-            if (!_this->displayRGBA.empty() && _this->dispW > 0 && _this->dispH > 0) {
-                if (_this->texDirty) {
-                    _this->texture.update(_this->displayRGBA.data(), _this->dispW, _this->dispH);
-                    _this->texDirty = false;
-                }
+            haveImg = !_this->displayRGBA.empty() && _this->dispW > 0 && _this->dispH > 0;
+            if (haveImg && _this->texDirty) {
+                _this->texture.update(_this->displayRGBA.data(), _this->dispW, _this->dispH);
+                _this->texDirty = false;
             }
+            dW = _this->dispW; dH = _this->dispH;
         }
-        if (_this->texture.isValid()) {
-            float aspect = (float)_this->dispH / (float)_this->dispW;
+        // Only draw the image when we have valid, non-zero dimensions. After an
+        // auto-save+reset the buffer is cleared (dW=dH=0); drawing then would give
+        // an aspect of 0/0 = NaN and corrupt the whole left-menu layout.
+        if (haveImg && dW > 0 && dH > 0 && _this->texture.isValid()) {
+            float aspect = (float)dH / (float)dW;
             float dw = menuWidth;
             float dh = dw * aspect;
             ImGui::Image((ImTextureID)(intptr_t)_this->texture.id(), ImVec2(dw, dh));
-            ImGui::Text("Image: %d x %d", _this->dispW, _this->dispH);
+            ImGui::Text("Image: %d x %d", dW, dH);
         }
         else {
             ImGui::TextDisabled("No image yet");
@@ -434,6 +439,11 @@ private:
         }
 
         ImGui::Checkbox(CONCAT("Auto-save PNG + reset between passes##lrpt_autosave", _this->name), &_this->autoSaveReset);
+        if (_this->autoSaveReset) {
+            ImGui::SetNextItemWidth(menuWidth * 0.5f);
+            if (ImGui::InputInt(CONCAT("LOS gap (s)##lrpt_resetgap", _this->name), &_this->autoResetGapSec, 1, 5))
+                _this->autoResetGapSec = std::clamp(_this->autoResetGapSec, 3, 120);
+        }
 
         {
             std::string saved;
@@ -555,7 +565,7 @@ private:
             if (newData) { lastCadu = cadu; lastChange = steady_clock::now(); passHadData = true; }
 
             // End-of-pass detection: CADUs stopped for a while after a pass had data.
-            bool gap = duration_cast<milliseconds>(steady_clock::now() - lastChange).count() > 30000;
+            bool gap = duration_cast<milliseconds>(steady_clock::now() - lastChange).count() > (long)(autoResetGapSec * 1000);
             bool haveImg;
             { std::lock_guard<std::mutex> lk(imgMtx); haveImg = !displayRGBA.empty() && dispW > 0 && dispH > 0; }
             if (autoSaveReset && passHadData && !newData && gap && haveImg) {
@@ -799,6 +809,7 @@ private:
     std::mutex imgMtx;
     bool flip180 = false;
     bool autoSaveReset = false;
+    int  autoResetGapSec = 30; // LOS gap (s) that triggers auto-save + reset
     GrowableTexture texture;
     double lastRefresh = 0.0;
 
