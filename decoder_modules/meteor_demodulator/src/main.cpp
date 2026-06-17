@@ -30,7 +30,7 @@ SDRPP_MOD_INFO{
     /* Name:            */ "meteor_demodulator",
     /* Description:     */ "Meteor demodulator + LRPT image decoder for SDR++",
     /* Author:          */ "Ryzerth;F4JTV (LRPT decode, ported from SatDump)",
-    /* Version:         */ 0, 3, 11,
+    /* Version:         */ 0, 3, 14,
     /* Max instances    */ -1
 };
 
@@ -372,6 +372,8 @@ private:
         ImGui::SameLine();
         if (ImGui::Checkbox(CONCAT("Flip 180 (descending pass)##lrpt_flip", _this->name), &_this->flip180))
             _this->imgRequestRebuild = true;
+        if (ImGui::Checkbox(CONCAT("Correct geometry (un-squish edges)##lrpt_geom", _this->name), &_this->correctGeom))
+            _this->imgRequestRebuild = true;
 
         if (_this->viewMode == 0) {
             ImGui::Checkbox(CONCAT("Auto channels##lrpt_autoch", _this->name), &_this->autoChannels);
@@ -506,23 +508,44 @@ private:
     void topChannelsByPackets(int& r, int& g, int& b) {
         uint64_t ap[7] = {0};
         if (decoder) decoder->getApidPackets(ap);
+        // Pick the 3 channels carrying the most packets (i.e. those actually transmitted).
         int order[6] = {0, 1, 2, 3, 4, 5};
         std::sort(order, order + 6, [&](int a, int c) { return ap[a] > ap[c]; });
-        r = order[0]; g = order[1]; b = order[2];
-        // if fewer than 3 active, repeat the strongest
-        if (ap[g] == 0) g = r;
-        if (ap[b] == 0) b = g;
+        int top[3] = {order[0], order[1], order[2]};
+        if (ap[top[1]] == 0) top[1] = top[0];
+        if (ap[top[2]] == 0) top[2] = top[1];
+        // Assign by CHANNEL INDEX for a consistent mapping across passes:
+        // lowest index (visible) -> Blue, highest (NIR/IR) -> Red. This keeps
+        // water bluish and the colours stable from one pass to the next.
+        std::sort(top, top + 3);
+        r = top[2]; g = top[1]; b = top[0];
     }
 
-    // Stretch a grayscale plane's nonzero range to 0..255 (reveals dark IR/visible bands).
+    // Stretch a grayscale plane's range to 0..255 to reveal dark/weak bands.
+    // Uses a PERCENTILE clip (2% / 98% of nonzero pixels), like SatDump's white
+    // balance: robust to a few bright/dark outliers. Plain min/max would let a
+    // single noisy 255 pixel crush all the real (dark) data back to black, which
+    // is exactly what happened on a weak pass.
     static void normalizePlane(const meteorimg::SimpleImage& img, std::vector<uint8_t>& out, bool normalize) {
         size_t n = img.size();
         out.assign(n, 0);
         if (n == 0) return;
         if (!normalize) { for (size_t i = 0; i < n; i++) out[i] = img.get(i); return; }
-        int lo = 255, hi = 0;
-        for (size_t i = 0; i < n; i++) { int v = img.get(i); if (v == 0) continue; if (v < lo) lo = v; if (v > hi) hi = v; }
+
+        // Histogram of nonzero pixels (0 = missing-segment gap, ignored).
+        uint64_t hist[256] = {0};
+        uint64_t cnt = 0;
+        for (size_t i = 0; i < n; i++) { int v = img.get(i); if (v == 0) continue; hist[v]++; cnt++; }
+        if (cnt == 0) return;
+
+        uint64_t loTarget = cnt * 2 / 100;   // clip darkest 2%
+        uint64_t hiTarget = cnt * 98 / 100;  // clip brightest 2%
+        int lo = 1, hi = 255; uint64_t acc = 0;
+        for (int v = 1; v < 256; v++) { acc += hist[v]; if (acc >= loTarget) { lo = v; break; } }
+        acc = 0;
+        for (int v = 1; v < 256; v++) { acc += hist[v]; if (acc >= hiTarget) { hi = v; break; } }
         if (hi <= lo) { for (size_t i = 0; i < n; i++) out[i] = img.get(i); return; }
+
         float scale = 255.0f / (float)(hi - lo);
         for (size_t i = 0; i < n; i++) {
             int v = img.get(i);
@@ -586,6 +609,49 @@ private:
         }
     }
 
+    // Geometric (across-track) correction map. The MSU-MR scanner samples at
+    // equal ANGLE steps, so near the edges each pixel covers far more ground and
+    // features look squished. This builds, for each output column (equal GROUND
+    // spacing), the input column to sample (equal angle) -> un-squishes the edges.
+    // Whisk-broom Earth-location model: H~820 km, swath ~2800 km.
+    // Horizontal bilinear sampler with channel offset. Used for geometry
+    // correction (fractional source x). Gaps (value 0) are not interpolated across.
+    static uint8_t sampleF(std::vector<uint8_t>& p, meteorimg::SimpleImage& im, double xf, int y, int ox, int oy) {
+        double sx = xf + ox; int sy = y + oy;
+        if (sy < 0 || sy >= (int)im.height()) return 0;
+        int x0 = (int)floor(sx); double fr = sx - x0; int x1 = x0 + 1;
+        auto px = [&](int xx) -> int {
+            if (xx < 0 || xx >= (int)im.width()) return 0;
+            size_t idx = (size_t)sy * im.width() + xx;
+            return idx < p.size() ? p[idx] : 0;
+        };
+        int v0 = px(x0), v1 = px(x1);
+        if (v0 == 0 || v1 == 0) return (uint8_t)(fr < 0.5 ? v0 : v1); // don't bleed across gaps
+        return (uint8_t)(v0 * (1.0 - fr) + v1 * fr + 0.5);
+    }
+
+    // Across-track geometry correction, matching SatDump's correct_earth_curvature
+    // and the meteor_m2-3_msumr_lrpt.json parameters (corr_swath 2800 km,
+    // corr_altit 820 km, corr_resol 1 km/px, scan_angle 110.1 deg = +/-55 deg).
+    // Like SatDump, the corrected image is WIDER than the input: the centre keeps
+    // full resolution and the squished edges are expanded to equal ground spacing.
+    // geomMap[x_out] = source column in the input (equal-angle) image.
+    void buildGeomMap(int inW) {
+        geomInWidth = inW;
+        const double R = 6371.0, H = 820.0, swath = 2800.0, resol = 1.0;
+        double orbit = R + H;
+        double half = (swath / R) / 2.0;                                 // half-swath central angle
+        double edge = atan(R * sin(half) / (orbit - R * cos(half)));     // max look angle (= 55 deg)
+        int outW = (int)llround(swath / resol);                          // SatDump corrected width (2800)
+        geomMap.assign(outW, 0.0f);
+        for (int x = 0; x < outW; x++) {
+            double f = (double)x / (outW - 1) - 0.5;                     // -0.5..0.5, equal ground
+            double gamma = f * (swath / R);                             // Earth-central angle
+            double theta = atan(R * sin(gamma) / (orbit - R * cos(gamma))); // look angle
+            geomMap[x] = (float)((theta / edge * 0.5 + 0.5) * (inW - 1));   // input column (equal angle)
+        }
+    }
+
     void rebuildImage() {
         if (!decoder) return;
         std::vector<uint8_t> out;
@@ -606,24 +672,20 @@ private:
             normalizePlane(ib, pb, normalizeImg);
             int orx, ory, ogx, ogy, obx, oby;
             channelOffset(r, orx, ory); channelOffset(g, ogx, ogy); channelOffset(b, obx, oby);
-            out.assign(w * h * 4, 255);
-            auto sample = [](std::vector<uint8_t>& p, meteorimg::SimpleImage& im, int x, int y, int ox, int oy) -> uint8_t {
-                int sx = x + ox, sy = y + oy;
-                if (sx < 0 || sy < 0 || sx >= (int)im.width() || sy >= (int)im.height()) return 0;
-                size_t idx = (size_t)sy * im.width() + sx;
-                return idx < p.size() ? p[idx] : 0;
-            };
+            if (correctGeom && geomInWidth != (int)w) buildGeomMap((int)w);
+            size_t ww = correctGeom ? geomMap.size() : w;      // output width (wider when corrected)
+            out.assign(ww * h * 4, 255);
             for (int y = 0; y < (int)h; y++) {
-                for (int x = 0; x < (int)w; x++) {
-                    // 180° flip: descending passes arrive upside-down
-                    size_t i = flip180 ? ((size_t)(h - 1 - y) * w + (w - 1 - x)) : ((size_t)y * w + x);
-                    out[i * 4 + 0] = sample(pr, ir, x, y, orx, ory);
-                    out[i * 4 + 1] = sample(pg, ig, x, y, ogx, ogy);
-                    out[i * 4 + 2] = sample(pb, ib, x, y, obx, oby);
+                for (int x = 0; x < (int)ww; x++) {
+                    double xf = correctGeom ? geomMap[x] : (double)x;
+                    size_t i = flip180 ? ((size_t)(h - 1 - y) * ww + (ww - 1 - x)) : ((size_t)y * ww + x);
+                    out[i * 4 + 0] = sampleF(pr, ir, xf, y, orx, ory);
+                    out[i * 4 + 1] = sampleF(pg, ig, xf, y, ogx, ogy);
+                    out[i * 4 + 2] = sampleF(pb, ib, xf, y, obx, oby);
                     out[i * 4 + 3] = 255;
                 }
             }
-            ow = (int)w; oh = (int)h;
+            ow = (int)ww; oh = (int)h;
         }
         else {
             int ch = viewMode - 1;
@@ -632,15 +694,18 @@ private:
             std::vector<uint8_t> p;
             normalizePlane(img, p, normalizeImg);
             int w = (int)img.width(), h = (int)img.height();
-            out.assign((size_t)w * h * 4, 255);
+            if (correctGeom && geomInWidth != w) buildGeomMap(w);
+            size_t ww = correctGeom ? geomMap.size() : (size_t)w;
+            out.assign(ww * h * 4, 255);
             for (int y = 0; y < h; y++) {
-                for (int x = 0; x < w; x++) {
-                    uint8_t v = p[(size_t)y * w + x];
-                    size_t i = flip180 ? ((size_t)(h - 1 - y) * w + (w - 1 - x)) : ((size_t)y * w + x);
+                for (int x = 0; x < (int)ww; x++) {
+                    double xf = correctGeom ? geomMap[x] : (double)x;
+                    uint8_t v = sampleF(p, img, xf, y, 0, 0);
+                    size_t i = flip180 ? ((size_t)(h - 1 - y) * ww + (ww - 1 - x)) : ((size_t)y * ww + x);
                     out[i * 4 + 0] = v; out[i * 4 + 1] = v; out[i * 4 + 2] = v; out[i * 4 + 3] = 255;
                 }
             }
-            ow = w; oh = h;
+            ow = (int)ww; oh = h;
         }
 
         // Publish (cheap) under the image mutex.
@@ -808,6 +873,9 @@ private:
     std::atomic<bool> imgRequestRebuild{false};
     std::mutex imgMtx;
     bool flip180 = false;
+    bool correctGeom = true;        // un-squish edges (across-track geometry)
+    std::vector<float> geomMap;
+    int geomInWidth = 0;            // input width the current geomMap was built for
     bool autoSaveReset = false;
     int  autoResetGapSec = 30; // LOS gap (s) that triggers auto-save + reset
     GrowableTexture texture;
