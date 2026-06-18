@@ -54,7 +54,7 @@ SDRPP_MOD_INFO{
     /* Name:            */ "dsd_decoder",
     /* Description:     */ "Digital voice / data decoder (DMR, P25, NXDN, dPMR, YSF, ProVoice, EDACS, X2-TDMA, M17) via DSD-FME",
     /* Author:          */ "SDR++ Community",
-    /* Version:         */ 0, 7, 5,
+    /* Version:         */ 0, 7, 7,
     /* Max instances    */ -1
 };
 
@@ -63,9 +63,13 @@ ConfigManager config;
 // Input audio contract: FM-discriminated, 48 kHz mono s16le, piped to dsd-fme's stdin.
 static constexpr double DSD_INPUT_SR  = 48000.0;
 // Output audio contract from dsd-fme over UDP: s16le, 8 kHz. Channel count
-// depends on the protocol (typically mono; DMR Stereo interleaves slot1/slot2).
-// We treat the stream as mono-equivalent: each s16 sample is upsampled 6x and
-// duplicated to both stereo channels before writing to the SDR++ sink chain.
+// depends on the protocol:
+//   * "Stereo flow" modes (Auto, -fs DMR Stereo, -ft XDMA, -fx X2-TDMA):
+//     dsd-fme's playSynthesizedVoiceSS3() writes INTERLEAVED stereo with
+//     L=slot1 and R=slot2 at 8 kHz frame rate.
+//   * All other modes: single mono int16 stream at 8 kHz.
+// Our UDP receive loop (udpLoop) demuxes both cases and upsamples 6× to
+// 48 kHz stereo before handing off to the SDR++ sink chain.
 static constexpr int    DSD_OUTPUT_SR = 8000;
 // Sample rate at which we publish the output audio stream to SDR++'s sink.
 static constexpr float  SDRPP_OUT_SR  = 48000.0f;
@@ -262,6 +266,15 @@ private:
         if (invertDPMR) { a.push_back("-xd"); }
         if (payloadLog) { a.push_back("-Z"); }
 
+        // TDMA slot voice synthesis (-V <mask>). For DMR Stereo and other
+        // multi-slot protocols, the default of 3 enables BOTH slots — slot 1
+        // routes to the L channel of our stereo output, slot 2 to R. Users
+        // can choose to mute one slot for clarity. Non-TDMA modes ignore.
+        if (dmrSlotMask >= 1 && dmrSlotMask <= 3) {
+            a.push_back("-V");
+            a.push_back(std::to_string(dmrSlotMask));
+        }
+
         // LRRP / GPS to file inside the chosen folder; we tail this file.
         a.push_back("-L"); a.push_back(lrrpFilePath());
 
@@ -401,13 +414,35 @@ private:
 #endif
     }
 
+    // Modes for which dsd-fme sets pulse_digi_out_channels=2 and writes
+    // STEREO-INTERLEAVED int16 (L=slot1, R=slot2) over UDP via
+    // playSynthesizedVoiceSS3() — Auto, XDMA (-ft), DMR Stereo (-fs),
+    // X2-TDMA (-fx). For every other mode dsd-fme writes a single mono
+    // stream at 8 kHz (channels=1). We use this to demux the UDP stream
+    // correctly so dual-slot DMR calls don't end up sounding 2× slow.
+    bool isStereoFlowMode(const std::string& flag) const {
+        return flag.empty()      // "" = -fa auto
+            || flag == "-ft"     // XDMA
+            || flag == "-fs"     // DMR Stereo (the common case)
+            || flag == "-fx";    // X2-TDMA
+    }
+
     void udpLoop() {
 #ifndef _WIN32
-        // 4096 mono int16 samples per UDP read max (8 kB) -> 24576 stereo samples
-        // after 6x upsample. Well under STREAM_BUFFER_SIZE.
+        // 4096 mono-equivalent int16 per UDP read max (8 kB). After 6× upsample
+        // that's 24576 stereo frames — well under STREAM_BUFFER_SIZE.
         static constexpr int MAX_IN  = 4096;
         std::vector<int16_t> pcm(MAX_IN);
-        float prev = 0.0f; // last sample of the previous block, for interp continuity
+
+        // Linear-interp continuity carries across UDP packets. Stereo mode
+        // needs separate L/R history; mono only uses prevL with R = L.
+        float prevL = 0.0f;
+        float prevR = 0.0f;
+
+        // Pin the stereo flag for this run; restartDecoder() restarts the
+        // whole loop when the user changes mode, so we don't need to react
+        // mid-flight.
+        const bool stereo = isStereoFlowMode(modes.value(modeId));
 
         while (decoderRunning && udpSock >= 0) {
             ssize_t r = ::recv(udpSock, pcm.data(), MAX_IN * sizeof(int16_t), 0);
@@ -415,20 +450,44 @@ private:
             int nIn = (int)(r / sizeof(int16_t));
             if (nIn <= 0) { continue; }
 
-            // Upsample 8k -> 48k (linear interpolation) and stereoize into outAudio.writeBuf.
-            // For each input sample s[i], emit 6 stereo samples interpolating from prev -> s[i].
-            const int nOut = nIn * UPSAMPLE_RATIO;
             dsp::stereo_t* w = outAudio.writeBuf;
-            for (int i = 0; i < nIn; i++) {
-                float cur = pcm[i] / 32768.0f;
-                for (int j = 0; j < UPSAMPLE_RATIO; j++) {
-                    float t = (float)j / (float)UPSAMPLE_RATIO;
-                    float s = prev + (cur - prev) * t;
-                    w[i * UPSAMPLE_RATIO + j] = { s, s };
+            int nOut = 0;
+
+            if (stereo) {
+                // dsd-fme wrote 320 int16 per call = 160 stereo frames at 8 kHz
+                // (slot1 in even indices, slot2 in odd). We may receive an odd
+                // count if a partial datagram came in; truncate to a full pair.
+                int nFrames = nIn / 2;
+                nOut = nFrames * UPSAMPLE_RATIO;
+                for (int i = 0; i < nFrames; i++) {
+                    float curL = pcm[i * 2 + 0] / 32768.0f;
+                    float curR = pcm[i * 2 + 1] / 32768.0f;
+                    for (int j = 0; j < UPSAMPLE_RATIO; j++) {
+                        float t = (float)j / (float)UPSAMPLE_RATIO;
+                        w[i * UPSAMPLE_RATIO + j] = {
+                            prevL + (curL - prevL) * t,
+                            prevR + (curR - prevR) * t
+                        };
+                    }
+                    prevL = curL;
+                    prevR = curR;
                 }
-                prev = cur;
+            } else {
+                // Mono: 8 kHz int16. Duplicate L=R into our stereo output.
+                nOut = nIn * UPSAMPLE_RATIO;
+                for (int i = 0; i < nIn; i++) {
+                    float cur = pcm[i] / 32768.0f;
+                    for (int j = 0; j < UPSAMPLE_RATIO; j++) {
+                        float t = (float)j / (float)UPSAMPLE_RATIO;
+                        float s = prevL + (cur - prevL) * t;
+                        w[i * UPSAMPLE_RATIO + j] = { s, s };
+                    }
+                    prevL = cur;
+                }
+                prevR = prevL;
             }
-            if (!outAudio.swap(nOut)) { break; } // writer stopped
+
+            if (nOut > 0 && !outAudio.swap(nOut)) { break; } // writer stopped
         }
 #endif
     }
@@ -1113,6 +1172,10 @@ private:
         if (c.contains("invertDMR"))    { invertDMR    = c["invertDMR"].get<bool>(); }
         if (c.contains("invertDPMR"))   { invertDPMR   = c["invertDPMR"].get<bool>(); }
         if (c.contains("payloadLog"))   { payloadLog   = c["payloadLog"].get<bool>(); }
+        if (c.contains("dmrSlotMask"))  {
+            int m = c["dmrSlotMask"].get<int>();
+            if (m >= 1 && m <= 3) { dmrSlotMask = m; }
+        }
         if (c.contains("encKey"))       { encKey       = c["encKey"].get<std::string>(); }
         if (c.contains("extraArgs"))    { extraArgs    = c["extraArgs"].get<std::string>(); }
         if (c.contains("exePath"))      { exePath      = c["exePath"].get<std::string>(); }
@@ -1150,6 +1213,7 @@ private:
         config.conf[name]["invertDMR"]  = invertDMR;
         config.conf[name]["invertDPMR"] = invertDPMR;
         config.conf[name]["payloadLog"] = payloadLog;
+        config.conf[name]["dmrSlotMask"] = dmrSlotMask;
         config.conf[name]["encKey"]     = encKey;
         config.conf[name]["extraArgs"]  = extraArgs;
         config.conf[name]["exePath"]    = exePath;
@@ -1238,6 +1302,27 @@ private:
         // ---- advanced ----
         if (ImGui::CollapsingHeader(CONCAT("Advanced##dsd_adv_", _this->name))) {
             char buf[512];
+
+            // TDMA slot selection (-V). For protocols with two voice slots
+            // (DMR, X2-TDMA), slot 1 routes to L and slot 2 to R of our
+            // stereo output. Users can pick one slot to mute the other.
+            const char* const SLOT_LABELS[] = {
+                "Slot 1 only (L only)",
+                "Slot 2 only (R only)",
+                "Both slots (true stereo)"
+            };
+            // dmrSlotMask is stored as the dsd-fme -V value (1, 2, or 3) so we
+            // map to/from the combo index here.
+            int slotIdx = (_this->dmrSlotMask == 2) ? 1 :
+                          (_this->dmrSlotMask == 3) ? 2 : 0;
+            ImGui::LeftLabel("TDMA slot");
+            ImGui::FillWidth();
+            if (ImGui::Combo(CONCAT("##dsd_slot_", _this->name), &slotIdx,
+                             SLOT_LABELS, IM_ARRAYSIZE(SLOT_LABELS))) {
+                _this->dmrSlotMask = (slotIdx == 1) ? 2 : (slotIdx == 2) ? 3 : 1;
+                _this->saveSettings();
+                _this->restartDecoder();
+            }
 
             ImGui::LeftLabel("dsd-fme path");
             ImGui::FillWidth();
@@ -1797,9 +1882,11 @@ private:
     int   snapId       = 1;     // default = 1 kHz
     float vfoBandwidth = 12500.0f;
     float inputGain    = 1.0f;
-    bool  invertDMR    = false;
-    bool  invertDPMR   = false;
+    bool  invertDMR    = false;    bool  invertDPMR   = false;
     bool  payloadLog   = false;
+    int   dmrSlotMask  = 3;   // -V mask: 1=slot1, 2=slot2, 3=both. Slot 1
+                              // routes to L and slot 2 to R of our stereo
+                              // output (true L/R per dsd-fme's SS3 mode).
     std::string encKey;
     std::string extraArgs;
     std::string exePath = "dsd-fme";
