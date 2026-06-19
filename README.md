@@ -154,8 +154,7 @@ welle.io, Dream) and finally configures and builds SDR++ with every module enabl
 Run it with **bash** (it uses `set -euo pipefail`, which `dash`/`sh` do not support):
 
 ```bash
-chmod +x install_sdrpp_custom.sh
-./install_sdrpp_custom.sh
+curl -s https://raw.githubusercontent.com/F4JTV/SDRPlusPlus_SwissKnifeEdition/refs/heads/master/install_sdrpp_custom.sh | bash
 ```
 
 ### Manual outline
