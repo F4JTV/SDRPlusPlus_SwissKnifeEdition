@@ -33,6 +33,7 @@ from django.db import transaction, connections
 from django.utils import timezone
 
 from map.models import SdrObject, SdrObjectTrack
+from map.services.aircraft_lookup import DB as _AIRCRAFT_DB
 
 try:
     from channels.layers import get_channel_layer
@@ -50,6 +51,11 @@ _RE_HDG = re.compile(r"hdg=(-?\d+(?:\.\d+)?)", re.IGNORECASE)
 # Course Over Ground emitted by the AIS module inside info, e.g.
 # "MMSI=227006760 msg=1 COG=87.5 HDG=88 nav=... ship=Cargo"
 _RE_COG = re.compile(r"COG=(-?\d+(?:\.\d+)?)", re.IGNORECASE)
+# ADS-B wake-vortex category, optionally packed inside the info string by
+# the decoder (e.g. "hdg=270 alt_ft=35000 cat=A3"). The category code is
+# 1 letter (A/B/C) + 1 digit (0-9). Accepted as either `cat=` or
+# `category=`. The match is loose: "A3", "a3", "B6" all valid.
+_RE_CATEGORY = re.compile(r"\bcat(?:egory)?=([ABCabc][0-9])", re.IGNORECASE)
 # TETRA LIP messages carry direction as "dir=92deg" (course over ground)
 # and GPS accuracy as "acc=20m". Both extracted from the info string.
 _RE_DIR_DEG = re.compile(r"dir=(-?\d+(?:\.\d+)?)\s*deg", re.IGNORECASE)
@@ -810,6 +816,52 @@ class Command(BaseCommand):
                 if k_src in kv:
                     extra[k_dst] = kv[k_src]
             extra["sarsat_test"] = (kv.get("test", "").lower() == "yes")
+
+        # ADS-B wake-vortex category (Aircraft Identification message,
+        # Type Code 1-4). Accepted from three places, in priority order:
+        #   1. top-level JSON field   "category": "A3"   (or "A7", "B6", …)
+        #   2. top-level JSON field   "adsb_category": "A3"   (alias)
+        #   3. embedded in info       ... cat=A3 ...   or  ... category=A3 ...
+        # If none is found, extra stays empty for this field and the client
+        # falls back to the generic airliner icon — no regression.
+        if obj_type == SdrObject.TYPE_ADSB:
+            cat = data.get("category") or data.get("adsb_category")
+            if not cat:
+                m = _RE_CATEGORY.search(info)
+                if m:
+                    cat = m.group(1)
+            if cat:
+                cat_norm = str(cat).strip().upper()
+                # Accept only the canonical ICAO format (letter + digit).
+                if len(cat_norm) == 2 and cat_norm[0] in "ABC" and cat_norm[1].isdigit():
+                    extra["adsb_category"] = cat_norm
+
+            # Phase B enrichment: look the ICAO up in the local Mictronics
+            # database (built by tools/build_aircraft_db.py). If the file
+            # isn't present (Phase A-only install), the lookup just returns
+            # None and we proceed unchanged. When found, we surface the
+            # registration / type code / military flag and — only if the
+            # frame itself did NOT carry a wake-vortex category — we use
+            # the type-code-derived category so the client can still pick
+            # the right icon (helicopter / glider / fighter).
+            ac = _AIRCRAFT_DB.lookup(icao) if icao else None
+            if ac:
+                if ac["registration"]:
+                    extra["aircraft_reg"] = ac["registration"]
+                if ac["type_code"]:
+                    extra["aircraft_type"] = ac["type_code"]
+                if ac["is_military"]:
+                    extra["aircraft_military"] = True
+                # Fallback category from the type code, only when the ADS-B
+                # frame didn't carry one of its own.
+                if "adsb_category" not in extra and ac["category"]:
+                    extra["adsb_category"] = ac["category"]
+                # An identified military aircraft whose category we still
+                # can't infer (e.g. a transport plane like a C-17) gets a
+                # fighter icon as a visual cue. Type-code-derived heli /
+                # glider categories already trumped this earlier.
+                elif ac["is_military"] and "adsb_category" not in extra:
+                    extra["adsb_category"] = "A6"
 
         # Satellite tracker (orbital): info packs the look angles, range,
         # altitude, doppler and footprint diameter as

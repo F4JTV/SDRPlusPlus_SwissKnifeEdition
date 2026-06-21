@@ -120,14 +120,116 @@
   const MAX_TRAIL = 200;            // nombre max de positions conservées par objet
   let showTrails = true;            // piloté par la case « Afficher les traces »
 
-  // SVG d'avion vu de dessus, NEZ VERS LE HAUT (nord) par construction.
-  // Comme il pointe nord à 0°, rotate(heading) donne l'orientation exacte,
-  // sans dépendre de la police/OS (contrairement au caractère ✈).
+  // Family of aircraft SVGs for ADS-B markers. All face north (heading 0°)
+  // by construction, so rotate(heading) gives the correct orientation.
+  // The variant used at runtime is selected by adsbVariant(o) based on the
+  // wake-vortex category emitted by the aircraft itself in the ADS-B
+  // Aircraft Identification message (Type Code 1-4).
+  //
+  // Category mapping (ICAO Annex 10 Volume IV / DO-260B):
+  //   A1 light (<7t)        -> light       (Cessna, PA-28, …)
+  //   A2 small (7-34t)      -> bizjet
+  //   A3-A5 large/heavy     -> airliner    (default, A320/B737/A380/B747)
+  //   A6 high performance   -> fighter     (Rafale, F-16, military jets)
+  //   A7 rotorcraft         -> helicopter
+  //   B1 glider             -> glider
+  //   B4 ultralight         -> light       (visually similar to GA prop)
+  //   B6 UAV                -> drone
+  //   anything else / none  -> airliner    (safe default, current behaviour)
+
+  // Default airliner (also used when no category is transmitted, so no
+  // behavioural regression for modules that don't emit `category` yet).
   const PLANE_SVG =
     '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" ' +
     'xmlns="http://www.w3.org/2000/svg">' +
     '<path d="M12 2 L13.2 9 L21 13 L21 15 L13.2 12.6 L13 19 L16 21 L16 22 ' +
     'L12 21 L8 22 L8 21 L11 19 L10.8 12.6 L3 15 L3 13 L10.8 9 Z"/></svg>';
+
+  // Light GA / ultralight: straight wings, short fuselage, propeller line.
+  const PLANE_LIGHT_SVG =
+    '<svg viewBox="0 0 24 28" width="22" height="24" fill="currentColor" ' +
+    'stroke="currentColor" xmlns="http://www.w3.org/2000/svg">' +
+    '<line x1="9" y1="3" x2="15" y2="3" stroke-width="1.2"/>' +
+    '<rect x="11" y="4" width="2" height="14"/>' +
+    '<rect x="3" y="11" width="18" height="2.5"/>' +
+    '<rect x="8" y="18" width="8" height="2"/>' +
+    '<rect x="11" y="20" width="2" height="3"/></svg>';
+
+  // Business jet: swept wings, narrower than airliner.
+  const PLANE_BIZJET_SVG =
+    '<svg viewBox="0 0 24 28" width="22" height="24" fill="currentColor" ' +
+    'xmlns="http://www.w3.org/2000/svg">' +
+    '<path d="M12 2 L11.2 7 L11.2 11 L4 15 L4 16.5 L11.2 14.5 L11.2 19 ' +
+    'L9 21 L9 22 L11.2 21.5 L12 23 L12.8 21.5 L15 22 L15 21 L12.8 19 ' +
+    'L12.8 14.5 L20 16.5 L20 15 L12.8 11 L12.8 7 Z"/></svg>';
+
+  // Fighter jet: highly-swept delta wings, pointed nose, military feel.
+  const PLANE_FIGHTER_SVG =
+    '<svg viewBox="0 0 24 28" width="22" height="24" fill="currentColor" ' +
+    'xmlns="http://www.w3.org/2000/svg">' +
+    '<path d="M12 1 L10.5 6 L10.5 11 L3 19 L4 21 L10.5 17.5 L10.5 22 ' +
+    'L8.5 25 L8.5 25.5 L10.5 25 L12 26 L13.5 25 L15.5 25.5 L15.5 25 ' +
+    'L13.5 22 L13.5 17.5 L20 21 L21 19 L13.5 11 L13.5 6 Z"/></svg>';
+
+  // Helicopter: oval fuselage, faint disc for the main rotor, tail boom.
+  const PLANE_HELI_SVG =
+    '<svg viewBox="0 0 24 28" width="22" height="24" fill="currentColor" ' +
+    'stroke="currentColor" xmlns="http://www.w3.org/2000/svg">' +
+    '<ellipse cx="12" cy="14" rx="3.5" ry="6"/>' +
+    '<circle cx="12" cy="14" r="11" fill="none" stroke-width="1.2" ' +
+    'stroke-opacity="0.5"/>' +
+    '<rect x="11.4" y="19" width="1.2" height="6"/>' +
+    '<rect x="9.5" y="24.5" width="5" height="1.2"/></svg>';
+
+  // Drone: quadcopter top-down view, four rotors at corners.
+  const PLANE_DRONE_SVG =
+    '<svg viewBox="0 0 24 28" width="22" height="24" fill="currentColor" ' +
+    'stroke="currentColor" xmlns="http://www.w3.org/2000/svg">' +
+    '<rect x="9" y="11" width="6" height="6"/>' +
+    '<line x1="6" y1="8" x2="9" y2="11" stroke-width="1.5"/>' +
+    '<line x1="18" y1="8" x2="15" y2="11" stroke-width="1.5"/>' +
+    '<line x1="6" y1="20" x2="9" y2="17" stroke-width="1.5"/>' +
+    '<line x1="18" y1="20" x2="15" y2="17" stroke-width="1.5"/>' +
+    '<circle cx="5" cy="7" r="2.5" fill="none" stroke-width="1.3"/>' +
+    '<circle cx="19" cy="7" r="2.5" fill="none" stroke-width="1.3"/>' +
+    '<circle cx="5" cy="21" r="2.5" fill="none" stroke-width="1.3"/>' +
+    '<circle cx="19" cy="21" r="2.5" fill="none" stroke-width="1.3"/></svg>';
+
+  // Glider / sailplane: very long thin wings, no engine.
+  const PLANE_GLIDER_SVG =
+    '<svg viewBox="0 0 24 28" width="22" height="24" fill="currentColor" ' +
+    'xmlns="http://www.w3.org/2000/svg">' +
+    '<rect x="11.3" y="4" width="1.4" height="16"/>' +
+    '<rect x="1" y="13" width="22" height="1.5"/>' +
+    '<rect x="8" y="19" width="8" height="1.4"/>' +
+    '<rect x="11.3" y="20.5" width="1.4" height="2.5"/></svg>';
+
+  // Map a wake-vortex category code (string like "A1", "A7", "B6") to the
+  // SVG and a CSS class. Tolerant: accepts upper/lower case, optional
+  // separator, and a few aliases ("HELI", "DRONE", …) some module
+  // implementations may use instead of the raw ICAO code.
+  function adsbVariant(o) {
+    const raw = (o.adsb_category || "").toString().toUpperCase().trim();
+    switch (raw) {
+      case "A1": case "LIGHT":
+      case "B4": case "ULTRALIGHT": case "ULM":
+        return { svg: PLANE_LIGHT_SVG,   cls: "plane plane-light" };
+      case "A2": case "BIZJET":
+        return { svg: PLANE_BIZJET_SVG,  cls: "plane plane-bizjet" };
+      case "A6": case "FIGHTER": case "MILITARY":
+        return { svg: PLANE_FIGHTER_SVG, cls: "plane plane-fighter" };
+      case "A7": case "ROTORCRAFT": case "HELI": case "HELICOPTER":
+        return { svg: PLANE_HELI_SVG,    cls: "plane plane-heli" };
+      case "B1": case "GLIDER":
+        return { svg: PLANE_GLIDER_SVG,  cls: "plane plane-glider" };
+      case "B6": case "UAV": case "DRONE":
+        return { svg: PLANE_DRONE_SVG,   cls: "plane plane-drone" };
+      // A3/A4/A5 — large/heavy airliners — and any unknown/missing
+      // category fall back to the classic airliner silhouette.
+      default:
+        return { svg: PLANE_SVG,         cls: "plane" };
+    }
+  }
 
   // SVG de bateau vu de dessus, PROUE VERS LE HAUT par construction.
   // Mêmes propriétés que l'avion : indépendant de la police, rotation = COG.
@@ -289,7 +391,8 @@
   function glyphHtml(o, rotDeg) {
     const rot = rotDeg != null ? `transform:rotate(${rotDeg}deg);` : "";
     if (o.type === "ADSB") {
-      return `<span class="glyph plane" style="${rot}">${PLANE_SVG}</span>`;
+      const v = adsbVariant(o);
+      return `<span class="glyph ${v.cls}" style="${rot}">${v.svg}</span>`;
     }
     if (o.type === "AIS") {
       const v = aisVariant(o);
@@ -397,6 +500,36 @@
       grid += row("MID", o.mid);
     }
     if (o.icao) grid += row("ICAO", o.icao);
+    // Phase B aircraft database enrichment (from local Mictronics lookup).
+    // Surface registration, type code and a "Military" badge when known.
+    if (o.type === "ADSB" && o.aircraft_reg) {
+      grid += row("Registration", o.aircraft_reg);
+    }
+    if (o.type === "ADSB" && o.aircraft_type) {
+      grid += row("Aircraft type", o.aircraft_type);
+    }
+    if (o.type === "ADSB" && o.aircraft_military) {
+      // The "v" cell HTML is built ourselves so we can colourise the badge.
+      grid += `<span class="k">Operator</span><span class="v">` +
+              `<span class="badge-military">⚔ Military</span></span>`;
+    }
+    // ADS-B wake-vortex category, shown in human-readable form. The raw
+    // code (A1, A7, B6, …) is also kept in parens for technical users.
+    if (o.type === "ADSB" && o.adsb_category) {
+      const human = {
+        "A1": "Light",     "A2": "Small",        "A3": "Large",
+        "A4": "High-vortex large",                "A5": "Heavy",
+        "A6": "High performance / military",
+        "A7": "Rotorcraft",
+        "B1": "Glider",    "B2": "Lighter-than-air",
+        "B3": "Parachutist","B4": "Ultralight",
+        "B6": "UAV (drone)","B7": "Space vehicle",
+        "C1": "Surface emergency",
+        "C2": "Surface service",
+        "C3": "Fixed obstruction",
+      }[o.adsb_category.toUpperCase()] || o.adsb_category;
+      grid += row("Category", `${human} (${o.adsb_category})`);
+    }
     if (o.ssi)  grid += row("SSI",  o.ssi);
     if (o.source) grid += row("RID DMR", o.source);
     // TETRA LIP carries GPS accuracy in metres ("±20 m"): we surface it

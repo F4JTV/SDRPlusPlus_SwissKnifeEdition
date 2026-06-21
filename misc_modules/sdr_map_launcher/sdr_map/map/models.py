@@ -113,6 +113,17 @@ class SdrObject(models.Model):
             "climb_rate": self.climb_rate,
             "mmsi": self.mmsi,
             "icao": self.icao,
+            # ADS-B wake-vortex category (A1-A7, B1-B7, C1-C3), extracted by
+            # listen_sdr from the Aircraft Identification message. Drives the
+            # icon variant on the client (airliner / light / fighter / heli /
+            # drone / glider). None when the aircraft didn't emit it.
+            "adsb_category": (self.extra or {}).get("adsb_category"),
+            # Phase B enrichment from the local Mictronics aircraft database,
+            # looked up by ICAO. All optional; null when the database file is
+            # not installed (Phase A only) or when the ICAO isn't catalogued.
+            "aircraft_reg":      (self.extra or {}).get("aircraft_reg"),
+            "aircraft_type":     (self.extra or {}).get("aircraft_type"),
+            "aircraft_military": (self.extra or {}).get("aircraft_military"),
             "ssi":  self.ssi,
             "gps_acc_m": (self.extra or {}).get("gps_acc_m"),
             "source": (self.extra or {}).get("source"),

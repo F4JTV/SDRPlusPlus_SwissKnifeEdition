@@ -1,5 +1,9 @@
+# SDR Map — dépendances Python
 Django>=5.0,<5.3
 channels>=4.0
 daphne>=4.1
 whitenoise>=6.6
-channels-redis>=4.2
+
+# Production multi-process (optionnel) : décommentez pour utiliser Redis comme
+# couche Channels (sinon InMemory, suffisant pour un poste opérateur unique).
+# channels-redis>=4.2

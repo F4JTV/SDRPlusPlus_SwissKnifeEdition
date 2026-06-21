@@ -441,6 +441,24 @@ body.panel-collapsed .panel-toggle {
   border: none; box-shadow: none; width: auto; height: auto;
   font-size: 14px; line-height: 1;
 }
+/* Military badge for ADS-B aircraft identified as such by the local
+   aircraft database (Phase B enrichment). Red-tinted pill so it reads
+   as "noteworthy" without being aggressive. */
+.popup-grid .v .badge-military {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(220, 38, 38, 0.18);
+  border: 1px solid rgba(220, 38, 38, 0.55);
+  color: #fca5a5;
+  font-weight: 600; font-size: 11px;
+  letter-spacing: 0.03em;
+}
+body.light-bg .popup-grid .v .badge-military {
+  background: rgba(153, 27, 27, 0.12);
+  border-color: rgba(153, 27, 27, 0.5);
+  color: #991b1b;
+}
 .popup-info {
   margin-top: 7px; padding-top: 7px; border-top: 1px solid var(--panel-bd);
   color: var(--ink-dim); font-size: 11px; line-height: 1.4; word-break: break-word;
