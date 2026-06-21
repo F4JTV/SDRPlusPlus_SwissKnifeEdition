@@ -12,9 +12,9 @@ int main(int argc, char** argv) {
     tx.start(host, port);
 
     const char* lines[] = {
-        R"({"name":"AFR1234","icao":"3c6dd2","date":"2026-05-25","time":"12:34:56","lat":43.2950,"lon":5.3700,"type":"ADSB","speed":420.0,"info":"alt=38000ft hdg=270 vrate=-832fpm cs=AFR1234"})",
-        R"({"name":"ICAO:40621d","icao":"40621d","date":"2026-05-25","time":"12:34:57","lat":52.2572,"lon":3.9194,"type":"ADSB","speed":null,"info":"alt=38000ft"})",
-        R"({"name":"KLM1023","icao":"4840d6","date":"2026-05-25","time":"12:34:58","lat":51.9900,"lon":4.3750,"type":"ADSB","speed":159.0,"info":"cs=KLM1023 hdg=183"})",
+        R"({"name":"AFR1234","icao":"3C6DD2","date":"2026-06-16","time":"21:00:00","lat":43.2950,"lon":5.3700,"type":"ADSB","speed":420.0,"category":"A3","info":"hdg=270 alt_ft=38000"})",
+        R"({"name":"ICAO:40621D","icao":"40621D","date":"2026-06-16","time":"21:00:01","lat":52.2572,"lon":3.9194,"type":"ADSB","speed":null,"category":null,"info":"alt_ft=38000"})",
+        R"({"name":"KLM1023","icao":"4840D6","date":"2026-06-16","time":"21:00:02","lat":51.9900,"lon":4.3750,"type":"ADSB","speed":159.0,"category":"A3","info":"hdg=183"})",
     };
     for (auto l : lines) tx.send(l);
 

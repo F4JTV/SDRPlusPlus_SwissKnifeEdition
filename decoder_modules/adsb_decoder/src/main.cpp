@@ -43,6 +43,7 @@ static double nowSec() {
 struct Aircraft {
     uint32_t icao = 0;
     std::string callsign;
+    std::string category;  // Wake/category code, e.g. "A3"; empty if unknown
 
     // CPR halves cached by frame parity, with their reception times.
     uint32_t cprLatEven = 0, cprLonEven = 0;
@@ -147,6 +148,17 @@ private:
         switch (m.kind) {
         case adsb::KIND_IDENT:
             if (!m.callsign.empty()) { ac.callsign = m.callsign; }
+            // Aircraft category code: the typeCode selects the set letter
+            // (TC=4 -> 'A', 3 -> 'B', 2 -> 'C', 1 -> 'D'), and the 3-bit
+            // category subcode (1-7) gives the sub-type. Subcode 0 means
+            // "no category information available" -> leave empty.
+            if (m.typeCode >= 1 && m.typeCode <= 4 && m.category >= 1 && m.category <= 7) {
+                char buf[4];
+                buf[0] = "DCBA"[m.typeCode - 1];
+                buf[1] = '0' + m.category;
+                buf[2] = 0;
+                ac.category = buf;
+            }
             break;
 
         case adsb::KIND_VELOCITY:
@@ -216,21 +228,35 @@ private:
         if (ac.haveSpeed) { std::snprintf(speedStr, sizeof(speedStr), "%.1f", ac.speedKt); }
         else              { std::snprintf(speedStr, sizeof(speedStr), "null"); }
 
-        // Free-form info field.
+        // Simplified free-form info field: only hdg + alt_ft.
+        // (The map distinguishes aircraft via icao/category, so the legacy
+        // verbose info was no longer useful; callsign is already in "name",
+        // vertical rate and airspeed flag are dropped.)
         std::string info;
-        if (ac.haveAlt)     { info += "alt=" + std::to_string(ac.altFt) + "ft "; }
-        if (ac.haveHeading) { char h[24]; std::snprintf(h, sizeof(h), "hdg=%.0f ", ac.headingDeg); info += h; }
-        if (ac.haveVrate)   { info += "vrate=" + std::to_string(ac.vrateFpm) + "fpm "; }
-        if (ac.haveSpeed && ac.airspeed) { info += "(airspeed) "; }
-        if (!ac.callsign.empty()) { info += "cs=" + ac.callsign; }
-        // Trim trailing space.
-        while (!info.empty() && info.back() == ' ') info.pop_back();
+        if (ac.haveHeading) {
+            char h[32]; std::snprintf(h, sizeof(h), "hdg=%.0f", ac.headingDeg);
+            info += h;
+        }
+        if (ac.haveAlt) {
+            if (!info.empty()) info += " ";
+            info += "alt_ft=" + std::to_string(ac.altFt);
+        }
 
-        char buf[512];
+        // Category: "A3" / "B1" / ... or null when unknown.
+        char categoryStr[16];
+        if (ac.category.empty()) {
+            std::snprintf(categoryStr, sizeof(categoryStr), "null");
+        } else {
+            std::snprintf(categoryStr, sizeof(categoryStr), "\"%s\"", ac.category.c_str());
+        }
+
+        char buf[640];
         std::snprintf(buf, sizeof(buf),
             "{\"name\":\"%s\",\"icao\":\"%s\",\"date\":\"%s\",\"time\":\"%s\","
-            "\"lat\":%.6f,\"lon\":%.6f,\"type\":\"ADSB\",\"speed\":%s,\"info\":\"%s\"}",
-            nameStr.c_str(), icaoStr, dbuf, tbuf, ac.lat, ac.lon, speedStr, info.c_str());
+            "\"lat\":%.6f,\"lon\":%.6f,\"type\":\"ADSB\",\"speed\":%s,"
+            "\"category\":%s,\"info\":\"%s\"}",
+            nameStr.c_str(), icaoStr, dbuf, tbuf, ac.lat, ac.lon, speedStr,
+            categoryStr, info.c_str());
 
         tcp.send(buf);
     }
@@ -369,7 +395,7 @@ private:
         }
 
         ImGui::Text("Aircraft tracked: %zu", rows.size());
-        if (ImGui::BeginTable(("##adsb_table_" + name).c_str(), 8,
+        if (ImGui::BeginTable(("##adsb_table_" + name).c_str(), 9,
                               ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
                               ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable |
                               ImGuiTableFlags_SizingStretchProp,
@@ -377,6 +403,7 @@ private:
             ImGui::TableSetupScrollFreeze(0, 1);
             ImGui::TableSetupColumn("ICAO");
             ImGui::TableSetupColumn("Callsign");
+            ImGui::TableSetupColumn("Cat");
             ImGui::TableSetupColumn("Lat");
             ImGui::TableSetupColumn("Lon");
             ImGui::TableSetupColumn("Alt(ft)");
@@ -390,12 +417,13 @@ private:
                 char icaoStr[8]; std::snprintf(icaoStr, sizeof(icaoStr), "%06X", ac.icao);
                 ImGui::TableSetColumnIndex(0); ImGui::Text("%s", icaoStr);
                 ImGui::TableSetColumnIndex(1); ImGui::Text("%s", ac.callsign.c_str());
-                ImGui::TableSetColumnIndex(2); if (ac.havePos) ImGui::Text("%.4f", ac.lat); else ImGui::TextDisabled("-");
-                ImGui::TableSetColumnIndex(3); if (ac.havePos) ImGui::Text("%.4f", ac.lon); else ImGui::TextDisabled("-");
-                ImGui::TableSetColumnIndex(4); if (ac.haveAlt) ImGui::Text("%d", ac.altFt); else ImGui::TextDisabled("-");
-                ImGui::TableSetColumnIndex(5); if (ac.haveSpeed) ImGui::Text("%.0f", ac.speedKt); else ImGui::TextDisabled("-");
-                ImGui::TableSetColumnIndex(6); if (ac.haveHeading) ImGui::Text("%.0f", ac.headingDeg); else ImGui::TextDisabled("-");
-                ImGui::TableSetColumnIndex(7); ImGui::Text("%.0f", t - ac.lastSeen);
+                ImGui::TableSetColumnIndex(2); if (!ac.category.empty()) ImGui::Text("%s", ac.category.c_str()); else ImGui::TextDisabled("-");
+                ImGui::TableSetColumnIndex(3); if (ac.havePos) ImGui::Text("%.4f", ac.lat); else ImGui::TextDisabled("-");
+                ImGui::TableSetColumnIndex(4); if (ac.havePos) ImGui::Text("%.4f", ac.lon); else ImGui::TextDisabled("-");
+                ImGui::TableSetColumnIndex(5); if (ac.haveAlt) ImGui::Text("%d", ac.altFt); else ImGui::TextDisabled("-");
+                ImGui::TableSetColumnIndex(6); if (ac.haveSpeed) ImGui::Text("%.0f", ac.speedKt); else ImGui::TextDisabled("-");
+                ImGui::TableSetColumnIndex(7); if (ac.haveHeading) ImGui::Text("%.0f", ac.headingDeg); else ImGui::TextDisabled("-");
+                ImGui::TableSetColumnIndex(8); ImGui::Text("%.0f", t - ac.lastSeen);
             }
             ImGui::EndTable();
         }
