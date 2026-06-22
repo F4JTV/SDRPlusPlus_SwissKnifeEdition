@@ -671,11 +671,16 @@
     if (w.wind_dir != null) grid += row("Wind dir.", Math.round(w.wind_dir) + "°");
     if (w.pressure_hpa != null) grid += row("Pressure", w.pressure_hpa + " hPa");
     if (w.rain_mm != null) grid += row("Rain", w.rain_mm + " mm");
-    // For SARSAT and satellite we already parsed `info` into structured
-    // rows above, so hide the raw "key=value;..." dump.
-    const showRawInfo = o.info && o.type !== "SARSAT" && o.type !== "satellite";
+    // For SARSAT, satellite and ADS-B we already parsed `info` into
+    // structured rows above (Altitude, Heading, Category, etc.), so the
+    // raw "key=value;..." dump becomes a useless duplicate at the bottom
+    // of the popup — hide it for these types.
+    const showRawInfo = o.info
+      && o.type !== "SARSAT"
+      && o.type !== "satellite"
+      && o.type !== "ADSB";
     const info = showRawInfo ? `<div class="popup-info">${escapeHtml(o.info)}</div>` : "";
-    const ds = `data-type="${escapeHtml(o.type)}" data-ident="${escapeHtml(o.ident)}"`;
+    const ds = `data-type="${escapeHtml(o.type)}" data-ident="${escapeHtml(o.ident)}" data-id="${o.id}"`;
     const actions = `<div class="popup-actions">
         <button class="popup-btn" data-act="replay" ${ds}>▷ Replay</button>
         <button class="popup-btn" data-act="gpx" ${ds}>⤓ GPX</button>
@@ -1223,23 +1228,38 @@
     if (replayStop) replayStop.hidden = true;
   }
 
-  function replayIcon(type) {
+  // Build the icon shown by the replay marker as it moves along the track.
+  // Reuses glyphHtml(o) so that the SVG matches what was on the map — a
+  // helicopter ADS-B object replays with a helicopter icon, an EPIRB with
+  // the distress SVG, a satellite with the satellite SVG, etc.
+  //
+  // Falls back to a neutral "•" if the object has been purged from the
+  // client cache (rare: the user clicked Replay then the retention timer
+  // fired before the GET /api/track/ completed).
+  function replayIcon(o, type) {
+    const inner = o ? glyphHtml(o, null) : `<span class="glyph">•</span>`;
+    const cls = CLASS[type] || "";
     return L.divIcon({
       className: "", iconSize: [26, 26], iconAnchor: [13, 13],
-      html: `<div class="sdr-marker ${CLASS[type]} replaying">
-               <span class="glyph">${GLYPH[type]}</span></div>`,
+      html: `<div class="sdr-marker ${cls} replaying">${inner}</div>`,
     });
   }
 
-  function startReplay(type, ident) {
+  function startReplay(type, ident, id) {
     stopReplay();
+    // Resolve the live object so we can reuse its icon during replay.
+    // id is the internal numeric SdrObject.id passed via data-id on the
+    // popup button. If it's still in objectsById we get full enrichment
+    // (heading, adsb_category, mmsi_kind...); otherwise null and we use
+    // a generic icon.
+    const o = id != null ? objectsById.get(parseInt(id, 10)) : null;
     const url = `api/track/?type=${encodeURIComponent(type)}&ident=${encodeURIComponent(ident)}`;
     fetch(url).then((r) => r.json()).then((d) => {
       const pts = (d.points || []).map((p) => [p.lat, p.lon]);
       if (pts.length < 2) { alert("Not enough recorded points to replay this track."); return; }
       map.closePopup();
       replay.line = L.polyline([], { color: "#ff4d6d", weight: 3, opacity: 0.9 }).addTo(map);
-      replay.marker = L.marker(pts[0], { icon: replayIcon(type), zIndexOffset: 1000 }).addTo(map);
+      replay.marker = L.marker(pts[0], { icon: replayIcon(o, type), zIndexOffset: 1000 }).addTo(map);
       map.fitBounds(L.latLngBounds(pts).pad(0.2));
       if (replayStop) replayStop.hidden = false;
       let i = 0;
@@ -1268,7 +1288,8 @@
     if (!btn) return;
     const type = btn.getAttribute("data-type");
     const ident = btn.getAttribute("data-ident");
-    if (btn.dataset.act === "replay") startReplay(type, ident);
+    const id = btn.getAttribute("data-id");        // internal numeric id
+    if (btn.dataset.act === "replay") startReplay(type, ident, id);
     else if (btn.dataset.act === "gpx") downloadGpx(type, ident);
   });
 
