@@ -248,6 +248,33 @@ body.panel-collapsed .panel-toggle {
   margin-top: 9px; font-family: var(--mono); font-size: 11px; color: var(--ink-dim);
 }
 
+/* Aircraft DB panel section: stats block (label-value pairs in two columns)
+   and an output log that appears after the user runs the update. Matches
+   the visual language of the cache-meta block above. */
+.acft-db-status {
+  display: flex; flex-direction: column; gap: 3px;
+  margin: 8px 0 10px 0;
+  font-family: var(--mono); font-size: 11px; color: var(--ink-dim);
+}
+.acft-db-line {
+  display: flex; justify-content: space-between; align-items: baseline;
+}
+.acft-db-line span:last-child { color: var(--ink); }
+.acft-db-log {
+  margin-top: 9px; padding: 7px 9px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--panel-bd);
+  border-radius: 6px;
+  font-family: var(--mono); font-size: 11px;
+  color: var(--ink-dim);
+  max-height: 180px; overflow: auto;
+  white-space: pre-wrap; word-wrap: break-word;
+}
+.acft-db-log.acft-db-log-error {
+  border-color: rgba(220, 38, 38, 0.55);
+  color: #fca5a5;
+}
+
 /* Retention panel */
 .retention-list { display: flex; flex-direction: column; gap: 4px; }
 .retention-row {

@@ -1,0 +1,42 @@
+# This .gitignore applies only inside misc_modules/sdr_map_launcher/
+
+# --- Python / Django runtime ---------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Django runtime database — schema lives in map/migrations/, only the live
+# SQLite file is ignored.
+sdr_map/db.sqlite3
+sdr_map/db.sqlite3-journal
+sdr_map/db.sqlite3-shm
+sdr_map/db.sqlite3-wal
+
+# Local virtualenv (the project doesn't use one but contributors might)
+.venv/
+venv/
+
+# --- Build artefacts ------------------------------------------------------
+*.so
+*.o
+*.obj
+build/
+CMakeCache.txt
+CMakeFiles/
+
+# --- IDE / OS noise -------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+
+# --- Project-specific ignores --------------------------------------------
+# Backup folders created by install.sh on re-deploy
+sdr_map.bak/
+
+# Aircraft DB lives in ~/.local/share/sdr_map_launcher/ — never inside the
+# module folder — so no need to ignore it here.
+
+# Release tarball generated for distribution outside the fork
+sdr_map_launcher.tar.gz

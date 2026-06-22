@@ -231,6 +231,30 @@
     }
   }
 
+  // Decode an ICAO Doc 8643 class designator (3 chars) into a tooltip.
+  // Format: <vehicle><engines><engine-type>
+  //   vehicle:     L=Land  S=Sea  A=Amphibian  G=Glider
+  //                H=Helicopter  T=Tilt-rotor  W=Weight-shift
+  // After the digit:  P=Piston  T=Turboprop  J=Jet
+  //                   E=Electric  R=Rotor (helicopters)
+  // Returns "" if the class can't be decoded (and the popup falls back
+  // to just showing the raw code).
+  function decodeIcaoClass(cls) {
+    if (!cls || cls.length < 3) return "";
+    const vehicle = {
+      L: "Land plane", S: "Seaplane", A: "Amphibian", G: "Glider",
+      H: "Helicopter", T: "Tilt-rotor", W: "Weight-shift",
+    }[cls[0].toUpperCase()];
+    const engines = cls[1];
+    const engType = {
+      P: "piston", T: "turboprop", J: "jet",
+      E: "electric", R: "rotor",
+    }[cls[2].toUpperCase()];
+    if (!vehicle || !engType || !/[0-9]/.test(engines)) return "";
+    const e = engines === "1" ? "engine" : "engines";
+    return `${vehicle}, ${engines} ${engType} ${e}`;
+  }
+
   // SVG de bateau vu de dessus, PROUE VERS LE HAUT par construction.
   // Mêmes propriétés que l'avion : indépendant de la police, rotation = COG.
   const SHIP_SVG =
@@ -505,8 +529,41 @@
     if (o.type === "ADSB" && o.aircraft_reg) {
       grid += row("Registration", o.aircraft_reg);
     }
-    if (o.type === "ADSB" && o.aircraft_type) {
+    // Country of registration: drawn from the ICAO 24-bit allocation table
+    // (always available, doesn't need the SQLite DB).
+    if (o.type === "ADSB" && o.aircraft_country_iso) {
+      const flag = flagHtml(o.aircraft_country_iso);
+      const cc = ` (${o.aircraft_country_iso})`;
+      const txt = `${flag}${o.aircraft_country_name || o.aircraft_country_iso}${cc}`;
+      grid += `<span class="k">Reg. country</span><span class="v">${txt}</span>`;
+    }
+    // Airline operator from the callsign prefix (e.g. AFR -> Air France).
+    if (o.type === "ADSB" && o.aircraft_operator) {
+      let opTxt = o.aircraft_operator;
+      if (o.aircraft_operator_country) {
+        opTxt += ` — ${o.aircraft_operator_country}`;
+      }
+      grid += row("Operator", opTxt);
+    }
+    // Aircraft model: prefer the long human-readable description from
+    // types.json over the bare type code. Fallback to just the code.
+    if (o.type === "ADSB" && o.aircraft_type_desc) {
+      // Capitalisation in types.json is upper-case; titlecase looks nicer.
+      const titled = o.aircraft_type_desc.replace(/\b\w[\w-]*/g, (w) =>
+        w[0] + w.slice(1).toLowerCase()
+      );
+      grid += row("Model", `${titled} (${o.aircraft_type || "?"})`);
+    } else if (o.type === "ADSB" && o.aircraft_type) {
       grid += row("Aircraft type", o.aircraft_type);
+    }
+    // Optional ICAO class designator (L2J = Land/2-engine/Jet, H2T =
+    // Helicopter/2-turbine, etc.). Decoded into a tooltip for non-techies.
+    if (o.type === "ADSB" && o.aircraft_icao_class) {
+      const cls = o.aircraft_icao_class;
+      const decoded = decodeIcaoClass(cls);
+      const tip = decoded ? ` title="${decoded}"` : "";
+      grid += `<span class="k">ICAO class</span>` +
+              `<span class="v"${tip}><code>${cls}</code></span>`;
     }
     if (o.type === "ADSB" && o.aircraft_military) {
       // The "v" cell HTML is built ourselves so we can colourise the badge.
@@ -1079,6 +1136,81 @@
   window.addEventListener("online", netStatus);
   window.addEventListener("offline", netStatus);
   netStatus();
+
+  // ============================ AIRCRAFT DB UPDATE ========================
+  // Drives the "Aircraft DB" panel section: shows current stats fetched
+  // from /api/aircraft_db/status, and triggers a Mictronics refresh via
+  // POST to /api/aircraft_db/update when the user clicks the button.
+  const acftDbStatusEl = document.getElementById("acft-db-status");
+  const acftDbBtn      = document.getElementById("btn-acft-db-update");
+  const acftDbLog      = document.getElementById("acft-db-log");
+
+  // Format a Unix timestamp (seconds) as a relative age string:
+  // "12 min ago", "3 h ago", "5 days ago". Coarse on purpose — we don't
+  // need second-level precision for "when did the DB get refreshed".
+  function formatAge(unixSeconds) {
+    const ageSec = Date.now() / 1000 - unixSeconds;
+    if (ageSec < 60)            return "just now";
+    if (ageSec < 3600)          return Math.floor(ageSec / 60) + " min ago";
+    if (ageSec < 86400)         return Math.floor(ageSec / 3600) + " h ago";
+    const days = Math.floor(ageSec / 86400);
+    return days + " day" + (days > 1 ? "s" : "") + " ago";
+  }
+
+  function formatMb(bytes) { return (bytes / 1024 / 1024).toFixed(1) + " MB"; }
+  function formatThousands(n) { return n.toLocaleString("en-US"); }
+
+  function refreshAircraftDbStatus() {
+    fetch("api/aircraft_db/status").then(r => r.json()).then(d => {
+      if (!d.exists) {
+        acftDbStatusEl.innerHTML =
+          "<em>Not installed.</em> Click below to download.";
+        return;
+      }
+      const c = d.counts || {};
+      acftDbStatusEl.innerHTML =
+        `<div class="acft-db-line"><span>Updated</span><span>${formatAge(d.mtime)}</span></div>` +
+        `<div class="acft-db-line"><span>Aircraft</span><span>${formatThousands(c.aircraft || 0)} ` +
+        `(${formatThousands(c.military || 0)} mil)</span></div>` +
+        `<div class="acft-db-line"><span>Operators</span><span>${formatThousands(c.operators || 0)}</span></div>` +
+        `<div class="acft-db-line"><span>Types</span><span>${formatThousands(c.types || 0)}</span></div>` +
+        `<div class="acft-db-line"><span>Size</span><span>${formatMb(d.size_bytes)}</span></div>`;
+    }).catch(() => {
+      acftDbStatusEl.innerHTML = "<em>Status unavailable.</em>";
+    });
+  }
+
+  if (acftDbBtn) {
+    acftDbBtn.addEventListener("click", () => {
+      // Lock the UI: the request is synchronous server-side (~3-5 s) and
+      // we don't want the user to spam-click it. Visual feedback only.
+      const original = acftDbBtn.textContent;
+      acftDbBtn.disabled = true;
+      acftDbBtn.textContent = "⟳ Updating…";
+      acftDbLog.hidden = true;
+      acftDbLog.textContent = "";
+
+      fetch("api/aircraft_db/update", { method: "POST" })
+        .then(r => r.json())
+        .then(d => {
+          acftDbLog.hidden = false;
+          acftDbLog.textContent = d.log || "(no output)";
+          acftDbLog.classList.toggle("acft-db-log-error", !d.ok);
+          if (d.ok) refreshAircraftDbStatus();
+        })
+        .catch(err => {
+          acftDbLog.hidden = false;
+          acftDbLog.textContent = "Update failed: " + err;
+          acftDbLog.classList.add("acft-db-log-error");
+        })
+        .finally(() => {
+          acftDbBtn.disabled = false;
+          acftDbBtn.textContent = original;
+        });
+    });
+  }
+
+  refreshAircraftDbStatus();
 
   // ============================ TRACK REPLAY / GPX EXPORT =================
   const replay = { marker: null, line: null, timer: null };

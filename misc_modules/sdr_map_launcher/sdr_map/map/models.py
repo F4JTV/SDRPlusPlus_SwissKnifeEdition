@@ -124,6 +124,16 @@ class SdrObject(models.Model):
             "aircraft_reg":      (self.extra or {}).get("aircraft_reg"),
             "aircraft_type":     (self.extra or {}).get("aircraft_type"),
             "aircraft_military": (self.extra or {}).get("aircraft_military"),
+            # Phase B+ enrichment: long model name, ICAO class, operator and
+            # country of registration. Sourced from operators.json /
+            # types.json (Mictronics) and the static ICAO 24-bit allocation
+            # table. None when not resolvable.
+            "aircraft_type_desc":         (self.extra or {}).get("aircraft_type_desc"),
+            "aircraft_icao_class":        (self.extra or {}).get("aircraft_icao_class"),
+            "aircraft_country_iso":       (self.extra or {}).get("aircraft_country_iso"),
+            "aircraft_country_name":      (self.extra or {}).get("aircraft_country_name"),
+            "aircraft_operator":          (self.extra or {}).get("aircraft_operator"),
+            "aircraft_operator_country":  (self.extra or {}).get("aircraft_operator_country"),
             "ssi":  self.ssi,
             "gps_acc_m": (self.extra or {}).get("gps_acc_m"),
             "source": (self.extra or {}).get("source"),

@@ -2,6 +2,12 @@
 retention settings API, service worker."""
 from datetime import timedelta
 import json
+import os
+import sqlite3
+import subprocess
+import sys
+import threading
+from pathlib import Path
 from xml.sax.saxutils import escape as xml_escape
 
 from django.conf import settings
@@ -14,6 +20,7 @@ from django.views.decorators.http import require_http_methods
 from django.contrib.staticfiles import finders
 
 from .models import SdrObject, SdrObjectTrack, RetentionSetting
+from .services import aircraft_lookup
 
 
 def index(request):
@@ -197,3 +204,105 @@ def service_worker(request):
     resp = HttpResponse(body, content_type="application/javascript")
     resp["Service-Worker-Allowed"] = "/"
     return resp
+
+
+# -------------------------------------------------------- aircraft DB API ----
+#
+# Two endpoints for the "Aircraft DB" panel section that lets the user trigger
+# a Mictronics database refresh without touching SDR++ or the shell.
+#   GET  /api/aircraft_db/status  -> stats about the on-disk SQLite file
+#   POST /api/aircraft_db/update  -> runs tools/build_aircraft_db.py
+# The build script writes to a `.new` file and os.replace()s it on success,
+# so concurrent ADS-B lookups never see a half-written database.
+
+# Serialises Update calls. A second concurrent call returns "already running"
+# rather than launching a duplicate subprocess fighting for the same file.
+_db_update_lock = threading.Lock()
+
+
+def api_aircraft_db_status(request):
+    """Return on-disk stats of the local aircraft enrichment database."""
+    db_path = aircraft_lookup.DB.path
+    if not os.path.exists(db_path):
+        return JsonResponse({
+            "exists": False,
+            "path":   db_path,
+        })
+    try:
+        st = os.stat(db_path)
+    except OSError as exc:
+        return JsonResponse({"exists": False, "error": str(exc)})
+
+    counts = {"aircraft": 0, "military": 0, "operators": 0, "types": 0}
+    # Open a dedicated short-lived connection so we don't perturb the
+    # singleton used by the live ADS-B pipeline. Errors are swallowed —
+    # the file might be mid-replacement during an update.
+    try:
+        conn = sqlite3.connect(db_path)
+        try:
+            counts["aircraft"]  = conn.execute("SELECT COUNT(*) FROM aircraft").fetchone()[0]
+            counts["military"]  = conn.execute("SELECT COUNT(*) FROM aircraft WHERE is_military=1").fetchone()[0]
+            counts["operators"] = conn.execute("SELECT COUNT(*) FROM operators").fetchone()[0]
+            counts["types"]     = conn.execute("SELECT COUNT(*) FROM types").fetchone()[0]
+        finally:
+            conn.close()
+    except sqlite3.Error:
+        pass
+
+    return JsonResponse({
+        "exists":     True,
+        "path":       db_path,
+        "mtime":      st.st_mtime,
+        "size_bytes": st.st_size,
+        "counts":     counts,
+    })
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_aircraft_db_update(request):
+    """Run the Mictronics download/build script and replace the local DB.
+
+    Synchronous: the request blocks for ~3-5 seconds (download + SQLite
+    build). The browser stays responsive thanks to the async fetch on the
+    UI side.
+    """
+    if not _db_update_lock.acquire(blocking=False):
+        return JsonResponse({
+            "ok": False,
+            "log": "An update is already in progress.",
+        })
+    try:
+        # Drop our open SQLite handle so the build script can replace
+        # the file (essential on Windows; harmless on Linux).
+        aircraft_lookup.DB._close()
+
+        # The build script lives in `tools/` which is a sibling of the
+        # Django project directory (BASE_DIR points at sdr_map/).
+        script = Path(settings.BASE_DIR).parent / "tools" / "build_aircraft_db.py"
+        if not script.exists():
+            return JsonResponse({
+                "ok": False,
+                "log": f"Build script not found at {script}",
+            })
+
+        try:
+            result = subprocess.run(
+                [sys.executable, str(script)],
+                capture_output=True,
+                text=True,
+                timeout=180,
+            )
+        except subprocess.TimeoutExpired:
+            return JsonResponse({
+                "ok":  False,
+                "log": "Build script timed out after 180 seconds.",
+            })
+
+        log = (result.stdout or "") + (result.stderr or "")
+        return JsonResponse({
+            "ok":  result.returncode == 0,
+            "log": log.strip() or "(no output)",
+        })
+    finally:
+        _db_update_lock.release()

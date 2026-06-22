@@ -33,7 +33,7 @@ from django.db import transaction, connections
 from django.utils import timezone
 
 from map.models import SdrObject, SdrObjectTrack
-from map.services.aircraft_lookup import DB as _AIRCRAFT_DB
+from map.services.aircraft_lookup import DB as _AIRCRAFT_DB, country_from_icao
 
 try:
     from channels.layers import get_channel_layer
@@ -862,6 +862,39 @@ class Command(BaseCommand):
                 # glider categories already trumped this earlier.
                 elif ac["is_military"] and "adsb_category" not in extra:
                     extra["adsb_category"] = "A6"
+                # Type description ("BOEING 737-800"), ICAO class ("L2J" =
+                # Land/2-engine/Jet) and weight ("L"/"M"/"H"/"J"). All
+                # cheap second-table lookup if we have a type_code.
+                if ac["type_code"]:
+                    td = _AIRCRAFT_DB.lookup_type(ac["type_code"])
+                    if td:
+                        if td["description"]:
+                            extra["aircraft_type_desc"] = td["description"]
+                        if td["icao_class"]:
+                            extra["aircraft_icao_class"] = td["icao_class"]
+
+            # Country of registration: derived from the ICAO 24-bit address
+            # range alone (ICAO Annex 10 Vol III allocation table). Works
+            # even when the SQLite DB isn't installed.
+            if icao:
+                cc_iso, cc_name = country_from_icao(icao)
+                if cc_iso:
+                    extra["aircraft_country_iso"] = cc_iso
+                if cc_name:
+                    extra["aircraft_country_name"] = cc_name
+
+            # Airline operator from the callsign prefix (3 letters). The
+            # `name` field on an ADS-B trame is the callsign emitted by the
+            # aircraft itself. e.g. "AFR1234" -> Air France, "RYR4123" ->
+            # Ryanair. Doesn't fire for personal/military callsigns
+            # without a registered airline code.
+            if name:
+                op = _AIRCRAFT_DB.lookup_operator(name)
+                if op:
+                    if op["name"]:
+                        extra["aircraft_operator"] = op["name"]
+                    if op["country"]:
+                        extra["aircraft_operator_country"] = op["country"]
 
         # Satellite tracker (orbital): info packs the look angles, range,
         # altitude, doppler and footprint diameter as

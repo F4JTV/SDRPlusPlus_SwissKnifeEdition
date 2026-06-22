@@ -132,6 +132,17 @@
       </div>
     </section>
 
+    <section class="panel-block">
+      <h2>Aircraft DB</h2>
+      <p class="hint">Mictronics ICAO -> aircraft/operator/type database
+        used to enrich ADS-B markers (registration, model, operator,
+        country, military flag). Stored locally — internet only needed
+        to update.</p>
+      <div id="acft-db-status" class="acft-db-status">Loading…</div>
+      <button class="btn" id="btn-acft-db-update">⟳ Update from internet</button>
+      <pre id="acft-db-log" class="acft-db-log" hidden></pre>
+    </section>
+
     <footer class="panel-foot">
       <span id="offline-badge" class="badge" hidden>OFFLINE</span>
       Single TCP port:&nbsp;<code>10100</code>
