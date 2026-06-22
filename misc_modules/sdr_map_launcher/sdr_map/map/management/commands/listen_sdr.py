@@ -46,7 +46,15 @@ GROUP_NAME = "sdr_objects"
 
 # Regexes to extract useful fields from the "info" string of
 # ADS-B frames (e.g. "alt=38000ft hdg=270 vrate=-832fpm cs=AFR1234").
-_RE_ALT = re.compile(r"alt=(-?\d+)\s*ft", re.IGNORECASE)
+# Altitude in feet. Matches several aliases emitted by different ADS-B
+# decoders: "alt=35000 ft", "alt=35000", "alt_ft=35000", "altitude=35000".
+# Anchored at a word boundary so it doesn't match alt_m= (radiosonde
+# altitude in metres) or other unrelated keys. The optional " ft" suffix
+# is tolerated for the `alt=` form.
+_RE_ALT = re.compile(
+    r"\b(?:alt|altitude|alt_ft)\s*=\s*(-?\d+)(?:\s*ft\b)?",
+    re.IGNORECASE,
+)
 _RE_HDG = re.compile(r"hdg=(-?\d+(?:\.\d+)?)", re.IGNORECASE)
 # Course Over Ground emitted by the AIS module inside info, e.g.
 # "MMSI=227006760 msg=1 COG=87.5 HDG=88 nav=... ship=Cargo"
