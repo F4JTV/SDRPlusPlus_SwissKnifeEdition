@@ -336,6 +336,9 @@ namespace hell {
         void FSKH_rx(cmplx z) {
             double f = std::arg(std::conj(prev) * z) * phi2freq;
             prev = z;
+            if (reverse) f = -f;          // mark/space swap at the SIGNAL level
+                                          // (corrects an inverted / wrong-sideband
+                                          //  FSK signal); FSK modes only.
             f = bbfilt.run(f);
             double avg = average.run(std::abs(z));
 
@@ -347,9 +350,11 @@ namespace hell {
             metric = std::clamp(1000.0 * agc, 0.0, 100.0);
 
             double vid = std::clamp(0.5 * (f + 1.0), 0.0, 1.0);
-            if (reverse)    vid = 1.0 - vid;
-            if (blackboard) vid = 1.0 - vid;
-            pushPixel((int)(vid * 255.0));
+            int ix = (int)(vid * 255.0);
+            // Default polarity = dark ink on light paper, consistent with the AM
+            // modes; Blackboard inverts the DISPLAY for every mode.
+            if (!blackboard) ix = 255 - ix;
+            pushPixel(ix);
         }
 
         // Accumulate a pixel; on a full column emit a 2*RxColumnLen strip.
@@ -368,8 +373,12 @@ namespace hell {
             std::lock_guard<std::mutex> lck(imgMtx);
             uint8_t* dst = &ring[(size_t)wr * (2 * MAX_RX_COLUMN_LEN)];
             int h = 2 * RxColumnLen;
+            // FLDIGI's Raster widget maps col_data[0] to the BOTTOM row and
+            // col_data[h-1] to the TOP (vidbuf row = base + (len-1-i)). Replicate
+            // that vertical order so glyphs render upright; writing col_data[0] to
+            // the top (as before) produced a vertically-flipped image.
             for (int y = 0; y < h; y++)
-                dst[y] = (uint8_t)std::clamp(col_data[y], 0, 255);
+                dst[y] = (uint8_t)std::clamp(col_data[h - 1 - y], 0, 255);
             wr = (wr + 1) % HELL_IMG_COLS;
             colsReceived++;
         }

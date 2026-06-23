@@ -345,15 +345,25 @@ private:
             }
         }
 
-        // --- Reverse / Blackboard --------------------------------------------
+        // --- Reverse (FSK only) / Blackboard ---------------------------------
+        bool isFsk = hell::HELL_MODES[_this->modeIdx].fsk;
+        if (!isFsk) { ImGui::BeginDisabled(); }
         if (ImGui::Checkbox(CONCAT("Reverse##hell_rev_", _this->name), &_this->reverse)) {
             _this->decoder->setReverse(_this->reverse);
             _this->saveConfig();
+        }
+        if (!isFsk) { ImGui::EndDisabled(); }
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+            ImGui::SetTooltip("FSK modes only: swaps mark/space to correct an\n"
+                              "inverted (wrong-sideband) FSK signal.");
         }
         ImGui::SameLine();
         if (ImGui::Checkbox(CONCAT("Blackboard##hell_bb_", _this->name), &_this->blackboard)) {
             _this->decoder->setBlackboard(_this->blackboard);
             _this->saveConfig();
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Invert the displayed image (white-on-black).");
         }
 
         // --- Squelch ----------------------------------------------------------
