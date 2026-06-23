@@ -50,7 +50,7 @@ SDRPP_MOD_INFO{
     /* Name:            */ "wefax_decoder",
     /* Description:     */ "WEFAX / HF Radiofax Decoder (auto-slant)",
     /* Author:          */ "WEFAX Decoder Contributors",
-    /* Version:         */ 0, 1, 7,
+    /* Version:         */ 0, 1, 8,
     /* Max instances    */ -1
 };
 
@@ -391,14 +391,15 @@ private:
            << "." << currentFormatExtension();
         return ss.str();
     }
-    void doSaveImage() {
+    void doSaveImage(bool reuseLast = false) {
         try { std::filesystem::create_directories(savePath); }
         catch (...) { flog::error("[WEFAX] Failed to create save dir: {0}", savePath); return; }
-        std::string fname = savePath + "/" + buildSaveFilename();
-        // Guarantee the saved image reflects the CURRENT slant / shift / median
-        // settings -- exactly what is shown in the preview -- by re-rendering
-        // from the raw buffer right before copying.
+        // Re-rendering before copy guarantees the file matches the preview
+        // (current slant / shift / median).
         decoder.renderSyncIfIdle();
+        std::string fname = (reuseLast && !lastSavedFile.empty())
+                          ? lastSavedFile
+                          : savePath + "/" + buildSaveFilename();
         int w = decoder.getImageWidth();
         int h = decoder.getImageHeight();
         if (w <= 0 || h <= 0) return;
@@ -432,8 +433,13 @@ private:
         // no signal is flowing, and the preview always matches what gets saved).
         auto refreshRender = [_this]() {
             _this->decoder.renderSyncIfIdle();
-            std::lock_guard<std::mutex> lck(_this->textureMutex);
-            _this->textureDirty = true;
+            { std::lock_guard<std::mutex> lck(_this->textureMutex); _this->textureDirty = true; }
+            // If auto-save already wrote a file for this reception, keep it in
+            // sync with the manual tuning by overwriting the same file.
+            if (_this->autoSave && !_this->lastSavedFile.empty() &&
+                _this->decoder.getState() != wefax::WEFAXDecoder::State::RECEIVING) {
+                _this->doSaveImage(true);
+            }
         };
 
         // ---- Demod mode ----
@@ -616,11 +622,13 @@ private:
         if (ImGui::Button(("Force start##wefax_start_" + _this->name).c_str(),
                           ImVec2(menuWidth, 0))) {
             _this->imageSaved = false;
+            _this->lastSavedFile.clear();
             _this->decoder.forceStart();
         }
         if (ImGui::Button(("Reset##wefax_reset_" + _this->name).c_str(),
                           ImVec2(menuWidth, 0))) {
             _this->imageSaved = false;
+            _this->lastSavedFile.clear();
             _this->decoder.reset();
         }
         if (ImGui::Button(("Save image##wefax_save_" + _this->name).c_str(),
@@ -750,7 +758,7 @@ private:
         ImGui::FillWidth();
         float ppm = (float)_this->manualSlantPpm;
         if (ImGui::SliderFloat(("##wefax_ppm_" + _this->name).c_str(),
-                                &ppm, -10000.0f, 10000.0f, "%.0f")) {
+                                &ppm, -1000.0f, 1000.0f, "%.0f")) {
             _this->manualSlantPpm = ppm;
             _this->decoder.setManualSlantPpm(ppm);   // requests a re-render
             config.acquire();
@@ -764,7 +772,7 @@ private:
         ImGui::LeftLabel("H-shift (px)");
         ImGui::FillWidth();
         int hs = _this->hShiftPixels;
-        int hsMax = _this->decoder.getImageWidth();
+        int hsMax = 1000;
         if (ImGui::SliderInt(("##wefax_hshift_" + _this->name).c_str(),
                               &hs, -hsMax, hsMax)) {
             _this->hShiftPixels = hs;

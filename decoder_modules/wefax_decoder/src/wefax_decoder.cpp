@@ -193,25 +193,23 @@ namespace wefax {
 
     double WEFAXDecoder::effectiveLinePeriod() const {
         if (autoSlant) {
-            // A confident lock is the best estimate.
+            // Only a CONFIRMED lock (or the persisted learned clock error)
+            // overrides the manual trim. Transient "valid" fits are never used,
+            // so the period can't flip between manual and a spurious calibration
+            // from one render to the next (which made the saved image differ
+            // from the preview).
             if (calibrationLocked) return calibratedSamplesPerCycle;
-            // Otherwise prefer the learned clock error (from a previous lock,
-            // constant per device) over a shaky live fit that may have latched
-            // onto image content rather than a real phasing preamble.
             if (slantLearned)
                 return (double)samplesPerLineNominal * (1.0 + learnedSlantPpm * 1e-6);
-            // No learned value yet: use the best-effort gated live fit.
-            if (calibrationValid) return calibratedSamplesPerCycle;
         }
         return (double)samplesPerLineNominal * (1.0 + manualSlantPpm * 1e-6);
     }
 
     double WEFAXDecoder::effectiveLineOrigin() const {
-        // Use the regressed phasing offset only when we are actually rendering
-        // with the live calibrated period (locked, or a live fit with no learned
-        // fallback). When falling back to the learned ppm or manual, the phasing
-        // position is unknown, so start at 0 (the H-shift trim covers offset).
-        if (autoSlant && (calibrationLocked || (calibrationValid && !slantLearned))) {
+        // Match effectiveLinePeriod: the regressed phasing offset is only used
+        // once the calibration is locked. Otherwise the line origin is 0 and the
+        // H-shift trim handles horizontal positioning.
+        if (autoSlant && calibrationLocked) {
             return calibratedFirstSyncOffset - (double)expectedSyncOffsetInCycle;
         }
         return 0.0;
