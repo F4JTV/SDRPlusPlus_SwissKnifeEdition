@@ -6,9 +6,8 @@
  * ground stations. This module channelises a single HFDL channel to a 12 kHz
  * complex baseband and pipes it, as interleaved 16-bit I/Q (CS16), to a
  * dumphfdl child process (https://github.com/szpajder/dumphfdl). dumphfdl's
- * decoded text output is read back, shown in a detachable, filterable log
- * window, and — for messages that carry an aircraft position — forwarded as one
- * JSON object per line over an optional TCP connection (e.g. to a map server).
+ * decoded text output is read back and shown in a detachable, filterable log
+ * window.
  *
  * Signal geometry: HFDL is transmitted on the upper sideband; the suppressed
  * carrier sits HFDL_SSB_CARRIER_OFFSET_HZ (1440 Hz) below the channel centre,
@@ -55,7 +54,6 @@
 #include <ctime>
 
 #include "systable_data.h"
-#include "tcp_sender.h"
 #include "hfdl_parse.h"
 
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
@@ -114,20 +112,14 @@ public:
         if (config.conf[name].contains("autoScroll"))   { autoScroll   = config.conf[name]["autoScroll"];   }
         if (config.conf[name].contains("recording"))    { recording    = config.conf[name]["recording"];    }
         if (config.conf[name].contains("recordPath"))   { folderSelect.setPath(config.conf[name]["recordPath"]); }
-        if (config.conf[name].contains("tcpHost"))      { tcpHost      = config.conf[name]["tcpHost"];      }
-        if (config.conf[name].contains("tcpPort"))      { tcpPort      = config.conf[name]["tcpPort"];      }
         if (config.conf[name].contains("channelId")) {
             std::string cn = config.conf[name]["channelId"];
             if (channels.keyExists(cn)) { chanId = channels.keyId(cn); }
         }
-        // TCP is intentionally NOT auto-started, even if it was persisted as
-        // enabled: a network connection only opens on explicit user action.
-        tcpEnabled = false;
         config.release();
 
         std::strncpy(pathBuf, dumphfdlPath.c_str(), sizeof(pathBuf) - 1);
         std::strncpy(sysBuf,  sysTablePath.c_str(), sizeof(sysBuf) - 1);
-        std::strncpy(hostBuf, tcpHost.c_str(),      sizeof(hostBuf) - 1);
 
         // VFO + sink. REF_CENTER: the assigned channel frequency lands at DC,
         // putting the upper-sideband modulation at ~+1440 Hz.
@@ -149,7 +141,6 @@ public:
         gui::menu.removeEntry(name);
         stopDecoder();                       // blocking (safe: tearing down)
         if (lifeThread.joinable()) { lifeThread.join(); }
-        tcp.stop();
         if (enabled) {
             sink.stop();
             sigpath::vfoManager.deleteVFO(vfo);
@@ -384,13 +375,6 @@ private:
             newData = true;
         }
         writeLog(block);
-        if (tcpEnabled) { maybeEmitPosition(block); }
-    }
-
-    // ---------- TCP map output ----------
-    void maybeEmitPosition(const std::string& block) {
-        std::string line;
-        if (hfdlparse::buildPositionJson(block, line)) { tcp.send(line); }
     }
 
     // ---------- file logging ----------
@@ -412,8 +396,6 @@ private:
         config.acquire();
         config.conf[name]["dumphfdlPath"] = dumphfdlPath;
         config.conf[name]["sysTablePath"] = sysTablePath;
-        config.conf[name]["tcpHost"]      = tcpHost;
-        config.conf[name]["tcpPort"]      = tcpPort;
         config.release(true);
     }
 
@@ -472,36 +454,6 @@ private:
                 config.release(true);
                 if (_this->recording) { _this->closeLog(); _this->openLog(); }
             }
-        }
-
-        ImGui::Separator();
-
-        // --- TCP map output ---
-        ImGui::Text("TCP map output");
-        ImGui::LeftLabel("Host");
-        ImGui::FillWidth();
-        if (ImGui::InputText(("##hfdl_host_" + _this->name).c_str(), _this->hostBuf, sizeof(_this->hostBuf))) {
-            _this->tcpHost = _this->hostBuf;
-            _this->saveConfig();
-        }
-        ImGui::LeftLabel("Port");
-        ImGui::FillWidth();
-        if (ImGui::InputInt(("##hfdl_port_" + _this->name).c_str(), &_this->tcpPort)) {
-            if (_this->tcpPort < 1) _this->tcpPort = 1;
-            if (_this->tcpPort > 65535) _this->tcpPort = 65535;
-            _this->saveConfig();
-        }
-        if (ImGui::Checkbox(("Enable TCP##hfdl_tcp_en_" + _this->name).c_str(), &_this->tcpEnabled)) {
-            if (_this->tcpEnabled) { _this->tcp.start(_this->tcpHost, _this->tcpPort); }
-            else { _this->tcp.stop(); }
-        }
-        ImGui::SameLine();
-        if (_this->tcpEnabled && _this->tcp.isConnected()) {
-            ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.2f, 1.0f), "connected");
-        } else if (_this->tcpEnabled) {
-            ImGui::TextColored(ImVec4(0.9f, 0.6f, 0.1f, 1.0f), "connecting...");
-        } else {
-            ImGui::TextDisabled("disabled");
         }
 
         ImGui::Separator();
@@ -647,13 +599,6 @@ private:
     bool recording = false;
     std::mutex logMtx;
     FILE* logFile = nullptr;
-
-    // TCP map output
-    TCPSender tcp;
-    std::string tcpHost = "127.0.0.1";
-    int tcpPort = 10100;
-    bool tcpEnabled = false;
-    char hostBuf[256] = {0};
 };
 
 MOD_EXPORT void _INIT_() {
