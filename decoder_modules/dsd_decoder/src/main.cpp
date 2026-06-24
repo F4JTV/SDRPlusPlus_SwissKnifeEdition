@@ -54,7 +54,7 @@ SDRPP_MOD_INFO{
     /* Name:            */ "dsd_decoder",
     /* Description:     */ "Digital voice / data decoder (DMR, P25, NXDN, dPMR, YSF, ProVoice, EDACS, X2-TDMA, M17) via DSD-FME",
     /* Author:          */ "SDR++ Community",
-    /* Version:         */ 0, 7, 7,
+    /* Version:         */ 0, 7, 8,
     /* Max instances    */ -1
 };
 
@@ -1370,7 +1370,7 @@ private:
 
             ImU32 bg, fg, accent;
             const char* label    = "INACTIVE";
-            char freqTxt[64]     = "—";
+            char freqTxt[64]     = "-";
             char detailTxt[200]  = "";
 
             switch (_this->channelType) {
@@ -1455,7 +1455,7 @@ private:
 
                 if (_this->rigServer.isRunning()) {
                     ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f),
-                                       "Server: listening on 127.0.0.1:%d — %d VC client(s)",
+                                       "Server: listening on 127.0.0.1:%d - %d VC client(s)",
                                        _this->rigServer.getPort(),
                                        _this->rigServer.vcClientCount());
                 } else {
@@ -1612,7 +1612,7 @@ private:
     }
 
     void drawWindow() {
-        std::string title = "DSD-FME — " + name + "###dsd_win_" + name;
+        std::string title = "DSD-FME - " + name + "###dsd_win_" + name;
         ImGui::SetNextWindowSize(ImVec2(820, 460), ImGuiCond_FirstUseEver);
         if (!ImGui::Begin(title.c_str(), &showWindow)) {
             ImGui::End();
@@ -1644,7 +1644,7 @@ private:
         ImGui::Checkbox(CONCAT("Pause##dsd_pause_", name), &paused);
         ImGui::SameLine();
         ImGui::SetNextItemWidth(200.0f);
-        ImGui::InputTextWithHint(CONCAT("##dsd_filter_", name), "filter…",
+        ImGui::InputTextWithHint(CONCAT("##dsd_filter_", name), "filter...",
                                  filterBuf, sizeof(filterBuf));
 
         if (ImGui::BeginTabBar(CONCAT("##dsd_tabs_", name))) {
