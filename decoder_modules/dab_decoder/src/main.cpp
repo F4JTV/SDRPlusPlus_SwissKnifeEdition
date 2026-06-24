@@ -428,7 +428,7 @@ private:
             bool isPlaying = (e.sid == playing);
             char row[256];
             snprintf(row, sizeof(row), "%s %s  [%s %dkbps]##svc_%u",
-                     isPlaying ? "\xE2\x96\xB6" : "  ",   // ▶
+                     isPlaying ? "> " : "  ",
                      e.label.c_str(),
                      e.codec.c_str(),
                      e.bitrate,
@@ -459,10 +459,10 @@ private:
 
             ImGui::Separator();
             ImGui::Text("Now playing");
-            ImGui::Text("Mode: %s  ·  %d Hz", mode.empty() ? "?" : mode.c_str(), sr);
+            ImGui::Text("Mode: %s  |  %d Hz", mode.empty() ? "?" : mode.c_str(), sr);
             ImGui::TextColored(rsBad ? ImVec4(0.9f, 0.4f, 0.4f, 1.0f)
                                      : ImVec4(0.7f, 0.7f, 0.7f, 1.0f),
-                               "RS corr: %d  ·  AAC err: %d  ·  Frame err: %d",
+                               "RS corr: %d  |  AAC err: %d  |  Frame err: %d",
                                rsCorr, aacErr, frameErr);
             if (!dls.empty()) {
                 ImGui::TextWrapped("%s", dls.c_str());
