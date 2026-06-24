@@ -86,6 +86,7 @@ namespace wefax {
         // Pre-size the image (RGB), height capped to MAX_LINES.
         std::lock_guard<std::mutex> lck(imageMutex);
         imageBuffer.assign((size_t)width * WEFAX_MAX_LINES * 3, 0);
+        displayBuffer.assign((size_t)width * WEFAX_MAX_LINES * 3, 0);
     }
 
     void WEFAXDecoder::setLPM(double v) {
@@ -667,10 +668,13 @@ namespace wefax {
         if (H <= 0) return;
         std::lock_guard<std::mutex> lck(imageMutex);
         if (imageBuffer.size() < (size_t)W * H * 3) return;
+        if (displayBuffer.size() != imageBuffer.size())
+            displayBuffer.assign(imageBuffer.size(), 0);
 
-        // Grayscale: filter a single channel then replicate.
-        std::vector<uint8_t> src(W * H);
-        for (int p = 0; p < W * H; p++) src[p] = imageBuffer[(size_t)p * 3];
+        // Read from the CLEAN render (imageBuffer) and write the filtered result
+        // into displayBuffer. This is NOT done in place and NOT cumulative, so a
+        // full re-render (Save) and the incremental preview produce the SAME
+        // filtered output for the same lines.
         uint8_t window[9];
         for (int y = 0; y < H; y++) {
             for (int x = 0; x < W; x++) {
@@ -679,13 +683,13 @@ namespace wefax {
                     int yy = std::clamp(y + dy, 0, H - 1);
                     for (int dx = -1; dx <= 1; dx++) {
                         int xx = std::clamp(x + dx, 0, W - 1);
-                        window[k++] = src[yy * W + xx];
+                        window[k++] = imageBuffer[((size_t)yy * W + xx) * 3];
                     }
                 }
                 std::sort(window, window + 9);
                 uint8_t g = window[4];
                 size_t o = (size_t)(y * W + x) * 3;
-                imageBuffer[o] = imageBuffer[o + 1] = imageBuffer[o + 2] = g;
+                displayBuffer[o] = displayBuffer[o + 1] = displayBuffer[o + 2] = g;
             }
         }
     }

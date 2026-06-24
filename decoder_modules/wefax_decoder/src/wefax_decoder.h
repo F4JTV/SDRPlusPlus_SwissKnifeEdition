@@ -95,7 +95,14 @@ namespace wefax {
         bool         isCalibrationLocked()   const { return calibrationLocked; }
 
         // ---- Image data access -----------------------------------------
-        const uint8_t* getImageRGB() const { return imageBuffer.data(); }
+        const uint8_t* getImageRGB() const {
+            // When the median filter is on, the displayed/saved pixels come from
+            // displayBuffer (median of the clean imageBuffer). Both the preview
+            // and Save read this same buffer, so they always match.
+            if (medianFilter && displayBuffer.size() == imageBuffer.size() && !displayBuffer.empty())
+                return displayBuffer.data();
+            return imageBuffer.data();
+        }
         std::mutex&    getImageMutex()     { return imageMutex; }
 
         // ---- Band view (instantaneous-frequency distribution) ----------
@@ -279,7 +286,8 @@ namespace wefax {
         bool   slantLearned;          // a confident lock has been seen
 
         // ---- Image buffer (RGB; gray replicated to R=G=B) ----
-        std::vector<uint8_t> imageBuffer;   // width * MAX_LINES * 3
+        std::vector<uint8_t> imageBuffer;   // width * MAX_LINES * 3 (CLEAN render)
+        std::vector<uint8_t> displayBuffer; // imageBuffer with median applied
         std::mutex           imageMutex;
 
         LineCallback lineCallback;
