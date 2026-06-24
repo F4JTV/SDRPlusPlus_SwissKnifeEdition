@@ -94,7 +94,7 @@ public:
         for (int i = 0; i < HFDL_FREQ_CNT; i++) {
             const char* gs = stationName(HFDL_FREQS[i].primaryStationId);
             char lbl[80];
-            std::snprintf(lbl, sizeof(lbl), "%.1f kHz \u2014 %s", HFDL_FREQS[i].khz, gs);
+            std::snprintf(lbl, sizeof(lbl), "%.1f kHz - %s", HFDL_FREQS[i].khz, gs);
             channels.define(lbl, HFDL_FREQS[i].khz);
         }
 
@@ -139,11 +139,12 @@ public:
 
     ~HFDLDecoderModule() {
         gui::menu.removeEntry(name);
-        stopDecoder();                       // blocking (safe: tearing down)
+        stopDecoder();                       // blocking: joins lifeThread + reader, reaps child
         if (lifeThread.joinable()) { lifeThread.join(); }
+        if (readerThread.joinable()) { readerThread.join(); }  // defensive
         if (enabled) {
             sink.stop();
-            sigpath::vfoManager.deleteVFO(vfo);
+            if (vfo) { sigpath::vfoManager.deleteVFO(vfo); vfo = nullptr; }
         }
         closeLog();
         sigpath::sinkManager.unregisterStream(name);
@@ -152,6 +153,7 @@ public:
     void postInit() {}
 
     void enable() {
+        if (enabled) { return; }
         double bw = gui::waterfall.getBandwidth();
         vfo = sigpath::vfoManager.createVFO(name, ImGui::WaterfallVFO::REF_CENTER,
                                             std::clamp<double>(0, -bw / 2.0, bw / 2.0),
@@ -166,11 +168,12 @@ public:
     }
 
     void disable() {
+        if (!enabled) { return; }
+        enabled = false;
         childStdin.store(-1);    // sink handler becomes a no-op immediately
         sink.stop();
-        sigpath::vfoManager.deleteVFO(vfo);
+        if (vfo) { sigpath::vfoManager.deleteVFO(vfo); vfo = nullptr; }
         stopDecoderAsync();
-        enabled = false;
     }
 
     bool isEnabled() { return enabled; }
@@ -246,10 +249,10 @@ private:
     void doStart() {
 #ifndef _WIN32
         if (running.load()) { return; }
-        status = "starting...";
+        setStatus("starting...");
 
         int inPipe[2], outPipe[2];
-        if (pipe(inPipe) != 0 || pipe(outPipe) != 0) { status = "pipe() failed"; return; }
+        if (pipe(inPipe) != 0 || pipe(outPipe) != 0) { setStatus("pipe() failed"); return; }
 
         double fkhz = channels.value(chanId);
         char freqStr[32];
@@ -259,7 +262,7 @@ private:
         std::string sysPath = sysBuf;
 
         pid_t pid = fork();
-        if (pid < 0) { status = "fork() failed"; close(inPipe[0]); close(inPipe[1]); close(outPipe[0]); close(outPipe[1]); return; }
+        if (pid < 0) { setStatus("fork() failed"); close(inPipe[0]); close(inPipe[1]); close(outPipe[0]); close(outPipe[1]); return; }
 
         if (pid == 0) {
             // ---- child ----
@@ -291,30 +294,34 @@ private:
         // ---- parent ----
         close(inPipe[0]);
         close(outPipe[1]);
-        childPid = pid;
+        childPid.store(pid);
         childStdout = outPipe[0];
         childStdin.store(inPipe[1]);
         running.store(true);
         curBlock.clear();
+        if (readerThread.joinable()) { readerThread.join(); }  // never reassign a joinable thread
         readerThread = std::thread(&HFDLDecoderModule::readerLoop, this);
-        status = "running";
+        setStatus("running");
 #else
-        status = "front-end mode is Linux-only";
+        setStatus("front-end mode is Linux-only");
 #endif
     }
 
     void doStop() {
 #ifndef _WIN32
-        if (!running.load() && childPid <= 0) { return; }
+        if (!running.load() && childPid.load() <= 0) { return; }
         running.store(false);
 
         int sin = childStdin.exchange(-1);
         if (sin >= 0) { close(sin); }      // EOF to dumphfdl
-        if (childPid > 0) { kill(childPid, SIGTERM); }
+        // Take ownership of the pid: whoever exchanges a positive value first
+        // (this thread or readerLoop) is the one that reaps it.
+        pid_t pid = childPid.exchange(-1);
+        if (pid > 0) { kill(pid, SIGTERM); }
         if (readerThread.joinable()) { readerThread.join(); }
         if (childStdout >= 0) { close(childStdout); childStdout = -1; }
-        if (childPid > 0) { int st; waitpid(childPid, &st, 0); childPid = -1; }
-        status = "stopped";
+        if (pid > 0) { int st; waitpid(pid, &st, 0); }
+        setStatus("stopped");
 #endif
     }
 
@@ -349,17 +356,17 @@ private:
         }
         if (!curBlock.empty()) { pushBlock(curBlock); curBlock.clear(); }
 
-        if (childPid > 0) {
+        // Reap only if we win ownership of the pid (doStop may have taken it).
+        pid_t pid = childPid.exchange(-1);
+        if (pid > 0) {
             int st = 0;
-            if (waitpid(childPid, &st, WNOHANG) == childPid) {
-                childPid = -1;
-                if (WIFEXITED(st) && WEXITSTATUS(st) == 127) {
-                    status = "dumphfdl not found (check the path / PATH)";
-                } else if (!running.load()) {
-                    status = "stopped";
-                } else {
-                    status = "dumphfdl exited unexpectedly";
-                }
+            waitpid(pid, &st, 0);
+            if (WIFEXITED(st) && WEXITSTATUS(st) == 127) {
+                setStatus("dumphfdl not found (check the path / PATH)");
+            } else if (!running.load()) {
+                setStatus("stopped");
+            } else {
+                setStatus("dumphfdl exited unexpectedly");
             }
         }
         running.store(false);
@@ -430,7 +437,8 @@ private:
             _this->saveConfig();
         }
 
-        ImGui::Text("Status: %s", _this->status.c_str());
+        std::string st = _this->getStatus();
+        ImGui::Text("Status: %s", st.c_str());
         if (_this->running.load()) {
             if (ImGui::Button(("Restart##hfdl_re_" + _this->name).c_str(), ImVec2(menuWidth, 0))) {
                 _this->restartDecoder();
@@ -561,10 +569,19 @@ private:
     // child process
     std::atomic<int> childStdin{-1};
     int childStdout = -1;
-    pid_t childPid = -1;
+    std::atomic<pid_t> childPid{-1};   // owned via exchange(): only one thread reaps
     std::thread readerThread;
     std::atomic<bool> running{false};
     std::string status = "idle";
+    std::mutex statusMtx;
+    void setStatus(const std::string& s) {
+        std::lock_guard<std::mutex> lck(statusMtx);
+        status = s;
+    }
+    std::string getStatus() {
+        std::lock_guard<std::mutex> lck(statusMtx);
+        return status;
+    }
     std::string curBlock;
 
     std::thread lifeThread;
