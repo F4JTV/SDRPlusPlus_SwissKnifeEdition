@@ -203,6 +203,7 @@ namespace wefax {
         void renderAll();
         void renderLineRange(int firstLine, int lastLine);
         void applyMedianFilter();
+        void applyMedianFilterRange(int firstLine, int lastLine);
 
         // Accumulate one instantaneous-frequency sample into the band-view
         // histogram (called for every incoming sample, in any state).

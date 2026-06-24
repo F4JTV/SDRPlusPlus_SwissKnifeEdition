@@ -623,10 +623,15 @@ namespace wefax {
         if (avail > WEFAX_MAX_LINES) avail = WEFAX_MAX_LINES;
         if (avail <= lastRenderedLine) return;
 
+        const int firstNew = lastRenderedLine;
         renderLineRange(lastRenderedLine, avail - 1);
         lastRenderedLine = avail;
         linesReceived = avail;
-        if (medianFilter) applyMedianFilter();
+        // Median-filter only the newly rendered lines (plus one line of overlap
+        // so the previous last line gets a real bottom neighbour). This keeps
+        // the imageMutex hold time tiny, so the UI thread's texture upload no
+        // longer stalls and the waterfall stays smooth.
+        if (medianFilter) applyMedianFilterRange(firstNew - 1, avail - 1);
         if (lineCallback) lineCallback(linesReceived);
     }
 
@@ -663,20 +668,29 @@ namespace wefax {
     }
 
     void WEFAXDecoder::applyMedianFilter() {
+        // Full-image median (used on a full re-render). Delegates to the range
+        // version so the logic lives in one place.
+        applyMedianFilterRange(0, (linesReceived > 0 ? linesReceived - 1 : 0));
+    }
+
+    void WEFAXDecoder::applyMedianFilterRange(int firstLine, int lastLine) {
         const int W = width;
         const int H = (linesReceived > 0) ? linesReceived : 0;
         if (H <= 0) return;
+        if (firstLine < 0) firstLine = 0;
+        if (lastLine > H - 1) lastLine = H - 1;
+        if (firstLine > lastLine) return;
         std::lock_guard<std::mutex> lck(imageMutex);
         if (imageBuffer.size() < (size_t)W * H * 3) return;
         if (displayBuffer.size() != imageBuffer.size())
             displayBuffer.assign(imageBuffer.size(), 0);
 
-        // Read from the CLEAN render (imageBuffer) and write the filtered result
-        // into displayBuffer. This is NOT done in place and NOT cumulative, so a
-        // full re-render (Save) and the incremental preview produce the SAME
-        // filtered output for the same lines.
+        // Filter only [firstLine, lastLine] from the CLEAN imageBuffer into
+        // displayBuffer. 3x3 median; neighbours clamped at the edges. Holding
+        // the lock only for the few new lines keeps the UI (and waterfall)
+        // responsive instead of stalling on a whole-image pass each batch.
         uint8_t window[9];
-        for (int y = 0; y < H; y++) {
+        for (int y = firstLine; y <= lastLine; y++) {
             for (int x = 0; x < W; x++) {
                 int k = 0;
                 for (int dy = -1; dy <= 1; dy++) {

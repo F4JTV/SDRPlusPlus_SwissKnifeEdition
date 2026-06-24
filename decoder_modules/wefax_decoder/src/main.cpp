@@ -50,7 +50,7 @@ SDRPP_MOD_INFO{
     /* Name:            */ "wefax_decoder",
     /* Description:     */ "WEFAX / HF Radiofax Decoder (auto-slant)",
     /* Author:          */ "WEFAX Decoder Contributors",
-    /* Version:         */ 0, 1, 9,
+    /* Version:         */ 0, 1, 11,
     /* Max instances    */ -1
 };
 
@@ -434,10 +434,12 @@ private:
         auto refreshRender = [_this]() {
             _this->decoder.renderSyncIfIdle();
             { std::lock_guard<std::mutex> lck(_this->textureMutex); _this->textureDirty = true; }
-            // If auto-save already wrote a file for this reception, keep it in
-            // sync with the manual tuning by overwriting the same file.
-            if (_this->autoSave && !_this->lastSavedFile.empty() &&
-                _this->decoder.getState() != wefax::WEFAXDecoder::State::RECEIVING) {
+            // Keep the saved file in sync with manual tuning: once an image has
+            // been saved for this reception (via Save image or auto-save), any
+            // later slant / shift / median change overwrites that same file, in
+            // any state (including while still receiving). So the file on disk
+            // always matches what is shown in the module.
+            if (!_this->lastSavedFile.empty()) {
                 _this->doSaveImage(true);
             }
         };
