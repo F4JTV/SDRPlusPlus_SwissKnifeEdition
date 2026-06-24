@@ -54,7 +54,7 @@ SDRPP_MOD_INFO{
     /* Name:            */ "dsd_decoder",
     /* Description:     */ "Digital voice / data decoder (DMR, P25, NXDN, dPMR, YSF, ProVoice, EDACS, X2-TDMA, M17) via DSD-FME",
     /* Author:          */ "SDR++ Community",
-    /* Version:         */ 0, 7, 8,
+    /* Version:         */ 0, 7, 9,
     /* Max instances    */ -1
 };
 
@@ -1042,10 +1042,14 @@ private:
         //
         //   <YYYY/MM/DD>\t<HH:MM:SS>\t<source_8digits>\t<lat>\t<lon>\t<spd>\t<dir>\t\n
         //
-        // The trailing space after some fields (`%d\t ` in dmr code) is
-        // tolerated by trim. lat/lon use '.' as decimal separator and may be
-        // negative. We accept any line that *parses* into >= 5 columns, the
-        // first column matching a date pattern and columns 4/5 numeric.
+        // lat/lon are decimal degrees written via fprintf("%.5lf"/"%.6lf"),
+        // which is locale-sensitive: dsd-fme calls setlocale(LC_ALL, "") in
+        // a few code paths (alias / NXDN element decode) so a user on a
+        // French / German / Italian system can end up with comma decimal
+        // separators in the LRRP file ("43,50833" instead of "43.50833").
+        // We normalize commas to periods so:
+        //   1) our numeric regex still validates the field, and
+        //   2) the resulting JSON is RFC-8259-valid (which only allows '.').
         LrrpEntry e;
         e.raw = stripAnsi(line);
 
@@ -1063,10 +1067,22 @@ private:
             while (!s.empty() && (s.front() == ' ' || s.front() == '\r')) { s.erase(s.begin()); }
             while (!s.empty() && (s.back()  == ' ' || s.back()  == '\r')) { s.pop_back(); }
         };
+        auto normalizeDecimal = [](std::string& s) {
+            // Comma -> period. dsd-fme never emits multiple decimal points
+            // per number, so a blanket replace is safe.
+            for (char& c : s) { if (c == ',') { c = '.'; } }
+        };
         for (auto& c : cols) { trim(c); }
 
         bool parsed = false;
         if (cols.size() >= 5) {
+            // Normalize the numeric columns BEFORE matching so the regex sees
+            // a canonical form.
+            if (cols.size() > 3) { normalizeDecimal(cols[3]); }
+            if (cols.size() > 4) { normalizeDecimal(cols[4]); }
+            if (cols.size() > 5) { normalizeDecimal(cols[5]); }
+            if (cols.size() > 6) { normalizeDecimal(cols[6]); }
+
             static const std::regex reDate(R"(^\d{4}[-/]\d{1,2}[-/]\d{1,2}$)");
             static const std::regex reTime(R"(^\d{1,2}:\d{2}:\d{2}$)");
             static const std::regex reNum (R"(^-?\d+(\.\d+)?$)");
@@ -1083,8 +1099,8 @@ private:
                 e.source = src;
                 e.lat    = cols[3];
                 e.lon    = cols[4];
-                // Columns 5 (speed km/h) and 6 (direction units of 2°) are
-                // optional and may carry a trailing-space "0\t " from
+                // Columns 5 (speed km/h) and 6 (direction units of 2 deg)
+                // are optional and may carry a trailing-space "0\t " from
                 // dsd-fme's printf. Trim already cleaned that.
                 if (cols.size() > 5 && std::regex_match(cols[5], reNum)) { e.speed = cols[5]; }
                 if (cols.size() > 6 && std::regex_match(cols[6], reNum)) { e.dir   = cols[6]; }
