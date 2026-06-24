@@ -208,16 +208,20 @@ private:
         }
 
         // ----- Status line -----
+        // ImGui's default font in SDR++ only ships the ASCII glyph range,
+        // so any character above U+007F renders as a placeholder square.
+        // We keep the indicators in plain ASCII ("[+]" / "[-]" / "->") and
+        // rely on text colour (green/grey/red) to carry the visual cue.
         ImGui::Spacing();
         if (serverRunning) {
             ImGui::TextColored(ImVec4(0.20f, 0.85f, 0.40f, 1.0f),
-                               "● Running (PID %lld)", (long long)childPid);
+                               "[+] Running (PID %lld)", (long long)childPid);
             ImGui::TextDisabled("http://%s:%d/",
                                 displayHost(webHost).c_str(), webPort);
-            ImGui::TextDisabled("Decoders → TCP %s:%d",
+            ImGui::TextDisabled("Decoders -> TCP %s:%d",
                                 displayHost(tcpHost).c_str(), tcpPort);
         } else {
-            ImGui::TextColored(ImVec4(0.75f, 0.75f, 0.75f, 1.0f), "○ Stopped");
+            ImGui::TextColored(ImVec4(0.75f, 0.75f, 0.75f, 1.0f), "[-] Stopped");
             if (!lastError.empty()) {
                 ImGui::TextColored(ImVec4(0.95f, 0.45f, 0.45f, 1.0f),
                                    "%s", lastError.c_str());
